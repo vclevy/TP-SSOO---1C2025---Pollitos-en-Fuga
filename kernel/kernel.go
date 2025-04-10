@@ -1,8 +1,8 @@
 package main
 
 func main() {
-
-
+// TODO: LEER ARCHIVO DE CONFIGURACION 
+// TODO: LEVANTAR SERVIDOR
 }
 
 type PCB struct {
