@@ -1,14 +1,14 @@
 package api
 
 import (
-	"net/http"
+	/*"net/http"
 
-	"github.com/sisoputnfrba/tp-golang/kernel/api/handlers"
+	 "github.com/sisoputnfrba/tp-golang/kernel/api/handlers"
 	"github.com/sisoputnfrba/tp-golang/kernel/global"
-	"github.com/sisoputnfrba/tp-golang/utils/server"
+	"github.com/sisoputnfrba/tp-golang/utils/server" */
 ) 
 
-func CrearServer() *server.Server {
+/* func CrearServer() *server.Server {
 
 	configServer := server.Config{
 		Port: global.KernelConfig.PortKernel,
@@ -18,4 +18,4 @@ func CrearServer() *server.Server {
 			// ese GET son palabras clave del protocolo http (ver en la docu de go)
 		},
 	}
-	return server.NuevoServer(configServer)}
+	return server.NuevoServer(configServer)} */

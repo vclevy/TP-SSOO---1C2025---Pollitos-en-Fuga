@@ -1,15 +1,15 @@
 package global
 
-import (
+/* import (
 	"fmt"
 	"os"
 
 	config "github.com/sisoputnfrba/tp-golang/utils/config"
 	// estructuras "github.com/sisoputnfrba/tp-golang/utils/estructuras"
-	log "github.com/sisoputnfrba/tp-golang/utils/logger"
+	log "github.com/sisoputnfrba/tp-golang/utils/logger" 
 )
 
-const KernelLog = "./kernel.log"
+/* const KernelLog = "./kernel.log"
 type Config struct {
     IPMemory           string `json:"ip_memory"`
     PortMemory         int    `json:"port_memory"`
@@ -35,4 +35,4 @@ func IniciarKernel(){
 
 	Logger = log.ConfigurarLogger(KernelLog, env)
 	KernelConfig = config.CargarConfig[Config](archivoConfiguracion)
-}
+} */

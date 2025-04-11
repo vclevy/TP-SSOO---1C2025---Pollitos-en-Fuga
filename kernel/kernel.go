@@ -1,4 +1,4 @@
-package main
+/* package main
 
 func main() {
 // TODO: LEER ARCHIVO DE CONFIGURACION 
@@ -25,4 +25,28 @@ func NuevoPCB(pid int) *PCB { //*PCB indica lo que te retorna
 func (pcb *PCB) PasarPorEstado(estado string, duracionMs int) {
 	pcb.ME[estado]++
 	pcb.MT[estado] += duracionMs
+}
+ */
+
+ // kernel/main.go
+package main
+
+import (
+	"bytes"
+	"fmt"
+	"net/http"
+)
+
+func main() {
+	// El mensaje que queremos enviar
+	mensaje := []byte("Hola desde kernel")
+
+	// Hacemos un POST al endpoint de memoria
+	resp, err := http.Post("http://localhost:8001/escribir", "text/plain", bytes.NewBuffer(mensaje))
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
+
+	fmt.Println("Kernel recibió respuesta de Memoria")
 }
