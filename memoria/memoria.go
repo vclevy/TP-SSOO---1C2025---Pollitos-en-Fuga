@@ -1,26 +1,24 @@
 package main
 
 import (
-    "fmt"
-    "net/http"
-	"io"
+	"github.com/sisoputnfrba/tp-golang/memoria/api"
+	"github.com/sisoputnfrba/tp-golang/memoria/global"
+	logger "github.com/sisoputnfrba/tp-golang/utils/logger"
 )
 
 func main() {
-    http.HandleFunc("/escribir", func(w http.ResponseWriter, r *http.Request) {
-        fmt.Println("Petición recibida en memoria")
-        w.Write([]byte("Memoria escribió"))
+	// 1. Cargar config
+	global.CargarConfig("config/config.json")
 
-		body, err := io.ReadAll(r.Body)
-		if err != nil {
-			http.Error(w, "Error leyendo el cuerpo", http.StatusBadRequest)
-			return
-		}
-		defer r.Body.Close()
+	// 2. Inicializar logger
+	global.Logger = logger.ConfigurarLogger(global.MemoriaConfig.Log_file, global.MemoriaConfig.Log_level)
+	defer global.Logger.CloseLogger()
+	global.Logger.Log("Logger de memoria inicializado", logger.DEBUG)
 
-		fmt.Printf("Mensaje recibido de kernel: %s\n", string(body))
-    })
-
-    fmt.Println("Servidor de memoria corriendo en :8001")
-    http.ListenAndServe(":8001", nil)
+	// 3. Crear y levantar server
+	s := api.CrearServer()
+	err := s.Iniciar()
+	if err != nil {
+		global.Logger.Log("Error al iniciar el servidor: "+err.Error(), logger.ERROR)
+	}
 }

@@ -5,4 +5,5 @@
     "scheduler_algorithm": "FIFO",
     "suspension_time": 4500,
     "log_level": "DEBUG"
+    
 }
