@@ -3,12 +3,13 @@ package main
 import (
 	"github.com/sisoputnfrba/tp-golang/memoria/api"
 	"github.com/sisoputnfrba/tp-golang/memoria/global"
+	utils "github.com/sisoputnfrba/tp-golang/utils/config"
 	logger "github.com/sisoputnfrba/tp-golang/utils/logger"
 )
 
 func main() {
 	// 1. Cargar config
-	global.CargarConfig("config/config.json")
+	global.MemoriaConfig = utils.CargarConfig[global.Config]("config/config.json")
 
 	// 2. Inicializar logger
 	global.Logger = logger.ConfigurarLogger(global.MemoriaConfig.Log_file, global.MemoriaConfig.Log_level)

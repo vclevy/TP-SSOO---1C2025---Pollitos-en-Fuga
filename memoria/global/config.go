@@ -2,10 +2,8 @@ package global
 
 import(
 	logger "github.com/sisoputnfrba/tp-golang/utils/logger"
-	"encoding/json"
-	"os"
 )
-var MemoriaConfig Config
+var MemoriaConfig *Config
 
 type Config struct {
 	Port_Memory      int      `json:"port_memory"`
@@ -22,17 +20,3 @@ type Config struct {
 }
 
 var Logger *logger.LoggerStruct
-
-func CargarConfig(path string) {
-	file, err := os.Open(path)
-	if err != nil {
-		panic("No se pudo abrir el archivo de configuración: " + err.Error())
-	}
-	defer file.Close()
-
-	decoder := json.NewDecoder(file)
-	err = decoder.Decode(&MemoriaConfig)
-	if err != nil {
-		panic("Error al parsear el archivo de configuración: " + err.Error())
-	}
-}

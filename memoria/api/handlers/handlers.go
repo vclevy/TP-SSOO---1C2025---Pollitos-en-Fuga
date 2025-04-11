@@ -9,8 +9,6 @@ import (
 )
 
 func EscribirMemoria(w http.ResponseWriter, r *http.Request) {
-	global.Logger.Log("Petición recibida en /escribir", logger.DEBUG)
-
 	if r.Method != http.MethodPost {
 		http.Error(w, "Solo se acepta POST", http.StatusMethodNotAllowed)
 		global.Logger.Log("Método no permitido en /escribir", logger.ERROR)
@@ -26,6 +24,6 @@ func EscribirMemoria(w http.ResponseWriter, r *http.Request) {
 	}
 
 	msg := string(body)
-	global.Logger.Log("Mensaje recibido: "+msg, logger.DEBUG)
-	w.Write([]byte("Memoria recibió el mensaje"))
+	global.Logger.Log("Mensaje recibido: "+msg, logger.DEBUG) //memoria
+	w.Write([]byte("Memoria recibió el mensaje")) //kernel
 }

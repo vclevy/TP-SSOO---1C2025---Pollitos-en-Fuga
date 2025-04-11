@@ -7,7 +7,6 @@ import (
 	"net/http"
 )
 
-
 func CrearServer() *server.Server {
 	configServer := server.Config{
 		Port: global.MemoriaConfig.Port_Memory,

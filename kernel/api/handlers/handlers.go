@@ -1,13 +1,29 @@
 package handlers
 
 import (
-	"fmt"
+	"io"
 	"net/http"
-	//logger "github.com/sisoputnfrba/tp-golang/utils/logger"
+
+	"github.com/sisoputnfrba/tp-golang/memoria/global"
+	logger "github.com/sisoputnfrba/tp-golang/utils/logger"
 )
 
-func SaludoKernel(w http.ResponseWriter, r *http.Request) { // w http.ResponseWriter, r *http.Request
-	// loggerSaludo := logger.ConfigurarLogger("app.log", "dev")
-	// loggerSaludo.Log("Hola", logger.DEBUG)
-	fmt.Println("KERNEL RECIBIO UNA SOLICITUD DE /HOLA")
+func EscribirKernel(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Solo se acepta POST", http.StatusMethodNotAllowed)
+		global.Logger.Log("Método no permitido en /escribir", logger.ERROR)
+		return
+	}
+
+	body, err := io.ReadAll(r.Body)
+	defer r.Body.Close()
+	if err != nil {
+		http.Error(w, "Error leyendo el cuerpo", http.StatusBadRequest)
+		global.Logger.Log("Error leyendo cuerpo: "+err.Error(), logger.ERROR)
+		return
+	}
+
+	msg := string(body)
+	global.Logger.Log("Mensaje recibido: "+msg, logger.DEBUG) //memoria
+	w.Write([]byte("Kernel recibió el mensaje")) //kernel
 }
