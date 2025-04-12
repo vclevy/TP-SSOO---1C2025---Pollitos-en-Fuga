@@ -9,7 +9,7 @@ import (
 
 func CrearServer() *server.Server {
 	configServer := server.Config{
-		Port: global.KernelConfig.PortKernel,
+		Port: global.KernelConfig.Port_Kernel,
 		Handlers: map[string]http.HandlerFunc{
 			"POST /escribir": handlers.EscribirKernel,
 			// http://{ip_kernel}:{port_kernel}/hola

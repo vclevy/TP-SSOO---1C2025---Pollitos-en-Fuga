@@ -3,8 +3,7 @@ package handlers
 import (
 	"io"
 	"net/http"
-
-	"github.com/sisoputnfrba/tp-golang/memoria/global"
+	"github.com/sisoputnfrba/tp-golang/kernel/global"
 	logger "github.com/sisoputnfrba/tp-golang/utils/logger"
 )
 

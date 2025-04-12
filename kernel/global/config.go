@@ -10,8 +10,8 @@ var Logger *logger.LoggerStruct
 
 type Config struct {
     IPMemory           string 	`json:"ip_memory"`
-    PortMemory         int    	`json:"port_memory"`
-    PortKernel         int    	`json:"port_kernel"`
+    Port_Memory         int    	`json:"port_memory"`
+    Port_Kernel         int    	`json:"port_kernel"`
     SchedulerAlgorithm string 	`json:"scheduler_algorithm"`
     SuspensionTime     int    	`json:"suspension_time"`
     LogLevel           string 	`json:"log_level"`

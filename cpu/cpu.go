@@ -23,9 +23,9 @@ func main() {
 	//le habla a Kernel
 	urlKernel := "http://localhost:8001/escribir" 
 	bodyParaKernel := []byte("hola desde CPU")
-	respKernel, err := http.Post(urlKernel, "text/plain", bytes.NewBuffer(bodyParaKernel))
-	if err != nil {
-		fmt.Println("Error al mandar mensaje a kernel:", err)
+	respKernel, errKernel := http.Post(urlKernel, "text/plain", bytes.NewBuffer(bodyParaKernel))
+	if errKernel != nil {
+		fmt.Println("Error al mandar mensaje a kernel:", errKernel)
 		return
 	}
 	defer respKernel.Body.Close()

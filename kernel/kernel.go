@@ -32,10 +32,9 @@ func main() {
 
 	// 3. Crear y levantar server
 	s := api.CrearServer()
+	fmt.Printf("🟢 Kernel prendido en http://localhost:%d\n", global.KernelConfig.Port_Kernel)
 	err_server := s.Iniciar()
 	if err_server != nil {
 		global.Logger.Log("Error al iniciar el servidor: "+err_server.Error(), logger.ERROR)
 	}
-/* 	fmt.Printf("🟢 Servidor kernel escuchando en http://localhost:%d\n", global.KernelConfig.PortKernel)
-	global.Logger.Log("Logger de memoria inicializado", logger.DEBUG) */ 
 }
