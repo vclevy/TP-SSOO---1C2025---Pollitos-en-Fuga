@@ -4,10 +4,16 @@ import (
 	"bytes"
 	"fmt"
 	"net/http"
+	"strconv"
+	utils "github.com/sisoputnfrba/tp-golang/utils/config" 
+	"github.com/sisoputnfrba/tp-golang/io/global"
 )
 
 func main() {
-	url := "http://localhost:8001/escribir" 
+
+	global.IoConfig = utils.CargarConfig[global.Config]("config/config.json")
+	puertoKernel := strconv.Itoa(global.IoConfig.Port_Kernel)
+	url := "http://localhost:"+ puertoKernel +"/escribir" 
 	body := []byte("hola desde IO")
 	resp, err := http.Post(url, "text/plain", bytes.NewBuffer(body))
 	if err != nil {

@@ -40,6 +40,4 @@ func main() {
 		global.Logger.Log("Error al iniciar el servidor: "+err_server.Error(), logger.ERROR)
 	}
 	
-
-
 }

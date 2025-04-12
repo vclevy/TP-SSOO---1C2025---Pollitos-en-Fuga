@@ -1,6 +1,12 @@
 package global
 
+import(
+	logger "github.com/sisoputnfrba/tp-golang/utils/logger"
+)
+
 var CpuConfig *Config
+var LoggerCpu *logger.LoggerStruct
+
 
 type Config struct {
     IPMemory           	int 	`json:"ip_memory"`
