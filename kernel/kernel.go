@@ -16,7 +16,7 @@ func main() {
 	// 1. Cargar config
 	global.KernelConfig =  utils.CargarConfig[global.Config]("config/config.json")
 	
-	puertoMemoria := strconv.Itoa(global.KernelConfig.Port_Memory) //(string convert)
+	puertoMemoria := strconv.Itoa(global.KernelConfig.Port_Memory) 
 	url := "http://localhost:"+ puertoMemoria+"/escribir" 
 	body := []byte("hola desde kernel")
 	resp, err := http.Post(url, "text/plain", bytes.NewBuffer(body))
