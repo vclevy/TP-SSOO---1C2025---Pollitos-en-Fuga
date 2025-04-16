@@ -10,6 +10,7 @@ var LoggerCpu *logger.LoggerStruct
 
 type Config struct {
     IPMemory           	int 	`json:"ip_memory"`
+	IPCpu           	int 	`json:"ip_cpu"`
     Port_Memory         int    	`json:"port_memory"`
 	IPKernel 			string	`json:"ip_kernel"`
     Port_Kernel         int    	`json:"port_kernel"`

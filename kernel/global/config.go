@@ -16,6 +16,8 @@ type Config struct {
     Port_Kernel         int    	`json:"port_kernel"`
     SchedulerAlgorithm string 	`json:"scheduler_algorithm"`
     SuspensionTime     int    	`json:"suspension_time"`
+	ReadyIngressALgorithm string		`json:"ready_ingress_algorithm"`
+	Alpha 				string		`json:"alpha"`
     LogLevel           string 	`json:"log_level"`
 	Log_file           string 	`json:"log_file"`
 }

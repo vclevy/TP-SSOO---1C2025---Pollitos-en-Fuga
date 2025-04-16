@@ -4,6 +4,8 @@
     "port_kernel": 8001,
     "scheduler_algorithm": "FIFO",
     "suspension_time": 4500,
+    "ready_ingress_algorithm": "PMCP",
+    "alpha": "PMCP",
     "log_level": "DEBUG",
     "log_file": "kernel.log"
 }

@@ -7,6 +7,7 @@ var MemoriaConfig *Config
 
 type Config struct {
 	Port_Memory      int      `json:"port_memory"`
+	IPMemory		string 		`json:"ip_memory"`
 	Memory_size      int      `json:"memory_size"`
 	Page_Size		 int  	  `json:"page_size"`
 	Entries_per_page int      `json:"entries_per_page"`
