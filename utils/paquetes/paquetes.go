@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	"net/http"
+	"strings"
 )
 
 type Paquete struct {
@@ -22,20 +23,32 @@ func LeerConsola() Paquete {
 
 	for {
 		text, _ := reader.ReadString('\n')
+		text = strings.TrimSpace(text)
 
-		if text == "\n" { // Enter vacío
+		if text == "" { // Enter vacío
 			break
 		}
 
-		text = text[:len(text)-1] // Remueve el salto de línea
 		log.Println("Mensaje ingresado:", text)
 		paquete.Mensajes = append(paquete.Mensajes, text)
 	}
 
-	paquete.Codigo = 1 // Puedes cambiar el código según lo que necesites
+	// Solicitar el código al usuario
+	log.Print("Ingrese el código del paquete: ")
+	var codigo int
+	for {
+		_, err := fmt.Scanf("%d\n", &codigo)
+		if err == nil {
+			break
+		}
+		log.Print("Código inválido. Intente nuevamente: ")
+		// Limpiar buffer en caso de error
+		reader.ReadString('\n')
+	}
+
+	paquete.Codigo = codigo
 	return paquete
 }
-
 
 func GenerarYEnviarPaquete(paquete Paquete, ip string, puerto int) {
 	if len(paquete.Mensajes) == 0 {
@@ -53,11 +66,11 @@ func EnviarPaquete(ip string, puerto int, paquete Paquete) {
 		log.Printf("error codificando mensajes: %s", err.Error())
 	}
 
-	url := fmt.Sprintf("http://%s:%d/paquetes", ip, puerto)
+	url := fmt.Sprintf("http://%s:%d/responder", ip, puerto)
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(body))
 	if err != nil {
 		log.Printf("error enviando mensajes a ip:%s puerto:%d", ip, puerto)
 	}
 
-	log.Printf("respuesta del servidor: %s", resp.Status)
+	log.Printf("Respuesta de CPU: %s", resp.Status)
 }

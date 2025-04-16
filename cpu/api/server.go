@@ -4,6 +4,7 @@ import (
 	"github.com/sisoputnfrba/tp-golang/utils/server"
 	"github.com/sisoputnfrba/tp-golang/cpu/global"
 	"net/http"
+	"fmt"
 )
 
 func CrearServer() *server.Server {
@@ -15,5 +16,6 @@ func CrearServer() *server.Server {
 			// ese GET son palabras clave del protocolo http (ver en la docu de go)
 		},
 	}
+	fmt.Printf("🟢 Kernel prendido en http://localhost:%d\n", global.CpuConfig.Port_Kernel)
 	return server.NuevoServer(configServer)
 }

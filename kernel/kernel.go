@@ -25,7 +25,7 @@ func main() {
 		}
 	}()
 
-	// 3. Comunicarme con Memoria (u otros servicios)
+	// 3. Comunicarme con Memoria
 	puertoMemoria := strconv.Itoa(global.KernelConfig.Port_Memory)
 	url := "http://localhost:" + puertoMemoria + "/escribir"
 	body := []byte("hola desde kernel")
@@ -39,10 +39,13 @@ func main() {
 
 	fmt.Println("Respuesta de memoria:", resp.Status)
 
+	paqueteCPU := pack.LeerConsola()
+	pack.GenerarYEnviarPaquete(paqueteCPU, "127.0.0.1", 8004 )
+	
+	/////////////////////////////////////////////////////////////////////7// Ip y Puerto de Cpu hardcodeado para probar
 
-	paquete := pack.LeerConsola()
-	pack.GenerarYEnviarPaquete(paquete, "127.0.0.1", 8004 ) // Ip y Puerto de Cpu hardcodeado para probar
-
+	paqueteIo := pack.LeerConsola()
+	pack.GenerarYEnviarPaquete(paqueteIo, "127.0.0.1", 8004 )
 	// Bloqueo principal si es necesario (por ejemplo, esperar señales o input)
 	select {}
 }

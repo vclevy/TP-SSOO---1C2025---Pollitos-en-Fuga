@@ -7,6 +7,7 @@ import (
 	"strings"
 	"github.com/sisoputnfrba/tp-golang/cpu/global"
 	logger "github.com/sisoputnfrba/tp-golang/utils/logger"
+	"strconv"
 )
 
 type Paquete struct {
@@ -37,7 +38,7 @@ func RecibirPaqueteDeKernel(w http.ResponseWriter, r *http.Request) {
 		global.LoggerCpu.Log("Error al parsear el paquete JSON: "+err.Error(), logger.DEBUG)
 		return
 	}
-	global.LoggerCpu.Log("CPU recibió paquete de Kernel: "+strings.Join(paquete.Mensajes, ", "), logger.DEBUG)
+	global.LoggerCpu.Log("CPU recibió paquete de Kernel: Mensajes: "+strings.Join(paquete.Mensajes, ", ")+" Codigo: "+strconv.Itoa(paquete.Codigo), logger.DEBUG)
 
 	w.Write([]byte("CPU recibió el paquete correctamente"))
 }

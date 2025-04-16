@@ -4,16 +4,26 @@ import (
 	"bytes"
 	"fmt"
 	"net/http"
-	"github.com/sisoputnfrba/tp-golang/cpu/global"
 	"strconv"
-	utils "github.com/sisoputnfrba/tp-golang/utils/config"
+	"github.com/sisoputnfrba/tp-golang/cpu/api"
+	"github.com/sisoputnfrba/tp-golang/cpu/global"
+	logger "github.com/sisoputnfrba/tp-golang/utils/logger"
 )
 
 
 func main() {
-
-	global.CpuConfig = utils.CargarConfig[global.Config]("config/config.json")
+	// configurar logger e inicializar config
+	global.InitGlobal()
 	
+	s := api.CrearServer()
+	go func() {
+		err_server := s.Iniciar()
+		if err_server != nil {
+			global.LoggerCpu.Log("Error al iniciar el servidor: "+err_server.Error(), logger.ERROR)
+		}
+		}()
+		
+		
 	puertoMemoria := strconv.Itoa(global.CpuConfig.Port_Memory) //(string convert)
 	//le habla a Memoria
 	url := "http://localhost:"+ puertoMemoria + "/escribir" 
@@ -41,5 +51,6 @@ func main() {
 
 	fmt.Println("Respuesta de kernel:", respKernel.Status)
 
+	select {}
 
 }

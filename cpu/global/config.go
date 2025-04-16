@@ -1,6 +1,7 @@
 package global
 
-import(
+import (
+	utils "github.com/sisoputnfrba/tp-golang/utils/config"
 	logger "github.com/sisoputnfrba/tp-golang/utils/logger"
 )
 
@@ -24,6 +25,14 @@ type Config struct {
 	LogFile				string  `json:"log_file"`	
 }	
 
+func InitGlobal() {
+	// 1. Cargar configuración desde archivo
+	CpuConfig = utils.CargarConfig[Config]("config/config.json")
+
+	// 2. Inicializar logger con lo que vino en la config
+	LoggerCpu = logger.ConfigurarLogger(CpuConfig.LogFile, CpuConfig.LogLevel)
+    LoggerCpu.Log("Logger de CPU inicializado", logger.DEBUG)
+}
 
 
 
