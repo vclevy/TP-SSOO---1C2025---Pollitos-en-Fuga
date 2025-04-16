@@ -8,6 +8,7 @@ import (
 	"github.com/sisoputnfrba/tp-golang/kernel/global"
 	logger "github.com/sisoputnfrba/tp-golang/utils/logger"
 	"strconv"
+	pack "github.com/sisoputnfrba/tp-golang/utils/paquetes"
 )
 
 func main() {
@@ -37,6 +38,10 @@ func main() {
 	defer resp.Body.Close()
 
 	fmt.Println("Respuesta de memoria:", resp.Status)
+
+
+	paquete := pack.LeerConsola()
+	pack.GenerarYEnviarPaquete(paquete, "127.0.0.1", 8004 ) // Ip y Puerto de Cpu hardcodeado para probar
 
 	// Bloqueo principal si es necesario (por ejemplo, esperar señales o input)
 	select {}

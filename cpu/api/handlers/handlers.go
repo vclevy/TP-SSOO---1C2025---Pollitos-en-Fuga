@@ -3,13 +3,15 @@ package handlers
 import (
 	"io"
 	"net/http"
+	"encoding/json"
+	"strings"
 	"github.com/sisoputnfrba/tp-golang/cpu/global"
 	logger "github.com/sisoputnfrba/tp-golang/utils/logger"
 )
 
 type Paquete struct {
-	Mensaje string `json:"mensaje"`
-	Codigo  int    `json:"codigo"`
+	Mensajes []string `json:"mensaje"`
+	Codigo  	int  `json:"codigo"`
 }
 
 
@@ -35,8 +37,7 @@ func RecibirPaqueteDeKernel(w http.ResponseWriter, r *http.Request) {
 		global.LoggerCpu.Log("Error al parsear el paquete JSON: "+err.Error(), logger.DEBUG)
 		return
 	}
-
-	global.LoggerCpu.Log("CPU recibió paquete de Kernel: "+paquete.Mensaje, logger.DEBUG)
+	global.LoggerCpu.Log("CPU recibió paquete de Kernel: "+strings.Join(paquete.Mensajes, ", "), logger.DEBUG)
 
 	w.Write([]byte("CPU recibió el paquete correctamente"))
 }

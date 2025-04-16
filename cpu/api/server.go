@@ -10,7 +10,7 @@ func CrearServer() *server.Server {
 	configServer := server.Config{
 		Port: global.CpuConfig.PortCPU,
 		Handlers: map[string]http.HandlerFunc{
-			"POST /responder": handlers.SaludoAKernel,
+			"POST /responder": handlers.RecibirPaqueteDeKernel,
 			// http://{ip_kernel}:{port_kernel}/hola
 			// ese GET son palabras clave del protocolo http (ver en la docu de go)
 		},
