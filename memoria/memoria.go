@@ -22,6 +22,6 @@ func main() {
 
 	for {
 		paqueteNuevo := paquetes.LeerConsola()	
-		paquetes.GenerarYEnviarPaquete(paqueteNuevo, "127.0.0.1", paqueteNuevo.PuertoDestino)
+		paquetes.GenerarYEnviarPaquete(paqueteNuevo, "127.0.0.1")
 	}
 }

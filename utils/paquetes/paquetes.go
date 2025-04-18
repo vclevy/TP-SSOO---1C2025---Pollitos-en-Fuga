@@ -65,7 +65,7 @@ func LeerConsola() Paquete {
 	return paquete
 }
 
-func GenerarYEnviarPaquete(paquete Paquete, ip string, puerto int) {
+func GenerarYEnviarPaquete(paquete Paquete, ip string) { //no se usaba el parametro de puerto porque directamente lo recibe del struct de paquete
 	if len(paquete.Mensajes) == 0 {
 		log.Println("No se ingresaron mensajes para enviar.")
 		return
