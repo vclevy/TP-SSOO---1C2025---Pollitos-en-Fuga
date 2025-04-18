@@ -9,7 +9,7 @@ import (
 
 func CrearServer() *server.Server {
 	configServer := server.Config{
-		Port: global.MemoriaConfig.Port_Memory,
+		Port: global.ConfigMemoria.Port_Memory,
 		Handlers: map[string]http.HandlerFunc{
 			"POST /escribir": handlers.EscribirMemoria,
 		},

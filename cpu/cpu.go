@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"github.com/sisoputnfrba/tp-golang/cpu/api"
 	"github.com/sisoputnfrba/tp-golang/cpu/global"
-	logger "github.com/sisoputnfrba/tp-golang/utils/logger"
+	"github.com/sisoputnfrba/tp-golang/utils/logger"
 )
 
 
@@ -19,7 +19,7 @@ func main() {
 	go func() {
 		err_server := s.Iniciar()
 		if err_server != nil {
-			global.LoggerCpu.Log("Error al iniciar el servidor: "+err_server.Error(), logger.ERROR)
+			global.LoggerCpu.Log("Error al iniciar el servidor: "+err_server.Error(), log.ERROR)
 		}
 		}()
 		

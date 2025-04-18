@@ -4,13 +4,13 @@ import (
 	"io"
 	"net/http"
 	"github.com/sisoputnfrba/tp-golang/kernel/global"
-	logger "github.com/sisoputnfrba/tp-golang/utils/logger"
+	"github.com/sisoputnfrba/tp-golang/utils/logger"
 )
 
 func EscribirKernel(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Solo se acepta POST", http.StatusMethodNotAllowed)
-		global.Logger.Log("Método no permitido en /escribir", logger.ERROR)
+		global.LoggerKernel.Log("Método no permitido en /escribir", log.ERROR)
 		return
 	}
 
@@ -18,11 +18,11 @@ func EscribirKernel(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	if err != nil {
 		http.Error(w, "Error leyendo el cuerpo", http.StatusBadRequest)
-		global.Logger.Log("Error leyendo cuerpo: "+err.Error(), logger.ERROR)
+		global.LoggerKernel.Log("Error leyendo cuerpo: "+err.Error(), log.ERROR)
 		return
 	}
 
 	msg := string(body)
-	global.Logger.Log("Mensaje recibido: "+msg, logger.DEBUG) //memoria
+	global.LoggerKernel.Log("Mensaje recibido: "+msg, log.DEBUG) //memoria
 	w.Write([]byte("Kernel recibió el mensaje")) //kernel
 }

@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"fmt"
 	"net/http"
-	utils "github.com/sisoputnfrba/tp-golang/utils/config" 
+	"github.com/sisoputnfrba/tp-golang/utils/config" 
 	"github.com/sisoputnfrba/tp-golang/io/global"
-	logger "github.com/sisoputnfrba/tp-golang/utils/logger"
+	"github.com/sisoputnfrba/tp-golang/utils/logger"
 	"strconv"
 	"bufio"
 	"os"
@@ -14,11 +14,11 @@ import (
 )
 
 func main() {
-	global.IoConfig = utils.CargarConfig[global.Config]("config/config.json")
+	global.IoConfig = config.CargarConfig[global.Config]("config/config.json")
 	// 2. Inicializar logger
-	global.Logger = logger.ConfigurarLogger(global.IoConfig.Log_File, global.IoConfig.LogLevel)
+	global.Logger = log.ConfigurarLogger(global.IoConfig.Log_File, global.IoConfig.LogLevel)
 	defer global.Logger.CloseLogger()
-	global.Logger.Log("Logger de io inicializado", logger.DEBUG)
+	global.Logger.Log("Logger de io inicializado", log.DEBUG)
 
 	//paso 1: leer como parametro el nombre de la interaz io desde consola
 	reader := bufio.NewReader(os.Stdin)

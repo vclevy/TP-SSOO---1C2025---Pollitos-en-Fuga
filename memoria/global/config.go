@@ -3,7 +3,7 @@ package global
 import(
 	logger "github.com/sisoputnfrba/tp-golang/utils/logger"
 )
-var MemoriaConfig *Config
+var ConfigMemoria *Config
 
 type Config struct {
 	Port_Memory      int      `json:"port_memory"`
