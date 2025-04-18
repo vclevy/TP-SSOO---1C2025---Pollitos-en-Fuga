@@ -3,25 +3,25 @@ package main
 import (
 	"github.com/sisoputnfrba/tp-golang/memoria/api"
 	"github.com/sisoputnfrba/tp-golang/memoria/global"
-	"fmt"
-	"github.com/sisoputnfrba/tp-golang/utils/config"
 	"github.com/sisoputnfrba/tp-golang/utils/logger"
+	"github.com/sisoputnfrba/tp-golang/utils/paquetes"
 )
 
 func main() {
-	// 1. Cargar config
-	global.ConfigMemoria = config.CargarConfig[global.Config]("config/config.json")
+	// configurar logger e inicializar config
+	global.InitGlobal()
+	defer global.LoggerMemoria.CloseLogger()
 
-	// 2. Inicializar logger
-	global.Logger = log.ConfigurarLogger(global.ConfigMemoria.Log_file, global.ConfigMemoria.Log_level)
-	defer global.Logger.CloseLogger()
-	global.Logger.Log("Logger de memoria inicializado", log.DEBUG)
-
-	// 3. Crear y levantar server
 	s := api.CrearServer()
-	fmt.Printf("🟢 Memoria prendida en http://localhost:%d\n", global.ConfigMemoria.Port_Memory)
-	err := s.Iniciar()
-	if err != nil {
-		global.Logger.Log("Error al iniciar el servidor: "+err.Error(), log.ERROR)
+	go func() {
+		err_server := s.Iniciar()
+		if err_server != nil {
+			global.LoggerMemoria.Log("Error al iniciar el servidor: "+err_server.Error(), log.ERROR)
+		}
+		}()
+
+	for {
+		paqueteNuevo := paquetes.LeerConsola()	
+		paquetes.GenerarYEnviarPaquete(paqueteNuevo, "127.0.0.1", paqueteNuevo.PuertoDestino)
 	}
 }

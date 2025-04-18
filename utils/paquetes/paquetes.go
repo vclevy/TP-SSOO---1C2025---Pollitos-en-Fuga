@@ -14,6 +14,7 @@ import (
 type Paquete struct {
 	Mensajes []string `json:"mensaje"`
 	Codigo  	int    `json:"codigo"`
+	PuertoDestino    int     `json:"puertoDestino"`
 }
 
 func LeerConsola() Paquete {
@@ -45,8 +46,22 @@ func LeerConsola() Paquete {
 		// Limpiar buffer en caso de error
 		reader.ReadString('\n')
 	}
-
 	paquete.Codigo = codigo
+
+	// Solicitar el puertoDestino al usuario
+	log.Print("Ingrese el puerto destino del paquete:  puerto CPU -> 8004, puerto Memoria -> 8002, puerto Kernel -> 8001,")
+	var puerto int
+	for {
+		_, err := fmt.Scanf("%d\n", &puerto)
+		if err == nil {
+			break
+		}
+		log.Print("Puerto inválido. Intente nuevamente: ")
+		// Limpiar buffer en caso de error
+		reader.ReadString('\n')
+	}
+	paquete.PuertoDestino = puerto
+
 	return paquete
 }
 
@@ -57,7 +72,7 @@ func GenerarYEnviarPaquete(paquete Paquete, ip string, puerto int) {
 	}
 
 	log.Printf("Paquete a enviar: %+v", paquete)
-	EnviarPaquete(ip, puerto, paquete)
+	EnviarPaquete(ip, paquete.PuertoDestino, paquete)
 }
 
 func EnviarPaquete(ip string, puerto int, paquete Paquete) {
@@ -69,8 +84,8 @@ func EnviarPaquete(ip string, puerto int, paquete Paquete) {
 	url := fmt.Sprintf("http://%s:%d/responder", ip, puerto)
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(body))
 	if err != nil {
-		log.Printf("error enviando mensajes a ip:%s puerto:%d", ip, puerto)
+		log.Printf("error enviando mensajes a ip:%s puerto:%d", ip, paquete.PuertoDestino)
 	}
 
-	log.Printf("Respuesta de CPU: %s", resp.Status)
+	log.Printf("Respuesta: %s", resp.Status)
 }

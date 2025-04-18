@@ -1,12 +1,12 @@
 package global
 
 import(
-    log "github.com/sisoputnfrba/tp-golang/utils/logger"
+    logger "github.com/sisoputnfrba/tp-golang/utils/logger"
     utils "github.com/sisoputnfrba/tp-golang/utils/config"
 )
 
 var ConfigKernel *Config
-var LoggerKernel *log.LoggerStruct
+var LoggerKernel *logger.LoggerStruct
 
 type Config struct {
     IPMemory          		string 		`json:"ip_memory"`
@@ -26,7 +26,6 @@ func InitGlobal() {
 	ConfigKernel = utils.CargarConfig[Config]("config/config.json")
 
 	// 2. Inicializar logger con lo que vino en la config
-	LoggerKernel = log.ConfigurarLogger(ConfigKernel.Log_file, ConfigKernel.LogLevel)
-    LoggerKernel.Log("Logger de Kernel inicializado", log.DEBUG)
+	LoggerKernel = logger.ConfigurarLogger(ConfigKernel.Log_file, ConfigKernel.LogLevel)
+    LoggerKernel.Log("Logger de Kernel inicializado", logger.DEBUG)
 }
-

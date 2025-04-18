@@ -5,24 +5,39 @@ import (
 	"net/http"
 	"github.com/sisoputnfrba/tp-golang/kernel/global"
 	"github.com/sisoputnfrba/tp-golang/utils/logger"
+	"encoding/json"
+	"strings"
+	"strconv"
 )
 
-func EscribirKernel(w http.ResponseWriter, r *http.Request) {
+type Paquete struct {
+	Mensajes []string `json:"mensaje"`
+	Codigo  	int  `json:"codigo"`
+}
+
+func RecibirPaquete(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "Solo se acepta POST", http.StatusMethodNotAllowed)
-		global.LoggerKernel.Log("Método no permitido en /escribir", log.ERROR)
+		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+		global.LoggerKernel.Log("Se intentó acceder con un método no permitido", log.DEBUG)
 		return
 	}
 
 	body, err := io.ReadAll(r.Body)
-	defer r.Body.Close()
 	if err != nil {
 		http.Error(w, "Error leyendo el cuerpo", http.StatusBadRequest)
-		global.LoggerKernel.Log("Error leyendo cuerpo: "+err.Error(), log.ERROR)
+		global.LoggerKernel.Log("Error leyendo el cuerpo del request: "+err.Error(), log.DEBUG)
 		return
 	}
+	defer r.Body.Close()
 
-	msg := string(body)
-	global.LoggerKernel.Log("Mensaje recibido: "+msg, log.DEBUG) //memoria
-	w.Write([]byte("Kernel recibió el mensaje")) //kernel
+	var paquete Paquete
+	err = json.Unmarshal(body, &paquete)
+	if err != nil {
+		http.Error(w, "Error parseando el paquete", http.StatusBadRequest)
+		global.LoggerKernel.Log("Error al parsear el paquete JSON: "+err.Error(), log.DEBUG)
+		return
+	}
+	global.LoggerKernel.Log("Kernel recibió paquete: Mensajes: "+strings.Join(paquete.Mensajes, ", ")+" Codigo: "+strconv.Itoa(paquete.Codigo), log.DEBUG)
+
+	w.Write([]byte("Kernel recibió el paquete correctamente"))
 }

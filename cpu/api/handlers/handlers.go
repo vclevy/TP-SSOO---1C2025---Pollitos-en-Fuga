@@ -15,18 +15,17 @@ type Paquete struct {
 	Codigo  	int  `json:"codigo"`
 }
 
-
-func RecibirPaqueteDeKernel(w http.ResponseWriter, r *http.Request) {
+func RecibirPaquete(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
-		global.LoggerCpu.Log("Se intentó acceder con un método no permitido", log.DEBUG)
+		global.LoggerCPU.Log("Se intentó acceder con un método no permitido", log.DEBUG)
 		return
 	}
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, "Error leyendo el cuerpo", http.StatusBadRequest)
-		global.LoggerCpu.Log("Error leyendo el cuerpo del request: "+err.Error(), log.DEBUG)
+		global.LoggerCPU.Log("Error leyendo el cuerpo del request: "+err.Error(), log.DEBUG)
 		return
 	}
 	defer r.Body.Close()
@@ -35,12 +34,10 @@ func RecibirPaqueteDeKernel(w http.ResponseWriter, r *http.Request) {
 	err = json.Unmarshal(body, &paquete)
 	if err != nil {
 		http.Error(w, "Error parseando el paquete", http.StatusBadRequest)
-		global.LoggerCpu.Log("Error al parsear el paquete JSON: "+err.Error(), log.DEBUG)
+		global.LoggerCPU.Log("Error al parsear el paquete JSON: "+err.Error(), log.DEBUG)
 		return
 	}
-	global.LoggerCpu.Log("CPU recibió paquete de Kernel: Mensajes: "+strings.Join(paquete.Mensajes, ", ")+" Codigo: "+strconv.Itoa(paquete.Codigo), log.DEBUG)
+	global.LoggerCPU.Log("CPU recibió paquete: Mensajes: "+strings.Join(paquete.Mensajes, ", ")+" Codigo: "+strconv.Itoa(paquete.Codigo), log.DEBUG)
 
 	w.Write([]byte("CPU recibió el paquete correctamente"))
 }
-
-

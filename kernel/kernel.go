@@ -1,13 +1,9 @@
 package main
 
 import (
-	"bytes"
-	"fmt"
-	"net/http"
 	"github.com/sisoputnfrba/tp-golang/kernel/api"
 	"github.com/sisoputnfrba/tp-golang/kernel/global"
 	"github.com/sisoputnfrba/tp-golang/utils/logger"
-	"strconv"
 	"github.com/sisoputnfrba/tp-golang/utils/paquetes"
 )
 
@@ -25,27 +21,8 @@ func main() {
 		}
 	}()
 
-	// 3. Comunicarme con Memoria
-	puertoMemoria := strconv.Itoa(global.ConfigKernel.Port_Memory)
-	url := "http://localhost:" + puertoMemoria + "/escribir"
-	body := []byte("hola desde kernel")
-
-	resp, err := http.Post(url, "text/plain", bytes.NewBuffer(body))
-	if err != nil {
-		fmt.Println("Error al mandar mensaje a Memoria:", err)
-		return
+	for {
+		paqueteNuevo := paquetes.LeerConsola()	
+		paquetes.GenerarYEnviarPaquete(paqueteNuevo, "127.0.0.1", paqueteNuevo.PuertoDestino)
 	}
-	defer resp.Body.Close()
-
-	fmt.Println("Respuesta de memoria:", resp.Status)
-
-	paqueteCPU := paquetes.LeerConsola()
-	paquetes.GenerarYEnviarPaquete(paqueteCPU, "127.0.0.1", 8004 )
-	
-	/////////////////////////////////////////////////////////////////////7// Ip y Puerto de Cpu hardcodeado para probar
-
-	paqueteIo := paquetes.LeerConsola()
-	paquetes.GenerarYEnviarPaquete(paqueteIo, "127.0.0.1", 8004 )
-	// Bloqueo principal si es necesario (por ejemplo, esperar señales o input)
-	select {}
 }

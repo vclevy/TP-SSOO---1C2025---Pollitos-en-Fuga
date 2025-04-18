@@ -9,13 +9,11 @@ import (
 
 func CrearServer() *server.Server {
 	configServer := server.Config{
-		Port: global.CpuConfig.PortCPU,
+		Port: global.CpuConfig.Port_CPU,
 		Handlers: map[string]http.HandlerFunc{
-			"POST /responder": handlers.RecibirPaqueteDeKernel,
-			// http://{ip_kernel}:{port_kernel}/hola
-			// ese GET son palabras clave del protocolo http (ver en la docu de go)
+			"POST /responder": handlers.RecibirPaquete,
 		},
 	}
-	fmt.Printf("🟢 Kernel prendido en http://localhost:%d\n", global.CpuConfig.Port_Kernel)
+	fmt.Printf("🟢 CPU prendido en http://localhost:%d\n", global.CpuConfig.Port_CPU)
 	return server.NuevoServer(configServer)
 }

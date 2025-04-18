@@ -2,8 +2,10 @@ package global
 
 import(
 	logger "github.com/sisoputnfrba/tp-golang/utils/logger"
+	utils "github.com/sisoputnfrba/tp-golang/utils/config"
 )
 var ConfigMemoria *Config
+var LoggerMemoria *logger.LoggerStruct
 
 type Config struct {
 	Port_Memory      int      `json:"port_memory"`
@@ -15,9 +17,16 @@ type Config struct {
 	Memory_delay     int      `json:"memory_delay"`
 	Swapfile_path    string   `json:"swapfile_path"`
 	Swap_delay 		 int      `json:"swap_delay"`
-	Log_level        string   `json:"log_level"`
+	LogLevel        string   `json:"log_level"`
 	Dump_path		 string   `json:"dump_path"`
 	Log_file         string   `json:"log_file"`
 }
 
-var Logger *logger.LoggerStruct
+func InitGlobal() {
+	// 1. Cargar configuración desde archivo
+	ConfigMemoria = utils.CargarConfig[Config]("config/config.json")
+
+	// 2. Inicializar logger con lo que vino en la config
+	LoggerMemoria = logger.ConfigurarLogger(ConfigMemoria.Log_file, ConfigMemoria.LogLevel)
+    LoggerMemoria.Log("Logger de Memoria inicializado", logger.DEBUG)
+}
