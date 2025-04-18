@@ -1,16 +1,16 @@
 package main
 
 import (
-	"bytes"
-	"fmt"
-	"net/http"
-	"github.com/sisoputnfrba/tp-golang/utils/config" 
-	"github.com/sisoputnfrba/tp-golang/io/global"
-	"github.com/sisoputnfrba/tp-golang/utils/logger"
-	"strconv"
 	"bufio"
+	"fmt"
 	"os"
+	"strconv"
 	"time"
+
+	"github.com/sisoputnfrba/tp-golang/io/global"
+	"github.com/sisoputnfrba/tp-golang/utils/config"
+	"github.com/sisoputnfrba/tp-golang/utils/logger"
+	"github.com/sisoputnfrba/tp-golang/utils/paquetes"
 )
 
 func main() {
@@ -28,21 +28,18 @@ func main() {
 	pidString := strconv.Itoa(pid)
 	tiempoIO := time.Now().Format("2006-01-02 15:04:05")
 
-	//paso 2: conectarse al kernel
-	puertoKernel := strconv.Itoa(global.IoConfig.Port_Kernel)
-	url := "http://localhost:"+ puertoKernel +"/escribir" 
-	body := []byte("hola desde IO")
-	resp, err := http.Post(url, "text/plain", bytes.NewBuffer(body))
-	if err != nil {
-		fmt.Println("Error al mandar mensaje a Kernel:", err)
-		return
+	infoIO := paquetes.Paquete{
+		Mensajes:      []string{"Nombre de IO: " + nombreInterfaz, strconv.Itoa(global.IoConfig.Port_Io)}, //falta pasarla la ip, pero no se de quien
+		Codigo:        200,//no se que va aca
+		PuertoDestino: global.IoConfig.Port_Kernel, //puerto kernel
 	}
-	defer resp.Body.Close()
+	paquetes.GenerarYEnviarPaquete(infoIO,global.IoConfig.IPKernel,global.IoConfig.Port_Kernel)
+	global.Logger.Log("##PID: "+ pidString + "- Inicio de IO - Tiempo " + tiempoIO, log.DEBUG)
+	global.Logger.Log("##PID: "+ pidString + "- FIn de IO", log.DEBUG)
 
-	fmt.Println("Respuesta de kernel:", resp.Status)
 
-	//loggear la conexio de io
-	global.Logger.Log("##PID: "+ pidString + "- Inicio de IO - Tiempo " + tiempoIO, logger.DEBUG)
+
+	
 
 
 	
