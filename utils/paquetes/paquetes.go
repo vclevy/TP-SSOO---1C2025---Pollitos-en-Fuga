@@ -1,5 +1,6 @@
 package paquetes
 
+
 import (
 	"bufio"
 	"log"
@@ -49,7 +50,7 @@ func LeerConsola() Paquete {
 	paquete.Codigo = codigo
 
 	// Solicitar el puertoDestino al usuario
-	log.Print("Ingrese el puerto destino del paquete:  puerto CPU -> 8004, puerto Memoria -> 8002, puerto Kernel -> 8001,")
+	log.Print("Ingrese el puerto destino del paquete: puerto CPU -> 8004, puerto Memoria -> 8002, puerto Kernel -> 8001, puerto Io -> 8003")
 	var puerto int
 	for {
 		_, err := fmt.Scanf("%d\n", &puerto)

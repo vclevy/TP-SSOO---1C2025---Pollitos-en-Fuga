@@ -18,7 +18,7 @@ func main() {
 
 	//paso 1: leer como parametro el nombre de la interaz io desde consola
 	reader := bufio.NewReader(os.Stdin)
-	fmt.Println("Ingrese en nombre de la interfaz")
+	fmt.Println("Ingrese el nombre de la interfaz")
 	nombreInterfaz, _ := reader.ReadString('\n') 
 
 	infoIO := paquetes.Paquete{
@@ -26,6 +26,7 @@ func main() {
 		Codigo:        200, //??????
 		PuertoDestino: global.IoConfig.Port_Kernel,
 	}
+	
 	paquetes.GenerarYEnviarPaquete(infoIO,global.IoConfig.IPKernel)
 	
 	s := api.CrearServer()
@@ -35,7 +36,6 @@ func main() {
 			global.LoggerIo .Log("Error al iniciar el servidor: "+err_server.Error(), log.ERROR)
 		}
 	}()
-
 	
 	//el kernel le va a mandar un paquete con el TIEMPO estimado que va a tardar y el PID asignado
 	//api.RecibirPaquete() ..
@@ -44,4 +44,5 @@ func main() {
 	// time.Sleep(time.Duration(tiempoIO) * time.Millisecond)
 	// global.LoggerIo.Log("##PID: "+ pidString + "- FIn de IO", log.DEBUG)
 
+	select{}
 }
