@@ -12,7 +12,8 @@ import (
 
 type Paquete struct {
 	Mensajes []string `json:"mensaje"`
-	Codigo  	int  `json:"codigo"`
+	Codigo  	int    `json:"codigo"`
+	PuertoDestino    int     `json:"puertoDestino"`
 }
 
 type Respuesta struct {
