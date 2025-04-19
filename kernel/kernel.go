@@ -21,8 +21,9 @@ func main() {
 		}
 	}()
 
-	for {
-		paqueteNuevo := paquetes.LeerConsola()	
-		paquetes.GenerarYEnviarPaquete(paqueteNuevo, "127.0.0.1")
-	}
-}
+	paqueteNuevo := paquetes.LeerConsola()	
+	paquetes.GenerarYEnviarPaquete(paqueteNuevo, "127.0.0.1")
+	
+	//PASOS PROX: funcion crearPrimerProceso, funcion arrancar la planificacion corto y largo plazo, 
+	select{}
+} 

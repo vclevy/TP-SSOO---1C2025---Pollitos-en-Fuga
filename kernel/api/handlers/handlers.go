@@ -15,6 +15,14 @@ type Paquete struct {
 	Codigo  	int  `json:"codigo"`
 }
 
+type Respuesta struct {
+	Status        string `json:"status"`
+	Detalle       string `json:"detalle"`
+	PID           int    `json:"pid"`
+	TiempoEstimado int   `json:"tiempo_estimado"`
+}
+
+
 func RecibirPaquete(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
@@ -37,7 +45,23 @@ func RecibirPaquete(w http.ResponseWriter, r *http.Request) {
 		global.LoggerKernel.Log("Error al parsear el paquete JSON: "+err.Error(), log.DEBUG)
 		return
 	}
-	global.LoggerKernel.Log("Kernel recibió paquete: Mensajes: "+strings.Join(paquete.Mensajes, ", ")+" Codigo: "+strconv.Itoa(paquete.Codigo), log.DEBUG)
 
-	w.Write([]byte("Kernel recibió el paquete correctamente"))
+	global.LoggerKernel.Log("Kernel recibió paquete desde IO - Mensajes: "+strings.Join(paquete.Mensajes, ", ")+" | Código: "+strconv.Itoa(paquete.Codigo), log.DEBUG)
+
+	// Simulación de asignación de PID y tiempo
+	pid := 1234
+	tiempoEstimado := 300
+
+	respuesta := Respuesta{
+		Status:        "OK",
+		Detalle:       "Paquete procesado correctamente",
+		PID:           pid,
+		TiempoEstimado: tiempoEstimado,
+	}
+
+	global.LoggerKernel.Log("Kernel responde a IO: PID="+strconv.Itoa(pid)+", Tiempo="+strconv.Itoa(tiempoEstimado)+"ms", log.DEBUG)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(respuesta)
 }
