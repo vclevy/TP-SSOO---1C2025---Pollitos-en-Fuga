@@ -7,6 +7,10 @@ import (
 	"github.com/sisoputnfrba/tp-golang/utils/paquetes"
 )
 
+//CONEXIÓN;
+//[KERNEL] ➜ Cliente (conectado a) [MEMORIA]
+//[CPU]    ➜ Cliente (conectado a) [MEMORIA]
+
 func main() {
 	// configurar logger e inicializar config
 	global.InitGlobal()
@@ -26,3 +30,4 @@ func main() {
 
 	select{}
 }
+
