@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -11,8 +10,7 @@ import (
 	"strconv"
 
 	"github.com/sisoputnfrba/tp-golang/io/global"
-
-	//"github.com/sisoputnfrba/tp-golang/utils/logger"
+	logger "github.com/sisoputnfrba/tp-golang/utils/logger"
 	"github.com/sisoputnfrba/tp-golang/utils/paquetes"
 	//"github.com/sisoputnfrba/tp-golang/io/api"
 )
@@ -23,9 +21,16 @@ func main() {
 	defer global.LoggerIo.CloseLogger()
 
 	//paso 1: leer como parametro el nombre de la interaz io desde consola
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Println("Ingrese el nombre de la interfaz")
-	nombreInterfaz, _ := reader.ReadString('\n') 
+	//para chequear que se pase el nombre
+	if len(os.Args) < 2 {
+		global.LoggerIo.Log("Tenés que pasar el nombre de una interfaz. Ejemplo: go run ./src/io.go teclado", logger.ERROR)
+        return
+    }
+
+    nombreInterfaz := os.Args[1]
+
+    fmt.Printf("Se conectó %s!\n", nombreInterfaz)
+
 
 	infoIO := paquetes.Paquete{
 		Mensajes:      []string{"Nombre de IO:" + nombreInterfaz, global.IoConfig.IPIo ,strconv.Itoa(global.IoConfig.Port_Io)},
