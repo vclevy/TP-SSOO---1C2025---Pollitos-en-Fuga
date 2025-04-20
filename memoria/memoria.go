@@ -20,8 +20,9 @@ func main() {
 		}
 		}()
 
-	for {
-		paqueteNuevo := paquetes.LeerConsola()	
-		paquetes.GenerarYEnviarPaquete(paqueteNuevo, "127.0.0.1")
-	}
+	paqueteNuevo := paquetes.LeerConsola()	
+	paquetes.GenerarYEnviarPaquete(paqueteNuevo, "127.0.0.1")
+	
+
+	select{}
 }
