@@ -10,13 +10,13 @@ import (
 func main() {
 	// configurar logger e inicializar config
 	global.InitGlobal() 
-	defer global.LoggerCPU.CloseLogger()
+	defer global.LoggerCpu.CloseLogger()
 	
 	s := api.CrearServer()
 	go func() {
 		err_server := s.Iniciar()
 		if err_server != nil {
-			global.LoggerCPU.Log("Error al iniciar el servidor: "+err_server.Error(), log.ERROR)
+			global.LoggerCpu.Log("Error al iniciar el servidor: "+err_server.Error(), log.ERROR)
 		}
 		}()
 

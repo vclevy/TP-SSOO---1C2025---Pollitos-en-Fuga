@@ -10,7 +10,6 @@ import (
 	"github.com/sisoputnfrba/tp-golang/io/global"
 )
 
-
 type Paquete struct {
 	Mensajes []string `json:"mensaje"`
 	Codigo  	int    `json:"codigo"`
@@ -22,7 +21,6 @@ type RespuestaKernel struct {
 	PID            int    `json:"pid"`
 	TiempoEstimado int    `json:"tiempo_estimado"`
 }
-
 
 func EnviarPaqueteAKernel(paquete Paquete, ip string) (*RespuestaKernel, error) {
 	// Paso 1: Validar que haya mensajes en el paquete

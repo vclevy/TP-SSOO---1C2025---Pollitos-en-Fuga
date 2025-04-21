@@ -6,7 +6,7 @@ import (
 )
 
 var CpuConfig *Config
-var LoggerCPU *logger.LoggerStruct
+var LoggerCpu *logger.LoggerStruct
 
 type Config struct {
     IPMemory           	int 	`json:"ip_memory"`
@@ -29,6 +29,6 @@ func InitGlobal() {
 	CpuConfig = utils.CargarConfig[Config]("config/config.json")
 
 	// 2. Inicializar logger con lo que vino en la config
-	LoggerCPU = logger.ConfigurarLogger(CpuConfig.LogFile, CpuConfig.LogLevel)
-    LoggerCPU.Log("Logger de CPU inicializado", logger.DEBUG)
+	LoggerCpu = logger.ConfigurarLogger(CpuConfig.LogFile, CpuConfig.LogLevel)
+    LoggerCpu.Log("Logger de CPU inicializado", logger.DEBUG)
 }
