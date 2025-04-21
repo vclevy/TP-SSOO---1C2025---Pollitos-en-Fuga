@@ -4,33 +4,17 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"strconv"
+
 	"github.com/sisoputnfrba/tp-golang/kernel/global"
 	log "github.com/sisoputnfrba/tp-golang/utils/logger"
 )
 
-type PCB struct {
-	PID int
-	PC  int
-	ME  map[string]int // Métricas de Estado (ej: "Ready": 3, "Running": 5)
-	MT  map[string]int // Métricas de Tiempo por Estado (ej: "Ready": 120, "Running": 300)
-}
+type PCB = global.PCB
+type Proceso = global.Proceso
 
-func NuevoPCB(pid int) *PCB {
-	return &PCB{
-		PID: pid,
-		PC:  0,
-		ME:  make(map[string]int),
-		MT:  make(map[string]int),
-	}
-}
-
-type Proceso struct {
-	PCB
-	MemoriaRequerida int
-}
-
-func CrearProceso(pid int, pseudoCodigo string, tamanio int) {
-	pcb := NuevoPCB(pid)
+func CrearProceso(pid int, pseudoCodigo string, tamanio int) { 
+	pcb := global.NuevoPCB(pid)
 	//TODO Parte de pedir memoria
 	proceso := Proceso{
 		PCB:              *pcb,
@@ -45,7 +29,7 @@ func CrearProceso(pid int, pseudoCodigo string, tamanio int) {
 		if len(global.ColaNew) == 0 {
 			// Intentamos iniciarlo directo
 			if SolicitarMemoria(tamanio) == http.StatusOK {
-				PasarPseudocodigoAMemoria(proceso)
+				//TODO PasarPseudocodigoAMemoria(proceso)
 				//si funciona, pasa a ready
 				global.ColaReady = append(global.ColaReady, proceso)
 				global.LoggerKernel.Log(fmt.Sprintf("PID: %d pasó a READY", pcb.PID), log.INFO)
@@ -58,7 +42,7 @@ func CrearProceso(pid int, pseudoCodigo string, tamanio int) {
 
 	case "CHICO":
 		if SolicitarMemoria(tamanio) == http.StatusOK {
-			PasarPseudocodigoAMemoria(proceso)
+			//TODO PasarPseudocodigoAMemoria(proceso)
 			global.ColaReady = append(global.ColaReady, proceso)
 			global.LoggerKernel.Log(fmt.Sprintf("PID: %d pasó a READY", pcb.PID), log.INFO)
 			return
@@ -69,6 +53,31 @@ func CrearProceso(pid int, pseudoCodigo string, tamanio int) {
 	}
 }
 
+func SolicitarMemoria(tamanio int) int {
+	cliente := &http.Client{}
+
+	endpoint := "tamanioProceso/" + strconv.Itoa(tamanio)
+
+	url := fmt.Sprintf("http://%s:%d/%s", global.ConfigKernel.IPMemory, global.ConfigKernel.Port_Memory, endpoint)
+	req, err := http.NewRequest("GET", url, nil)
+
+	if err != nil {
+		return http.StatusInternalServerError
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	respuesta, err := cliente.Do(req)
+	if err != nil {
+		return http.StatusInternalServerError
+	}
+	defer respuesta.Body.Close()
+
+	return respuesta.StatusCode
+}
+
+
+
 func IntentarInicializarDesdeNew() {
 	if len(global.ColaNew) == 0 {
 		return
@@ -78,7 +87,7 @@ func IntentarInicializarDesdeNew() {
 	case "FIFO":
 		proceso := global.ColaNew[0]
 		if SolicitarMemoria(proceso.MemoriaRequerida) == http.StatusOK {
-			PasarPseudocodigoAMemoria(proceso)
+			//TODO PasarPseudocodigoAMemoria(proceso)
 			global.ColaReady = append(global.ColaReady, proceso)
 			global.ColaNew = global.ColaNew[1:] // sacamos el primero
 			global.LoggerKernel.Log(fmt.Sprintf("PID: %d movido de NEW a READY (FIFO)", proceso.PID), log.INFO)
@@ -92,7 +101,7 @@ func IntentarInicializarDesdeNew() {
 		nuevaCola := []Proceso{}
 		for _, proceso := range global.ColaNew {
 			if SolicitarMemoria(proceso.MemoriaRequerida) == http.StatusOK {
-				PasarPseudocodigoAMemoria(proceso)
+				//TODO PasarPseudocodigoAMemoria(proceso)
 				global.ColaReady = append(global.ColaReady, proceso)
 				global.LoggerKernel.Log(fmt.Sprintf("PID: %d movido de NEW a READY (CHICO)", proceso.PID), log.INFO)
 			} else {

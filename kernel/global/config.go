@@ -2,12 +2,32 @@ package global
 
 import(
     logger "github.com/sisoputnfrba/tp-golang/utils/logger"
-    utils "github.com/sisoputnfrba/tp-golang/utils/config"      
+    utils "github.com/sisoputnfrba/tp-golang/utils/config"
 )
 
 var ConfigKernel *Config
 var LoggerKernel *logger.LoggerStruct
 
+type PCB struct {
+	PID int
+	PC  int
+	ME  map[string]int // Métricas de Estado (ej: "Ready": 3, "Running": 5)
+	MT  map[string]int // Métricas de Tiempo por Estado (ej: "Ready": 120, "Running": 300)
+}
+
+func NuevoPCB(pid int) *PCB {
+	return &PCB{
+		PID: pid,
+		PC:  0,
+		ME:  make(map[string]int),
+		MT:  make(map[string]int),
+	}
+}
+
+type Proceso struct {
+	PCB
+	MemoriaRequerida int
+}
 
 type Config struct {
     IPMemory          		string 		`json:"ip_memory"`
@@ -35,15 +55,14 @@ var EstadoKernel string = "STOP" // Al inicio se está en STOP
 
 var AlgoritmoLargoPlazo string = "FIFO" // o "CHICO", se puede setear desde config
 
-//! Se rompe la importacion por el bucle
 // Cola de procesos en estado NEW
-var ColaNew []procesos.Proceso
+var ColaNew []Proceso
 
 // Cola de procesos en estado READY
-var ColaReady []procesos.Proceso
+var ColaReady []Proceso
 
 // Cola de procesos en estado SUSPENDED-READY (para usar al finalizar otro proceso)
-var ColaSuspReady []procesos.Proceso
+var ColaSuspReady []Proceso
 
 // Lista de todos los procesos activos en el sistema
-var ProcesosEnSistema []procesos.Proceso
+var ProcesosEnSistema []Proceso

@@ -1,13 +1,14 @@
 package handlers
 
 import (
+	"encoding/json"
 	"io"
 	"net/http"
+	"strconv"
+	"strings"
+	utilsKernel "github.com/sisoputnfrba/tp-golang/kernel/utilsKernel" 
 	"github.com/sisoputnfrba/tp-golang/kernel/global"
 	"github.com/sisoputnfrba/tp-golang/utils/logger"
-	"encoding/json"
-	"strings"
-	"strconv"
 )
 
 type Paquete struct {
@@ -66,3 +67,22 @@ func RecibirPaquete(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(respuesta)
 }
+
+type PCB = utilsKernel.PCB
+
+func NuevoPCB(pid int) *PCB {
+	return &PCB{
+		PID: pid,
+		PC:  0,
+		ME:  make(map[string]int),
+		MT:  make(map[string]int),
+	}
+}
+
+type Proceso struct {
+	PCB
+	MemoriaRequerida int
+}
+
+
+// Vamos a necesitar aca una api con w*responseWritter y eso para el handler que contiene la func crear proceso
