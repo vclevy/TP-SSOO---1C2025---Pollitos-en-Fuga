@@ -88,7 +88,7 @@ func INIT_PROC(w http.ResponseWriter, r *http.Request){
 	tamanio, _ := strconv.Atoi(tamanioStr)
 
 
-	procesoCreado := Proceso{PCB: *pcb, MemoriaRequerida: tamanio}
+	procesoCreado := global.Proceso{PCB: *pcb, MemoriaRequerida: tamanio}
 	global.LoggerKernel.Log(fmt.Sprintf("Proceso creado: %+v", procesoCreado), log.DEBUG)
 
 	global.ColaNew = append(global.ColaNew, global.Proceso(procesoCreado)) // no estoy segura si esta bien la sintaxis

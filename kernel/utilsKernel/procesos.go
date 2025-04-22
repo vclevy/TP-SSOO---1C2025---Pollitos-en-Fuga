@@ -25,11 +25,11 @@ func CrearProceso(tamanio int) Proceso {
 		MemoriaRequerida: tamanio,
 	}
 
-	global.LoggerKernel.Log(fmt.Sprintf("## (%d:0) Se crea el proceso - Estado: NEW", pcb.PID), log.INFO)
+	global.LoggerKernel.Log(fmt.Sprintf("## (%d) Se crea el proceso - Estado: NEW", pcb.PID), log.INFO) //! LOG Obligatorio
 	return proceso
 }
 
-func PlanificarProcesoLargoPlazo(proceso Proceso) {
+func PlanificarProcesoLargoPlazo(pseudoCodigo string, proceso Proceso) {
 	switch global.AlgoritmoLargoPlazo {
 	case "FIFO":
 		if len(global.ColaNew) == 0 {
