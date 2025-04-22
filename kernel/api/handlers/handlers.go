@@ -2,13 +2,15 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
-	utilsKernel "github.com/sisoputnfrba/tp-golang/kernel/utilsKernel" 
 	"github.com/sisoputnfrba/tp-golang/kernel/global"
+	utilsKernel "github.com/sisoputnfrba/tp-golang/kernel/utilsKernel"
 	"github.com/sisoputnfrba/tp-golang/utils/logger"
+	utils "github.com/sisoputnfrba/tp-golang/utils/paquetes"
 )
 
 type Paquete struct {
@@ -51,15 +53,19 @@ func RecibirPaquete(w http.ResponseWriter, r *http.Request) {
 	global.LoggerKernel.Log("Kernel recibió paquete desde IO - Mensajes: "+strings.Join(paquete.Mensajes, ", ")+" | Código: "+strconv.Itoa(paquete.Codigo), log.DEBUG)
 
 	// Simulación de asignación de PID y tiempo
-	pid := 1234
-	tiempoEstimado := 300
+	fmt.Println("Ingrese el PID: ")
+	str_pid := utils.LeerStringDeConsola()
+	fmt.Println("Ingrese el tiempo estimado: ")
+	str_tiempoEstimado := utils.LeerStringDeConsola()
+	
+	pid, _:= strconv.Atoi(str_pid)
+	tiempoEstimado, _ :=  strconv.Atoi(str_tiempoEstimado); // no se si conviene hacer este cambio o que leerstring lea int
 
 	respuesta := Respuesta{
 		Status:        "OK",
 		Detalle:       "Paquete procesado correctamente",
 		PID:           pid,
-		TiempoEstimado: tiempoEstimado,
-	}
+		TiempoEstimado:	tiempoEstimado}
 
 	global.LoggerKernel.Log("Kernel responde a IO: PID="+strconv.Itoa(pid)+", Tiempo="+strconv.Itoa(tiempoEstimado)+"ms", log.DEBUG)
 

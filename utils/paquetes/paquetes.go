@@ -18,6 +18,14 @@ type Paquete struct {
 	PuertoDestino    int     `json:"puertoDestino"`
 }
 
+func LeerStringDeConsola() string{
+	reader := bufio.NewReader(os.Stdin)
+	text, _ := reader.ReadString('\n')
+		text = strings.TrimSpace(text)
+	
+	return text
+}
+
 func LeerConsola() Paquete {
 	paquete := Paquete{}
 	reader := bufio.NewReader(os.Stdin)
