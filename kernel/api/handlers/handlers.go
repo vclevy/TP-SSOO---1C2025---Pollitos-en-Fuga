@@ -68,6 +68,13 @@ func RecibirPaquete(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(respuesta)
 }
 
+var UltimoPID int = 0
+
+func GenerarPID() int {
+	UltimoPID++
+	return UltimoPID
+}
+
 type PCB = utilsKernel.PCB
 
 func NuevoPCB(pid int) *PCB {
@@ -98,5 +105,21 @@ func HandshakeConCPU(w http.ResponseWriter, r *http.Request) {
 	global.LoggerKernel.Log(fmt.Sprintf("Handshake recibido de CPU %s en %s:%s", id, ip, puerto), log.INFO)
 
 	w.WriteHeader(http.StatusOK)
-}
 
+	// Simulamos crear un nuevo proceso
+	nuevoPID := GenerarPID() // Podés tener un contador global
+	pcb := NuevoPCB(nuevoPID)
+
+	// Podrías guardarlo si lo necesitás más adelante
+	// procesos[nuevoPID] = pcb
+
+	// Respondemos a la CPU con los datos del PCB
+	respuesta := map[string]interface{}{
+		"pid": pcb.PID,
+		"pc":  pcb.PC,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(respuesta)
+
+}

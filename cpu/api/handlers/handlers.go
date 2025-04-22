@@ -53,13 +53,13 @@ func RecibirPaquete(w http.ResponseWriter, r *http.Request) {
 }
 
 func RealizarHandshakeConKernel() {
-	datos := map[string]string{
+	datosEnvio := map[string]string{
 		"id":     global.CpuID,
 		"ip":     global.CpuConfig.IPCpu,
 		"puerto": fmt.Sprintf("%d", global.CpuConfig.Port_CPU),
 	}
 
-	jsonData, _ := json.Marshal(datos)
+	jsonData, _ := json.Marshal(datosEnvio)
 	url := fmt.Sprintf("http://%s:%d/handshake", global.CpuConfig.IPKernel, global.CpuConfig.Port_Kernel)
 
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
@@ -70,4 +70,22 @@ func RealizarHandshakeConKernel() {
 	defer resp.Body.Close()
 
 	global.LoggerCpu.Log("✅ Handshake enviado al Kernel con éxito", log.INFO)
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		global.LoggerCpu.Log("Error leyendo respuesta del Kernel: " + err.Error(), log.ERROR)
+		return
+	}
+
+	var datosRespuesta map[string]int
+	err = json.Unmarshal(body, &datosRespuesta)
+	if err != nil {
+		global.LoggerCpu.Log("Error parseando respuesta del Kernel: " + err.Error(), log.ERROR)
+		return
+	}
+
+	pid := datosRespuesta["pid"]
+	pc := datosRespuesta["pc"]
+
+	global.LoggerCpu.Log(fmt.Sprintf(" Kernel respondió con PID: %d y PC: %d", pid, pc), log.INFO)
 }
