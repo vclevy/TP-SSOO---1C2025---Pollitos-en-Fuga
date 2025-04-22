@@ -92,3 +92,25 @@ type Proceso struct {
 
 
 // Vamos a necesitar aca una api con w*responseWritter y eso para el handler que contiene la func crear proceso
+
+
+func INIT_PROC(w http.ResponseWriter, r *http.Request){
+	//? archivo := r.URL.Query().Get("archivo") //? no se que hacer con el archivo este
+	tamanioStr := r.URL.Query().Get("tamanio")
+
+	str_pid := utils.LeerStringDeConsola()
+	pid, _ := strconv.Atoi(str_pid)
+	pcb := NuevoPCB(pid)
+
+	tamanio, err := strconv.Atoi(tamanioStr)
+	if err != nil {
+		http.Error(w, "Error al convertir el tamaño a entero", http.StatusBadRequest)
+		global.LoggerKernel.Log("Error al convertir el tamaño a entero: "+err.Error(), log.DEBUG)
+		return
+	}
+
+	procesoCreado := Proceso{PCB: *pcb, MemoriaRequerida: tamanio}
+	global.LoggerKernel.Log(fmt.Sprintf("Proceso creado: %+v", procesoCreado), log.DEBUG)
+
+	global.ColaNew = append(global.ColaNew, global.Proceso(procesoCreado)) // no estoy segura si esta bien la sintaxis
+}
