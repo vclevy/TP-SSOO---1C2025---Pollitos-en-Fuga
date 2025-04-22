@@ -17,3 +17,4 @@ func CrearServer() *server.Server {
 	fmt.Printf("🟢 CPU prendido en http://localhost:%d\n", global.CpuConfig.Port_CPU)
 	return server.NuevoServer(configServer)
 }
+

@@ -1,20 +1,20 @@
 {
     "folder-color.pathColors": [
         {
-            "folderPath": "tp-2025-1c-Pollitos-en-Fuga\\cpu\\",
-            "color": "foldercolorizer.color_33cc33"
-        },
-        {
             "folderPath": "tp-2025-1c-Pollitos-en-Fuga\\io\\",
-            "color": "foldercolorizer.color_999999"
+            "color": "foldercolorizer.color_9966ff"
         },
         {
             "folderPath": "tp-2025-1c-Pollitos-en-Fuga\\kernel\\",
-            "color": "foldercolorizer.color_0066ff"
+            "color": "foldercolorizer.color_00cc99"
         },
         {
             "folderPath": "tp-2025-1c-Pollitos-en-Fuga\\memoria\\",
-            "color": "foldercolorizer.color_ffcc33"
+            "color": "foldercolorizer.color_cccc99"
+        },
+        {
+            "folderPath": "tp-2025-1c-Pollitos-en-Fuga\\cpu\\",
+            "color": "foldercolorizer.color_0099ff"
         }
     ]
 }

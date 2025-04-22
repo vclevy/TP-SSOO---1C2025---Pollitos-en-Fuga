@@ -12,6 +12,7 @@ func CrearServer() *server.Server {
 	configServer := server.Config{
 		Port: global.ConfigKernel.Port_Kernel,
 		Handlers: map[string]http.HandlerFunc{
+			"POST /handshake" : handlers.HandshakeConCPU,
 			"POST /responder": handlers.RecibirPaquete,
 		},
 	}

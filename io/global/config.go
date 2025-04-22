@@ -1,12 +1,9 @@
-
-
 package global
 
 import(
 	logger "github.com/sisoputnfrba/tp-golang/utils/logger"
 	utils "github.com/sisoputnfrba/tp-golang/utils/config"
 )
-
 
 var IoConfig *Config
 var LoggerIo *logger.LoggerStruct
