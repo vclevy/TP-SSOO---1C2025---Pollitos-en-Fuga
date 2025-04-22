@@ -9,6 +9,7 @@ import (
 
 var ConfigKernel *Config
 var LoggerKernel *logger.LoggerStruct
+var UltimoPID int = 0
 
 type PCB struct {
 	PID          int
@@ -20,7 +21,10 @@ type PCB struct {
 }
 
 
-func NuevoPCB(pid int) *PCB {
+func NuevoPCB() *PCB {
+	pid := UltimoPID
+	UltimoPID++ 
+
 	return &PCB{
 		PID: pid,
 		PC:  0,
@@ -28,6 +32,7 @@ func NuevoPCB(pid int) *PCB {
 		MT:  make(map[string]int),
 	}
 }
+
 
 type Proceso struct {
 	PCB

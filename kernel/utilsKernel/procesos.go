@@ -14,8 +14,10 @@ import (
 type PCB = global.PCB
 type Proceso = global.Proceso
 
-func CrearProceso(pid int, pseudoCodigo string, tamanio int) {
-	pcb := global.NuevoPCB(pid)
+type Estado string
+
+func CrearProceso(pseudoCodigo string, tamanio int) {
+	pcb := global.NuevoPCB()
 	ActualizarEstadoPCB(pcb, "New")
 
 	proceso := Proceso{
