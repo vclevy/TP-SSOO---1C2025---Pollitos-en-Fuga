@@ -9,6 +9,7 @@ import (
 	utilsKernel "github.com/sisoputnfrba/tp-golang/kernel/utilsKernel" 
 	"github.com/sisoputnfrba/tp-golang/kernel/global"
 	"github.com/sisoputnfrba/tp-golang/utils/logger"
+	"fmt"
 )
 
 type Paquete struct {
@@ -23,7 +24,6 @@ type Respuesta struct {
 	PID           int    `json:"pid"`
 	TiempoEstimado int   `json:"tiempo_estimado"`
 }
-
 
 func RecibirPaquete(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -84,5 +84,19 @@ type Proceso struct {
 	MemoriaRequerida int
 }
 
-
 // Vamos a necesitar aca una api con w*responseWritter y eso para el handler que contiene la func crear proceso
+
+func HandshakeConCPU(w http.ResponseWriter, r *http.Request) {
+	var datos map[string]string
+	body, _ := io.ReadAll(r.Body)
+	json.Unmarshal(body, &datos)
+
+	id := datos["id"]
+	ip := datos["ip"]
+	puerto := datos["puerto"]
+
+	global.LoggerKernel.Log(fmt.Sprintf("Handshake recibido de CPU %s en %s:%s", id, ip, puerto), log.INFO)
+
+	w.WriteHeader(http.StatusOK)
+}
+
