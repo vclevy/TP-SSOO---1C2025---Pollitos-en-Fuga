@@ -1,19 +1,24 @@
 package global
 
-import(
-    logger "github.com/sisoputnfrba/tp-golang/utils/logger"
-    utils "github.com/sisoputnfrba/tp-golang/utils/config"
+import (
+	"time"
+
+	utils "github.com/sisoputnfrba/tp-golang/utils/config"
+	logger "github.com/sisoputnfrba/tp-golang/utils/logger"
 )
 
 var ConfigKernel *Config
 var LoggerKernel *logger.LoggerStruct
 
 type PCB struct {
-	PID int
-	PC  int
-	ME  map[string]int // Métricas de Estado (ej: "Ready": 3, "Running": 5)
-	MT  map[string]int // Métricas de Tiempo por Estado (ej: "Ready": 120, "Running": 300)
+	PID          int
+	PC           int
+	ME           map[string]int // Métricas de Estado (ej: "Ready": 3, "Running": 5)
+	MT           map[string]int // Métricas de Tiempo por Estado (ej: "Ready": 120, "Running": 300)
+	UltimoEstado string
+	InicioEstado time.Time
 }
+
 
 func NuevoPCB(pid int) *PCB {
 	return &PCB{
