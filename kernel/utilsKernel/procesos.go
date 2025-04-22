@@ -16,7 +16,7 @@ type Proceso = global.Proceso
 
 type Estado string
 
-func CrearProceso(pseudoCodigo string, tamanio int) {
+func CrearProceso(tamanio int) Proceso {
 	pcb := global.NuevoPCB()
 	ActualizarEstadoPCB(pcb, "New")
 
@@ -25,32 +25,38 @@ func CrearProceso(pseudoCodigo string, tamanio int) {
 		MemoriaRequerida: tamanio,
 	}
 
+	global.LoggerKernel.Log(fmt.Sprintf("## (%d:0) Se crea el proceso - Estado: NEW", pcb.PID), log.INFO)
+	return proceso
+}
+
+func PlanificarProcesoLargoPlazo(proceso Proceso) {
 	switch global.AlgoritmoLargoPlazo {
 	case "FIFO":
 		if len(global.ColaNew) == 0 {
-			if SolicitarMemoria(tamanio) == http.StatusOK {
+			if SolicitarMemoria(proceso.MemoriaRequerida) == http.StatusOK {
 				//TODO PasarPseudocodigoAMemoria(proceso)
 				ActualizarEstadoPCB(&proceso.PCB, "Ready")
 				global.ColaReady = append(global.ColaReady, proceso)
-				global.LoggerKernel.Log(fmt.Sprintf("PID: %d pasó a READY", pcb.PID), log.INFO)
+				global.LoggerKernel.Log(fmt.Sprintf("PID: %d pasó a READY", proceso.PCB.PID), log.INFO)
 				return
 			}
 		}
 		global.ColaNew = append(global.ColaNew, proceso)
-		global.LoggerKernel.Log(fmt.Sprintf("PID: %d encolado en NEW (FIFO)", pcb.PID), log.INFO)
+		global.LoggerKernel.Log(fmt.Sprintf("PID: %d encolado en NEW (FIFO)", proceso.PCB.PID), log.INFO)
 
 	case "CHICO":
-		if SolicitarMemoria(tamanio) == http.StatusOK {
+		if SolicitarMemoria(proceso.MemoriaRequerida) == http.StatusOK {
 			//TODO PasarPseudocodigoAMemoria(proceso)
 			ActualizarEstadoPCB(&proceso.PCB, "Ready")
 			global.ColaReady = append(global.ColaReady, proceso)
-			global.LoggerKernel.Log(fmt.Sprintf("PID: %d pasó a READY", pcb.PID), log.INFO)
+			global.LoggerKernel.Log(fmt.Sprintf("PID: %d pasó a READY", proceso.PCB.PID), log.INFO)
 			return
 		}
 		global.ColaNew = append(global.ColaNew, proceso)
-		global.LoggerKernel.Log(fmt.Sprintf("PID: %d encolado en NEW (CHICO)", pcb.PID), log.INFO)
+		global.LoggerKernel.Log(fmt.Sprintf("PID: %d encolado en NEW (CHICO)", proceso.PCB.PID), log.INFO)
 	}
 }
+
 
 func IntentarInicializarDesdeNew() {
 	if len(global.ColaNew) == 0 {

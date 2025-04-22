@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -74,28 +73,8 @@ func RecibirPaquete(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(respuesta)
 }
 
-var UltimoPID int = 0
-
-func GenerarPID() int {
-	UltimoPID++
-	return UltimoPID
-}
 
 type PCB = utilsKernel.PCB
-
-func NuevoPCB(pid int) *PCB {
-	return &PCB{
-		PID: pid,
-		PC:  0,
-		ME:  make(map[string]int),
-		MT:  make(map[string]int),
-	}
-}
-
-type Proceso struct {
-	PCB
-	MemoriaRequerida int
-}
 
 // Vamos a necesitar aca una api con w*responseWritter y eso para el handler que contiene la func crear proceso
 
@@ -104,38 +83,32 @@ func INIT_PROC(w http.ResponseWriter, r *http.Request){
 	//? archivo := r.URL.Query().Get("archivo") //? no se que hacer con el archivo este
 	tamanioStr := r.URL.Query().Get("tamanio")
 
-	str_pid := utils.LeerStringDeConsola()
-	pid, _ := strconv.Atoi(str_pid)
-	pcb := NuevoPCB(pid)
+	pcb := global.NuevoPCB()
 
-	tamanio, err := strconv.Atoi(tamanioStr)
-	if err != nil {
-		http.Error(w, "Error al convertir el tamaño a entero", http.StatusBadRequest)
-		global.LoggerKernel.Log("Error al convertir el tamaño a entero: "+err.Error(), log.DEBUG)
-		return
-	}
+	tamanio, _ := strconv.Atoi(tamanioStr)
+
 
 	procesoCreado := Proceso{PCB: *pcb, MemoriaRequerida: tamanio}
 	global.LoggerKernel.Log(fmt.Sprintf("Proceso creado: %+v", procesoCreado), log.DEBUG)
 
 	global.ColaNew = append(global.ColaNew, global.Proceso(procesoCreado)) // no estoy segura si esta bien la sintaxis
 }
-func HandshakeConCPU(w http.ResponseWriter, r *http.Request) {
-	var datos map[string]string
-	body, _ := io.ReadAll(r.Body)
-	json.Unmarshal(body, &datos)
 
-	id := datos["id"]
-	ip := datos["ip"]
-	puerto := datos["puerto"]
+func HandshakeConCPU(w http.ResponseWriter, r *http.Request) {	
+	if r.Method != http.MethodPost {
+			http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+			return
+	}
 
-	global.LoggerKernel.Log(fmt.Sprintf("Handshake recibido de CPU %s en %s:%s", id, ip, puerto), log.INFO)
+	id:= r.URL.Query().Get("id")
+	ip:= r.URL.Query().Get("ip")
+	puerto := r.URL.Query().Get("puerto")
+
+	global.LoggerKernel.Log(fmt.Sprintf("Handshake recibido de CPU %s en %s:%s", id, ip, puerto), log.DEBUG)
 
 	w.WriteHeader(http.StatusOK)
 
-	// Simulamos crear un nuevo proceso
-	nuevoPID := GenerarPID() // Podés tener un contador global
-	pcb := NuevoPCB(nuevoPID)
+	pcb := global.NuevoPCB()
 
 	// Podrías guardarlo si lo necesitás más adelante
 	// procesos[nuevoPID] = pcb
@@ -148,5 +121,4 @@ func HandshakeConCPU(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(respuesta)
-
 }
