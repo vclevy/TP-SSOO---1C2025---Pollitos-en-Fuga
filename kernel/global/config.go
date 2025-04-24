@@ -63,8 +63,6 @@ func InitGlobal() {
 
 var EstadoKernel string = "STOP" // Al inicio se está en STOP
 
-var AlgoritmoLargoPlazo string = "FIFO" // o "CHICO", se puede setear desde config
-
 // Cola de procesos en estado NEW
 var ColaNew []Proceso
 
@@ -75,4 +73,4 @@ var ColaReady []Proceso
 var ColaSuspReady []Proceso
 
 // Lista de todos los procesos activos en el sistema
-var ProcesosEnSistema []Proceso
+var ColaExecuting []Proceso
