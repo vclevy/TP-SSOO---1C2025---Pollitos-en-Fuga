@@ -2,11 +2,11 @@ package main
 
 import (
 	"os"
-	"github.com/sisoputnfrba/tp-golang/cpu/api"
-	"github.com/sisoputnfrba/tp-golang/cpu/api/handlers"
+/* 	"github.com/sisoputnfrba/tp-golang/cpu/api" */
 	"github.com/sisoputnfrba/tp-golang/cpu/global"
-	"github.com/sisoputnfrba/tp-golang/utils/logger"
-	"github.com/sisoputnfrba/tp-golang/utils/paquetes"
+	utilsCpu "github.com/sisoputnfrba/tp-golang/cpu/utilsCpu"
+/* 	"github.com/sisoputnfrba/tp-golang/utils/logger" */
+/* 	"github.com/sisoputnfrba/tp-golang/utils/paquetes" */
 	"fmt"
 )
 
@@ -19,10 +19,10 @@ func main() {
 	idCPU := os.Args[1]
 	global.InitGlobal(idCPU)
 
-	handlers.RealizarHandshakeConKernel()
+	utilsCpu.RealizarHandshakeConKernel()
 	
 	defer global.LoggerCpu.CloseLogger()
-	s := api.CrearServer()
+/* 	s := api.CrearServer() 
 	
 	go func() {
 		err_server := s.Iniciar()
@@ -31,9 +31,9 @@ func main() {
 			os.Exit(1)
 		}
 	}()
-
-	paqueteNuevo := paquetes.LeerConsola()	
-	paquetes.GenerarYEnviarPaquete(paqueteNuevo, "127.0.0.1")
+*/
+/* 	paqueteNuevo := paquetes.LeerConsola()	
+	paquetes.GenerarYEnviarPaquete(paqueteNuevo, "127.0.0.1") */
 
 	select{}
 }

@@ -7,9 +7,90 @@ import (
 	"net/http"
 	"io"
 	"github.com/sisoputnfrba/tp-golang/cpu/global"
+	"github.com/sisoputnfrba/tp-golang/utils/logger"
 )
+/* type Paquete struct {
+	Mensajes []string `json:"mensaje"`
+	Codigo  	int    `json:"codigo"`
+}
+*/
+func RealizarHandshakeConKernel() {
+	/* 	datosEnvio := map[string]string{
+		"id":     global.CpuID,
+		"ip":     global.CpuConfig.IPCpu,
+		"puerto": fmt.Sprintf("%d", global.CpuConfig.Port_CPU),
+	} */
 
-type Paquete struct {
+	type datosEnvio struct {
+		Id		string 	 `json:"id"`
+		Ip  	string   `json:"ip"`
+		Puerto	int		 `json:"puerto"`
+	}
+
+	type datosRespuesta struct {
+		Pid		int		`json:"Pid_kernel"`
+		Pc		int		`json:"Pc_kernel"`
+	}
+ 	
+	//envio
+	var envio datosEnvio
+
+	jsonData, err := json.Marshal(envio)
+	if err != nil {
+		global.LoggerCpu.Log("Error serializando handshake: "+err.Error(), log.ERROR)
+		return
+	}
+	
+	url := fmt.Sprintf("http://%s:%d/handshake", global.CpuConfig.Ip_Kernel, global.CpuConfig.Port_Kernel) //url a la que se va a conectar
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData)) //se abre la conexión
+
+	if err != nil {
+		global.LoggerCpu.Log("Error enviando handshake al Kernel: " + err.Error(), log.ERROR)
+		return
+	}
+	defer resp.Body.Close() //se cierra la conexión
+
+	global.LoggerCpu.Log("✅ Handshake enviado al Kernel con éxito", log.INFO)
+
+	//respuesta
+	body, _ := io.ReadAll(resp.Body)
+
+	var respuesta datosRespuesta
+	err = json.Unmarshal(body, &respuesta)
+	if err != nil {
+		global.LoggerCpu.Log("Error parseando respuesta del Kernel: "+err.Error(), log.ERROR)
+		return
+	}
+
+	global.LoggerCpu.Log(fmt.Sprintf("Kernel respondió con PID: %d y PC: %d", respuesta.Pid, respuesta.Pc), log.INFO)
+
+
+
+
+
+
+	
+/* 
+	if err != nil {
+		global.LoggerCpu.Log("Error leyendo respuesta del Kernel: " + err.Error(), log.ERROR)
+		return
+	} */
+/* 
+	var datosRespuesta map[string]int */
+	/* err = json.Unmarshal(body, &datosRespuesta)
+	if err != nil {
+		global.LoggerCpu.Log("Error parseando respuesta del Kernel: " + err.Error(), log.ERROR)
+		return
+	} */
+/* 
+	pid := datosRespuesta["pid"]
+	pc := datosRespuesta["pc"]
+ */
+	/* global.LoggerCpu.Log(fmt.Sprintf(" Kernel respondió con PID: %d y PC: %d", pid, pc), log.INFO) */
+}
+
+
+/* type Paquete struct {
 	Mensajes []string `json:"mensaje"`
 	Codigo  	int    `json:"codigo"`
 }
@@ -25,9 +106,9 @@ type RespuestaMemoria struct {
 	Detalle        string `json:"detalle"`
 	PID            int    `json:"pid"`
 	TiempoEstimado int    `json:"tiempo_estimado"`
-}
+} */
 
-func EnviarPaqueteAKernel(paquete Paquete, ip string) (*RespuestaKernel, error) {
+/* func EnviarPaqueteAKernel(paquete Paquete, ip string) (*RespuestaKernel, error) {
 	// Paso 1: Validar que haya mensajes en el paquete
 	if len(paquete.Mensajes) == 0 {
 		global.LoggerCpu.Log("No se ingresaron mensajes para enviar.", "ERROR")
@@ -78,8 +159,8 @@ func EnviarPaqueteAKernel(paquete Paquete, ip string) (*RespuestaKernel, error) 
 	// Devolver la respuesta
 	return &respuesta, nil
 }
-
-func EnviarPaqueteAMemoria(paquete Paquete, ip string) (*RespuestaMemoria, error) {
+ */
+/* func EnviarPaqueteAMemoria(paquete Paquete, ip string) (*RespuestaMemoria, error) {
 	// Paso 1: Validar que haya mensajes en el paquete
 	if len(paquete.Mensajes) == 0 {
 		global.LoggerCpu.Log("No se ingresaron mensajes para enviar.", "ERROR")
@@ -129,4 +210,4 @@ func EnviarPaqueteAMemoria(paquete Paquete, ip string) (*RespuestaMemoria, error
 
 	// Devolver la respuesta
 	return &respuesta, nil
-}
+} */
