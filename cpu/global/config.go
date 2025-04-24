@@ -10,12 +10,12 @@ var CpuConfig *Config
 var LoggerCpu *logger.LoggerStruct
 
 type Config struct {
-    IPMemory           	string 	`json:"ip_memory"`
-	IPCpu           	string 	`json:"ip_cpu"`
+    Ip_Memory           	string 	`json:"ip_memory"`
+	Ip_Cpu           	string 	`json:"ip_cpu"`
+	Ip_Kernel 			string	`json:"ip_kernel"`
     Port_Memory         int    	`json:"port_memory"`
-	IPKernel 			string	`json:"ip_kernel"`
+    Port_Cpu 		    int 	`json:"port_cpu"`
     Port_Kernel         int    	`json:"port_kernel"`
-    Port_CPU 		    int 	`json:"port_cpu"`
     TlbEntries     		int    	`json:"tlb_entries"`
     TlbReplacement      string 	`json:"tlb_replacement"`
 	CacheEntries        int 	`json:"cache_entries"`
@@ -23,7 +23,6 @@ type Config struct {
 	CacheDelay			int		`json:"cache_delay"`
 	LogLevel			string	`json:"log_level"`
 	LogFile				string  `json:"log_file"`
-	/* Identificador		string	`json:"-"` */
 }
 
 var CpuID string
@@ -33,9 +32,12 @@ func InitGlobal(idCPU string) {
 	// 1. Cargar configuración desde archivo
 	CpuConfig = utils.CargarConfig[Config]("config/config.json")
 
+	// 2. crear el archivo Log correspondiente a la CPU 
 	logFileName := fmt.Sprintf("logs/%s.log", idCPU)
 
-	// 4. Inicializar logger con ese archivo
+	// 4. Inicializar archivo logger con ese nombre 
 	LoggerCpu = logger.ConfigurarLogger(logFileName, CpuConfig.LogLevel)
+
+	// 5. avisar que fue inicializado
     LoggerCpu.Log("Logger de CPU inicializado", logger.DEBUG)
 }
