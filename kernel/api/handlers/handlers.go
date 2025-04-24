@@ -2,15 +2,17 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
+
 	"github.com/sisoputnfrba/tp-golang/kernel/global"
-	utilsKernel "github.com/sisoputnfrba/tp-golang/kernel/utilsKernel"
+	planificacion"github.com/sisoputnfrba/tp-golang/kernel/planificacion"
+	
 	"github.com/sisoputnfrba/tp-golang/utils/logger"
 	utils "github.com/sisoputnfrba/tp-golang/utils/paquetes"
-	"fmt"
 )
 
 type Paquete struct {
@@ -74,7 +76,7 @@ func RecibirPaquete(w http.ResponseWriter, r *http.Request) {
 }
 
 
-type PCB = utilsKernel.PCB
+type PCB = planificacion.PCB
 
 // Vamos a necesitar aca una api con w*responseWritter y eso para el handler que contiene la func crear proceso
 
