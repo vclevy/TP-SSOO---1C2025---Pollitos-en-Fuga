@@ -3,6 +3,7 @@ package utilsMemoria
 import (
 	"os"
 	"strings"
+	"fmt"
 )
 
 //estructura PID -> Pseudocodigo: map[PID][]string
@@ -10,13 +11,13 @@ import (
 
 type procesoMemoria struct{ //Ver fomato que necestian en KERNEL
 	pid int
-	instrucciones []string
+	instrucciones []string 
 	PC int //Program Counter
 }
 
 var diccionarioProcesosMemoria = make(map[int]*procesoMemoria) //procesosMemoria crea un dicionario (mapa) de los procesos
 
-func cargarProceso(pid int, ruta string) error { 
+func CargarProceso(pid int, ruta string) error { 
 	contenidoArchivo, err := os.ReadFile(ruta)
 	if err != nil {
 		return err
@@ -30,4 +31,24 @@ func cargarProceso(pid int, ruta string) error {
 		PC:            0,
 	}
 	return nil
+}
+
+
+func DevolverInstruccion(pid int, pc int) (string, error) { //ESTO SIRVE PARA CPU
+	proceso, ok := diccionarioProcesosMemoria[pid]
+	if !ok {
+		return "", fmt.Errorf("PID %d no encontrado", pid)
+	}
+	if pc < 0 || pc >= len(proceso.instrucciones) { //Si PC es menor a 0 o mayor al lista de instrucciones -> ERROR
+		return "", fmt.Errorf("PC %d fuera de rango", pc)
+	}
+	return proceso.instrucciones[pc], nil
+}
+
+func espacioDisponible()(int){ //MOCKUP
+	return 2048
+}
+
+func VerificarEspacioDisponible(tamanio int)(bool){
+	return tamanio<=espacioDisponible()
 }
