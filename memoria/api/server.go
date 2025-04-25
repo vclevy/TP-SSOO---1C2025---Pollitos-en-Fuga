@@ -13,6 +13,7 @@ func CrearServer() *server.Server {
 		Port: global.ConfigMemoria.Port_Memory,
 		Handlers: map[string]http.HandlerFunc{
 			"POST /responder": handlers.RecibirPaquete,
+			"POST /tamanioProceso": handlers.TamanioProceso,
 		},
 	}
 	fmt.Printf("🟢 Memoria prendida en http://localhost:%d\n", global.ConfigMemoria.Port_Memory)

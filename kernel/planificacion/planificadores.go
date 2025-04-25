@@ -116,7 +116,7 @@ func IntentarInicializarDesdeNew() {
 
 func SolicitarMemoria(tamanio int) int {
 	cliente := &http.Client{}
-	endpoint := "tamanioProceso/" + strconv.Itoa(tamanio)
+	endpoint := "tamanioProceso/" + strconv.Itoa(tamanio)//Supongo que tamanioProceso es el handler de Memoria (Fran)
 	url := fmt.Sprintf("http://%s:%d/%s", global.ConfigKernel.IPMemory, global.ConfigKernel.Port_Memory, endpoint)
 
 	req, err := http.NewRequest("GET", url, nil)

@@ -1,13 +1,17 @@
 package handlers
 
 import (
+	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
-	"github.com/sisoputnfrba/tp-golang/memoria/global"
-	"github.com/sisoputnfrba/tp-golang/utils/logger"
-	"encoding/json"
-	"strings"
 	"strconv"
+	"strings"
+
+	"github.com/sisoputnfrba/tp-golang/memoria/global"
+	utilsMemoria"github.com/sisoputnfrba/tp-golang/memoria/utilsMemoria"
+	"github.com/sisoputnfrba/tp-golang/utils/logger"
+
 )
 
 type Paquete struct {
@@ -40,4 +44,25 @@ func RecibirPaquete(w http.ResponseWriter, r *http.Request) {
 	global.LoggerMemoria.Log("Memoria recibió paquete: Mensajes: "+strings.Join(paquete.Mensajes, ", ")+" Codigo: "+strconv.Itoa(paquete.Codigo), log.DEBUG)
 
 	w.Write([]byte("Memoria recibió el paquete correctamente"))
+}
+
+func TamanioProceso(w http.ResponseWriter, r *http.Request) {
+    partes := strings.Split(r.URL.Path, "/")
+    if len(partes) != 2 {
+        http.Error(w, "Faltan parámetros", http.StatusBadRequest)
+        return
+    }
+
+    tamanio, err := strconv.Atoi(partes[1])
+    if err != nil {
+        http.Error(w, "Tamaño inválido", http.StatusBadRequest)
+        return
+    }
+
+    fmt.Printf("Me pidieron reservar %d bytes\n", tamanio)
+    w.WriteHeader(http.StatusOK) // o algún código según si tenés espacio o no
+
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(utilsMemoria.VerificarEspacioDisponible(tamanio))
 }

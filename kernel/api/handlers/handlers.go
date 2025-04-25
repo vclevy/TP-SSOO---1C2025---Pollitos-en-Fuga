@@ -107,7 +107,7 @@ func HandshakeConCPU(w http.ResponseWriter, r *http.Request) {
 	puerto := r.URL.Query().Get("puerto")
 
 	global.LoggerKernel.Log(fmt.Sprintf("Handshake recibido de CPU %s en %s:%s", id, ip, puerto), log.DEBUG)
-
+	
 	w.WriteHeader(http.StatusOK)
 
 	pcb := global.NuevoPCB()
