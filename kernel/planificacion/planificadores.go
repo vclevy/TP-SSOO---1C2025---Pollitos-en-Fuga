@@ -47,62 +47,76 @@ func CrearProceso(tamanio int, archivoPseudoCodigo string) Proceso {
 		ArchivoPseudo: archivoPseudoCodigo,
 	}
 
+	
 	global.LoggerKernel.Log(fmt.Sprintf("## (%d) Se crea el proceso - Estado: NEW", pcb.PID), log.INFO) //! LOG OBLIGATORIO: Creacion de Proceso
+	global.ColaNew = append(global.ColaNew, proceso)
 	return proceso
 }
 
 func IniciarPlanificadorLargoPlazo() {
 	go func() {
-		<-global.InicioPlanificacionLargoPlazo // Esperar Enter
+		<-global.InicioPlanificacionLargoPlazo
 		global.LoggerKernel.Log("Iniciando planificación de largo plazo...", log.INFO)
 
 		for {
+			// 🧹 Finalización de procesos
+			if len(global.ColaExit) > 0 {
+				p := &global.ColaExit[0]
+				FinalizarProceso(p)
+				global.ColaExit = global.ColaExit[1:]
+
+				// Intentar inicializar proceso desde NEW
+				if intentarInicializarProceso(global.ColaNew) {
+					continue
+				}
+			}
+
+			// 🕒 Si no hay nada que hacer
 			if len(global.ColaNew) == 0 {
 				time.Sleep(100 * time.Millisecond)
 				continue
 			}
 
+			// Planificación de procesos en NEW
 			switch global.ConfigKernel.SchedulerAlgorithm {
 			case "FIFO":
 				proceso := global.ColaNew[0]
-
 				if SolicitarMemoria(proceso.MemoriaRequerida) {
-					global.ColaNew = global.ColaNew[1:] // lo saco de NEW
+					global.ColaNew = global.ColaNew[1:] // Quitar el primer proceso de NEW
 					ActualizarEstadoPCB(&proceso.PCB, READY)
 					global.ColaReady = append(global.ColaReady, proceso)
-					global.LoggerKernel.Log(fmt.Sprintf("## (%d) Pasa del estado NEW al estado READY", proceso.PCB.PID), log.INFO) //! LOG OBLIGATORIO
-					} else {
-					time.Sleep(100 * time.Millisecond)
+					global.LoggerKernel.Log(fmt.Sprintf("## (%d) Pasa del estado NEW al estado READY", proceso.PCB.PID), log.INFO)
 				}
-
 			case "CHICO":
-				// Crear una copia de la cola para no alterar el orden FIFO
-				colaOrdenada := make([]Proceso, len(global.ColaNew))
-				copy(colaOrdenada, global.ColaNew)
-
-				// Ordenamos la copia por MemoriaRequerida (menor primero)
-				sort.Slice(colaOrdenada, func(i, j int) bool {
-					return colaOrdenada[i].MemoriaRequerida < colaOrdenada[j].MemoriaRequerida
+				// Ordenar por menor memoria requerida
+				ordenada := make([]Proceso, len(global.ColaNew))
+				copy(ordenada, global.ColaNew)
+				sort.Slice(ordenada, func(i, j int) bool {
+					return ordenada[i].MemoriaRequerida < ordenada[j].MemoriaRequerida
 				})
 
-				// Tomar el primer proceso de la copia ordenada
-				proceso := colaOrdenada[0]
-
-				if SolicitarMemoria(proceso.MemoriaRequerida) {
-					// Si tiene memoria, lo saco de la cola original
-					global.ColaNew = global.ColaNew[1:]
-
-					ActualizarEstadoPCB(&proceso.PCB, READY)
-					global.ColaReady = append(global.ColaReady, proceso)
-					global.LoggerKernel.Log(fmt.Sprintf("## (%d) Pasa del estado NEW al estado READY", proceso.PCB.PID), log.INFO) //! LOG OBLIGATORIO
-				} else {
-					time.Sleep(100 * time.Millisecond)
+				// Buscar el primer proceso con memoria disponible
+				for _, proc := range ordenada {
+					if SolicitarMemoria(proc.MemoriaRequerida) {
+						// Eliminarlo de la cola original
+						for i, p := range global.ColaNew {
+							if p.PCB.PID == proc.PCB.PID {
+								global.ColaNew = append(global.ColaNew[:i], global.ColaNew[i+1:]...)
+								break
+							}
+						}
+						ActualizarEstadoPCB(&proc.PCB, READY)
+						global.ColaReady = append(global.ColaReady, proc)
+						global.LoggerKernel.Log(fmt.Sprintf("## (%d) Pasa del estado NEW al estado READY", proc.PCB.PID), log.INFO)
+						break
+					}
 				}
 			}
+
+			time.Sleep(100 * time.Millisecond)
 		}
 	}()
 }
-
 
 func IntentarInicializarDesdeNew() {
 	if len(global.ColaNew) == 0 {
@@ -115,8 +129,8 @@ func IntentarInicializarDesdeNew() {
 		if SolicitarMemoria(proceso.MemoriaRequerida) {
 			ActualizarEstadoPCB(&proceso.PCB, "Ready")
 			global.ColaReady = append(global.ColaReady, proceso)
-			global.ColaNew = global.ColaNew[1:]
-			global.LoggerKernel.Log(fmt.Sprintf("PID: %d movido de NEW a READY (FIFO)", proceso.PID), log.INFO)
+			global.ColaNew = global.ColaNew[1:] // Eliminar de NEW
+			global.LoggerKernel.Log(fmt.Sprintf("PID: %d movido de NEW a READY (FIFO)", proceso.PCB.PID), log.INFO)
 		}
 
 	case "CHICO":
@@ -128,12 +142,12 @@ func IntentarInicializarDesdeNew() {
 			if SolicitarMemoria(proceso.MemoriaRequerida) {
 				ActualizarEstadoPCB(&proceso.PCB, "Ready")
 				global.ColaReady = append(global.ColaReady, proceso)
-				global.LoggerKernel.Log(fmt.Sprintf("PID: %d movido de NEW a READY (CHICO)", proceso.PID), log.INFO)
+				global.LoggerKernel.Log(fmt.Sprintf("PID: %d movido de NEW a READY (CHICO)", proceso.PCB.PID), log.INFO)
 			} else {
-				nuevaCola = append(nuevaCola, proceso)
+				nuevaCola = append(nuevaCola, proceso) // No se movió, sigue en NEW
 			}
 		}
-		global.ColaNew = nuevaCola
+		global.ColaNew = nuevaCola // Actualiza la cola NEW con los procesos no movidos
 	}
 }
 
@@ -227,18 +241,12 @@ func FinalizarProceso(p *Proceso) {
 		return
 	}
 
-	// Loguear métricas
+	// Loguear metricas
 	LoguearMetricas(p)
 
 	// Eliminar de la cola
-	EliminarProcesoDeCola(global.ColaExecuting,p)
+	global.ColaExecuting = filtrarCola(global.ColaExecuting,p)
 
-	// Intentar iniciar otro
-	
-}
-
-func EliminarProcesoDeCola(cola []global.Proceso, p *Proceso) {
-	cola = filtrarCola(cola,p)
 }
 
 func filtrarCola(cola []global.Proceso, target *Proceso) []global.Proceso {
@@ -250,56 +258,6 @@ func filtrarCola(cola []global.Proceso, target *Proceso) []global.Proceso {
 	}
 	return nueva
 }
-
-	
-	// func NuevoPlanificador(algo AlgoritmoPlanificacion, enviarAMemoria func(*Proceso) bool) *PlanificadorLargoPlazo {
-	// 	return &PlanificadorLargoPlazo{
-	// 		ColaNew:        []*procesos.Proceso{},
-	// 		Algoritmo:      algo,
-	// 		Estado:         STOP,
-	// 		EnviarAMemoria: enviarAMemoria,
-	// 	}
-	// }
-	// 
-	// func (p *PlanificadorLargoPlazo) EsperarInicio() {
-	// 	fmt.Println("Planificador en STOP. Presiona ENTER para iniciar...")
-	// 	bufio.NewReader(os.Stdin).ReadBytes('\n')
-	// 	p.Estado = NEW
-	// 	fmt.Println("Planificador iniciado.")
-	// }
-	// 
-	// func (p *PlanificadorLargoPlazo) AgregarProceso(proceso *Proceso) {
-	// 	p.ColaNew = append(p.ColaNew, proceso)
-	// 	p.ordenarCola()
-	// 
-	// 	if len(p.ColaNew) == 1 { //? No entendi xq el == 1 y no >=1
-	// 		p.intentarInicializar()
-	// 	}
-	// }
-	// 
-	// func (p *PlanificadorLargoPlazo) ordenarCola() {
-	// 	switch p.Algoritmo {
-	// 	case FIFO:
-	// 		// No hace falta ordenar, se mantiene el orden
-	// 	case MasChicoPrimero:
-	// 		sort.Slice(p.ColaNew, func(i, j int) bool {
-	// 			return p.ColaNew[i].MemoriaRequerida < p.ColaNew[j].MemoriaRequerida
-	// 		})
-	// 	}
-	// }
-	// 
-	// func (p *PlanificadorLargoPlazo) intentarInicializar() {
-	// 	for len(p.ColaNew) > 0 {
-	// 		proceso := p.ColaNew[0]
-	// 		if p.EnviarAMemoria(proceso) {
-	// 			fmt.Printf("Proceso %d movido a READY.\n", proceso.PID)
-	// 			p.ColaNew = p.ColaNew[1:]
-	// 		} else {
-	// 			fmt.Printf("Memoria no disponible para proceso %d. Esperando...\n", proceso.PID)
-	// 			break
-	// 		}
-	// 	}
-	// }
 
 /*	func EnviarProcessDataAMemoria(proceso Proceso, archPseudo string){
 		pid := proceso.PCB.PID
