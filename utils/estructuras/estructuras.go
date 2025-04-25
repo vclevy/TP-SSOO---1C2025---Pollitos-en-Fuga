@@ -5,3 +5,18 @@ type PaqueteMemoria struct {
 	ArchivoPseudocodigo  	string  `json:"archivo_codigo"`
 	TamanioProceso int `json:"tamanioProceso"`
 }
+
+type IOData struct {
+	IP     string
+	Puerto int
+	Cola   []int
+	PID int 
+}
+
+type MensajeIO struct {
+	NombreIO string `json:"nombre_io"`
+	Evento   string `json:"evento"`   // "registro", "fin", "desconexion"
+	PID      int    `json:"pid"`      // Opcional, solo si es fin
+	IP       string `json:"ip"`       // Solo para registro
+	Puerto   int    `json:"puerto"`   // Solo para registro
+}

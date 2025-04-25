@@ -29,7 +29,8 @@ func main() {
 		panic(fmt.Sprintf("Tamaño de memoria inválido: %s", tamMemoriaString))
 	}
 
-	procesoInicial := planificacion.CrearProceso(tamMemoria,archivo)
+	planificacion.CrearProceso(tamMemoria,archivo)
+	
 	
 	// 2. Crear y levantar server
 	s := api.CrearServer()
@@ -40,5 +41,11 @@ func main() {
 		}
 	}()
 
+	fmt.Println("Planificador de Largo Plazo en STOP. Presione Enter para iniciar...")
+	fmt.Scanln()
+	close(global.InicioPlanificacionLargoPlazo) // Libera la planificación
+	
 	select{}
 }
+
+

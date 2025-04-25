@@ -7,14 +7,13 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/sisoputnfrba/tp-golang/kernel/global"
 	planificacion"github.com/sisoputnfrba/tp-golang/kernel/planificacion"
 
 	"github.com/sisoputnfrba/tp-golang/utils/logger"
 	utils "github.com/sisoputnfrba/tp-golang/utils/paquetes"
-	conexionConIO "github.com/sisoputnfrba/tp-golang/kernel/utilsKernel"
+	//conexionConIO "github.com/sisoputnfrba/tp-golang/kernel/utilsKernel"
 )
 
 type Paquete struct {
@@ -127,56 +126,50 @@ func HandshakeConCPU(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(respuesta)
 }
 
-type IOSyscallRequest struct {
-	PID           int    `json:"pid"`
-	NombreDispositivo string `json:"dispositivo"`
-	Duracion      int    `json:"duracion"` // en milisegundos
+type MensajeIO struct {
+	NombreIO string `json:"nombre_io"`
+	Evento   string `json:"evento"`   // "registro", "fin", "desconexion"
+	PID      int    `json:"pid"`      // Opcional, solo si es fin
+	IP       string `json:"ip"`       // Solo para registro
+	Puerto   int    `json:"puerto"`   // Solo para registro
 }
 
-var mutex sync.Mutex
-
-func SyscallIO(w http.ResponseWriter, r *http.Request) {
-	var req IOSyscallRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Error decodificando request", http.StatusBadRequest)
+func ManejarMensajeIO(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
 		return
 	}
 
-	mutex.Lock()
-	defer mutex.Unlock()
-
-	if !conexionConIO.DispositivoExiste(req.NombreDispositivo) {
-		global.LoggerKernel.Log(fmt.Sprintf("PID %d solicitó IO %s que no existe. Finalizando.", req.PID, req.NombreDispositivo), logger.ERROR)
-		conexionConIO.FinalizarProcesoPorSyscall(req.PID) // EXIT directo
-		w.WriteHeader(http.StatusOK)
+	body, err := io.ReadAll(r.Body)
+	defer r.Body.Close()
+	if err != nil {
+		http.Error(w, "Error leyendo body", http.StatusBadRequest)
 		return
 	}
 
-	global.LoggerKernel.Log(fmt.Sprintf("PID %d solicita IO %s por %d ms", req.PID, req.NombreDispositivo, req.Duracion), logger.INFO)
+	var mensaje MensajeIO
+	err = json.Unmarshal(body, &mensaje)
+	if err != nil {
+		http.Error(w, "Error parseando JSON", http.StatusBadRequest)
+		return
+	}
 
-	conexionConIO.BloquearProceso(req.PID, req.NombreDispositivo)
-	conexionConIO.EncolarEnIO(req.NombreDispositivo, req.PID, req.Duracion)
+	mensaje.Evento = strings.ToLower(mensaje.Evento)
+	global.LoggerKernel.Log("Kernel recibió evento de IO: "+mensaje.NombreIO+" ("+mensaje.Evento+")", log.DEBUG)
 
-	if conexionConIO.DispositivoLibre(req.NombreDispositivo) {
-		conexionConIO.EnviarAIO(req.NombreDispositivo)
+	switch mensaje.Evento {
+	case "registro":
+		//TODO registrarNuevoIO(mensaje)
+	case "fin":
+		//TODO conexionConIO.finalizarIO(mensaje)
+	case "desconexion":
+		//TODO conexionConIO.desconectarIO(mensaje)
+	default:
+		global.LoggerKernel.Log("Evento IO desconocido: "+mensaje.Evento, log.ERROR)
+		http.Error(w, "Evento desconocido", http.StatusBadRequest)
+		return
 	}
 
 	w.WriteHeader(http.StatusOK)
-}
-
-type DispositivoIO = global.DispositivoIO
-
-func HandleIORegister(w http.ResponseWriter, r *http.Request) {  //*Chequear
-	var nuevoIO DispositivoIO
-	if err := json.NewDecoder(r.Body).Decode(&nuevoIO); err != nil {
-		http.Error(w, "Error al decodificar", http.StatusBadRequest)
-		return
-	}
-
-	global.DispositivosIO[nuevoIO.Nombre] = nuevoIO
-
-	global.LoggerKernel.Log(fmt.Sprintf("Dispositivo IO registrado: %s (%s:%d)",
-		nuevoIO.Nombre, nuevoIO.IP, nuevoIO.Puerto), log.DEBUG)
-
-	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("OK"))
 }

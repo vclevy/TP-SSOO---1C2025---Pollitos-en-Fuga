@@ -4,6 +4,7 @@ import (
 	"time"
 
 	utils "github.com/sisoputnfrba/tp-golang/utils/config"
+	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
 	logger "github.com/sisoputnfrba/tp-golang/utils/logger"
 )
 
@@ -59,28 +60,22 @@ func InitGlobal() {
 	// 2. Inicializar logger con lo que vino en la config
 	LoggerKernel = logger.ConfigurarLogger(ConfigKernel.Log_file, ConfigKernel.LogLevel)
     LoggerKernel.Log("Logger de Kernel inicializado", logger.DEBUG)
+
+	// 3. Inicializar canal de sincronización para planificación
+	InicioPlanificacionLargoPlazo = make(chan struct{})
 }
 
-var EstadoKernel string = "STOP" // Al inicio se está en STOP
+var InicioPlanificacionLargoPlazo chan struct{}
 
-// Colas
 var ColaNew []Proceso
-
 var ColaReady []Proceso
-
 var ColaSuspReady []Proceso
-
 var ColaExecuting []Proceso
-
 var ColaBlocked []Proceso
-
 var ColaSuspBlocked []Proceso
 
 //IO
-type DispositivoIO struct {
-	Nombre string
-	IP     string
-	Puerto int
-}
 
-var DispositivosIO = make(map[string]DispositivoIO)
+type IOData = estructuras.IOData
+var IOConectados map[string]*IOData
+

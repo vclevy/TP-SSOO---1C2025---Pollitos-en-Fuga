@@ -49,35 +49,58 @@ func CrearProceso(tamanio int, archivoPseudoCodigo string) Proceso {
 
 	global.LoggerKernel.Log(fmt.Sprintf("## (%d) Se crea el proceso - Estado: NEW", pcb.PID), log.INFO) //! LOG OBLIGATORIO: Creacion de Proceso
 	return proceso
-
 }
 
-func PlanificarProcesoLargoPlazo(pseudoCodigo string, proceso Proceso) {
-	switch global.ConfigKernel.SchedulerAlgorithm {
-	case "FIFO":
-		if len(global.ColaNew) == 0 {
-			if SolicitarMemoria(proceso.MemoriaRequerida) == http.StatusOK {
-				//TODO PasarPseudocodigoAMemoria(proceso)
-				ActualizarEstadoPCB(&proceso.PCB, READY)
-				global.ColaReady = append(global.ColaReady, proceso)
-				global.LoggerKernel.Log(fmt.Sprintf("## (%d) Pasa del estado"+NEW+" al estado"+ READY, proceso.PCB.PID), log.INFO)  //! LOG OBLIGATORIO: Cambio de Estado
-				return
+func IniciarPlanificadorLargoPlazo() {
+	go func() {
+		<-global.InicioPlanificacionLargoPlazo // Esperar Enter
+		global.LoggerKernel.Log("Iniciando planificación de largo plazo...", log.INFO)
+
+		for {
+			if len(global.ColaNew) == 0 {
+				time.Sleep(100 * time.Millisecond)
+				continue
+			}
+
+			switch global.ConfigKernel.SchedulerAlgorithm {
+			case "FIFO":
+				proceso := global.ColaNew[0]
+
+				if SolicitarMemoria(proceso.MemoriaRequerida) {
+					global.ColaNew = global.ColaNew[1:] // lo saco de NEW
+					ActualizarEstadoPCB(&proceso.PCB, READY)
+					global.ColaReady = append(global.ColaReady, proceso)
+					global.LoggerKernel.Log(fmt.Sprintf("## (%d) Pasa del estado NEW al estado READY", proceso.PCB.PID), log.INFO) //! LOG OBLIGATORIO
+					} else {
+					time.Sleep(100 * time.Millisecond)
+				}
+
+			case "CHICO":
+				// Crear una copia de la cola para no alterar el orden FIFO
+				colaOrdenada := make([]Proceso, len(global.ColaNew))
+				copy(colaOrdenada, global.ColaNew)
+
+				// Ordenamos la copia por MemoriaRequerida (menor primero)
+				sort.Slice(colaOrdenada, func(i, j int) bool {
+					return colaOrdenada[i].MemoriaRequerida < colaOrdenada[j].MemoriaRequerida
+				})
+
+				// Tomar el primer proceso de la copia ordenada
+				proceso := colaOrdenada[0]
+
+				if SolicitarMemoria(proceso.MemoriaRequerida) {
+					// Si tiene memoria, lo saco de la cola original
+					global.ColaNew = global.ColaNew[1:]
+
+					ActualizarEstadoPCB(&proceso.PCB, READY)
+					global.ColaReady = append(global.ColaReady, proceso)
+					global.LoggerKernel.Log(fmt.Sprintf("## (%d) Pasa del estado NEW al estado READY", proceso.PCB.PID), log.INFO) //! LOG OBLIGATORIO
+				} else {
+					time.Sleep(100 * time.Millisecond)
+				}
 			}
 		}
-		global.ColaNew = append(global.ColaNew, proceso)
-		global.LoggerKernel.Log(fmt.Sprintf("PID: %d encolado en NEW (FIFO)", proceso.PCB.PID), log.DEBUG)
-
-	case "CHICO":
-		if SolicitarMemoria(proceso.MemoriaRequerida) == http.StatusOK {
-			//TODO PasarPseudocodigoAMemoria(proceso)
-			ActualizarEstadoPCB(&proceso.PCB, "Ready")
-			global.ColaReady = append(global.ColaReady, proceso)
-			global.LoggerKernel.Log(fmt.Sprintf("## (%d) Pasa del estado"+NEW+" al estado"+ READY, proceso.PCB.PID), log.INFO)  //! LOG OBLIGATORIO: Cambio de Estado
-			return
-		}
-		global.ColaNew = append(global.ColaNew, proceso)
-		global.LoggerKernel.Log(fmt.Sprintf("PID: %d encolado en NEW (CHICO)", proceso.PCB.PID), log.DEBUG)
-	}
+	}()
 }
 
 
@@ -89,8 +112,7 @@ func IntentarInicializarDesdeNew() {
 	switch global.ConfigKernel.SchedulerAlgorithm {
 	case "FIFO":
 		proceso := global.ColaNew[0]
-		if SolicitarMemoria(proceso.MemoriaRequerida) == http.StatusOK {
-			//TODO PasarPseudocodigoAMemoria(proceso)
+		if SolicitarMemoria(proceso.MemoriaRequerida) {
 			ActualizarEstadoPCB(&proceso.PCB, "Ready")
 			global.ColaReady = append(global.ColaReady, proceso)
 			global.ColaNew = global.ColaNew[1:]
@@ -103,8 +125,7 @@ func IntentarInicializarDesdeNew() {
 		})
 		nuevaCola := []Proceso{}
 		for _, proceso := range global.ColaNew {
-			if SolicitarMemoria(proceso.MemoriaRequerida) == http.StatusOK {
-				//TODO EnviarProcessDataAMemoria(proceso,archPseudo)
+			if SolicitarMemoria(proceso.MemoriaRequerida) {
 				ActualizarEstadoPCB(&proceso.PCB, "Ready")
 				global.ColaReady = append(global.ColaReady, proceso)
 				global.LoggerKernel.Log(fmt.Sprintf("PID: %d movido de NEW a READY (CHICO)", proceso.PID), log.INFO)
@@ -115,7 +136,7 @@ func IntentarInicializarDesdeNew() {
 		global.ColaNew = nuevaCola
 	}
 }
-// http://<IP_MEMORIA>:<PUERTO_MEMORIA>/procesoAMemoria?tamanioMemria=<TAMANIO>&ip=<IP_CPU>&puerto=<PUERTO_CPU>
+
 
 func SolicitarMemoria(tamanio int) bool {
 	cliente := &http.Client{}
