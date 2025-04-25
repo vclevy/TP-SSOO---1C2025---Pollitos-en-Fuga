@@ -11,6 +11,7 @@ import (
 
 	"github.com/sisoputnfrba/tp-golang/kernel/global"
 	"github.com/sisoputnfrba/tp-golang/utils/logger"
+	//estructuras "github.com/sisoputnfrba/tp-golang/utils/estructuras"
 )
 
 const (
@@ -36,13 +37,14 @@ var estado = []string{
 type PCB = global.PCB
 type Proceso = global.Proceso
 
-func CrearProceso(tamanio int) Proceso {
+func CrearProceso(tamanio int, archivoPseudoCodigo string) Proceso {
 	pcb := global.NuevoPCB()
 	ActualizarEstadoPCB(pcb, NEW)
 
 	proceso := Proceso{
 		PCB:              *pcb,
 		MemoriaRequerida: tamanio,
+		ArchivoPseudo: archivoPseudoCodigo,
 	}
 
 	global.LoggerKernel.Log(fmt.Sprintf("## (%d) Se crea el proceso - Estado: NEW", pcb.PID), log.INFO) //! LOG OBLIGATORIO: Creacion de Proceso
@@ -102,7 +104,7 @@ func IntentarInicializarDesdeNew() {
 		nuevaCola := []Proceso{}
 		for _, proceso := range global.ColaNew {
 			if SolicitarMemoria(proceso.MemoriaRequerida) == http.StatusOK {
-				//TODO PasarPseudocodigoAMemoria(proceso)
+				//TODO EnviarProcessDataAMemoria(proceso,archPseudo)
 				ActualizarEstadoPCB(&proceso.PCB, "Ready")
 				global.ColaReady = append(global.ColaReady, proceso)
 				global.LoggerKernel.Log(fmt.Sprintf("PID: %d movido de NEW a READY (CHICO)", proceso.PID), log.INFO)
@@ -113,25 +115,33 @@ func IntentarInicializarDesdeNew() {
 		global.ColaNew = nuevaCola
 	}
 }
+// http://<IP_MEMORIA>:<PUERTO_MEMORIA>/procesoAMemoria?tamanioMemria=<TAMANIO>&ip=<IP_CPU>&puerto=<PUERTO_CPU>
 
-func SolicitarMemoria(tamanio int) int {
+func SolicitarMemoria(tamanio int) bool {
 	cliente := &http.Client{}
-	endpoint := "tamanioProceso/" + strconv.Itoa(tamanio)//Supongo que tamanioProceso es el handler de Memoria (Fran)
+	endpoint := "verificarEspacioDisponible/" + strconv.Itoa(tamanio) // Correcto si 'tamanioProceso' es el handler de Memoria
 	url := fmt.Sprintf("http://%s:%d/%s", global.ConfigKernel.IPMemory, global.ConfigKernel.Port_Memory, endpoint)
 
+	// Crear la solicitud GET
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return http.StatusInternalServerError
+		return false // Error al crear la solicitud
 	}
 
 	req.Header.Set("Content-Type", "application/json")
 	respuesta, err := cliente.Do(req)
 	if err != nil {
-		return http.StatusInternalServerError
+		return false // Error al enviar la solicitud
 	}
 	defer respuesta.Body.Close()
 
-	return respuesta.StatusCode
+	// Si la respuesta es 200 OK, entonces retornamos true (éxito)
+	if respuesta.StatusCode == http.StatusOK {
+		return true
+	}
+
+	// En cualquier otro caso, retornamos false (error)
+	return false
 }
 
 func ActualizarEstadoPCB(pcb *PCB, nuevoEstado string) {
@@ -269,3 +279,9 @@ func filtrarCola(cola []global.Proceso, target *Proceso) []global.Proceso {
 	// 		}
 	// 	}
 	// }
+
+/*	func EnviarProcessDataAMemoria(proceso Proceso, archPseudo string){
+		pid := proceso.PCB.PID
+		pseudoCodigo := proceso
+		return 
+	} */

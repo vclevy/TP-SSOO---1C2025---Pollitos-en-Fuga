@@ -28,7 +28,7 @@ func CargarProceso(pid int, ruta string) error {
 	diccionarioProcesosMemoria[pid] = &procesoMemoria{ //el identificador es el pid
 		pid:           pid,
 		instrucciones: lineas,
-		PC:            0,
+		PC:            0, //ver si esto se esta incrementando
 	}
 	return nil
 }

@@ -7,12 +7,14 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/sisoputnfrba/tp-golang/kernel/global"
 	planificacion"github.com/sisoputnfrba/tp-golang/kernel/planificacion"
-	
+
 	"github.com/sisoputnfrba/tp-golang/utils/logger"
 	utils "github.com/sisoputnfrba/tp-golang/utils/paquetes"
+	conexionConIO "github.com/sisoputnfrba/tp-golang/kernel/utilsKernel"
 )
 
 type Paquete struct {
@@ -123,4 +125,58 @@ func HandshakeConCPU(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(respuesta)
+}
+
+type IOSyscallRequest struct {
+	PID           int    `json:"pid"`
+	NombreDispositivo string `json:"dispositivo"`
+	Duracion      int    `json:"duracion"` // en milisegundos
+}
+
+var mutex sync.Mutex
+
+func SyscallIO(w http.ResponseWriter, r *http.Request) {
+	var req IOSyscallRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Error decodificando request", http.StatusBadRequest)
+		return
+	}
+
+	mutex.Lock()
+	defer mutex.Unlock()
+
+	if !conexionConIO.DispositivoExiste(req.NombreDispositivo) {
+		global.LoggerKernel.Log(fmt.Sprintf("PID %d solicitó IO %s que no existe. Finalizando.", req.PID, req.NombreDispositivo), logger.ERROR)
+		conexionConIO.FinalizarProcesoPorSyscall(req.PID) // EXIT directo
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	global.LoggerKernel.Log(fmt.Sprintf("PID %d solicita IO %s por %d ms", req.PID, req.NombreDispositivo, req.Duracion), logger.INFO)
+
+	conexionConIO.BloquearProceso(req.PID, req.NombreDispositivo)
+	conexionConIO.EncolarEnIO(req.NombreDispositivo, req.PID, req.Duracion)
+
+	if conexionConIO.DispositivoLibre(req.NombreDispositivo) {
+		conexionConIO.EnviarAIO(req.NombreDispositivo)
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+type DispositivoIO = global.DispositivoIO
+
+func HandleIORegister(w http.ResponseWriter, r *http.Request) {  //*Chequear
+	var nuevoIO DispositivoIO
+	if err := json.NewDecoder(r.Body).Decode(&nuevoIO); err != nil {
+		http.Error(w, "Error al decodificar", http.StatusBadRequest)
+		return
+	}
+
+	global.DispositivosIO[nuevoIO.Nombre] = nuevoIO
+
+	global.LoggerKernel.Log(fmt.Sprintf("Dispositivo IO registrado: %s (%s:%d)",
+		nuevoIO.Nombre, nuevoIO.IP, nuevoIO.Puerto), log.DEBUG)
+
+	w.WriteHeader(http.StatusOK)
 }

@@ -11,58 +11,63 @@ import (
 	"github.com/sisoputnfrba/tp-golang/memoria/global"
 	utilsMemoria"github.com/sisoputnfrba/tp-golang/memoria/utilsMemoria"
 	"github.com/sisoputnfrba/tp-golang/utils/logger"
+	estructuras "github.com/sisoputnfrba/tp-golang/utils/estructuras"
+	
 
 )
 
-type Paquete struct {
-	Mensajes []string `json:"mensaje"`
-	Codigo  	int  `json:"codigo"`
-}
+type PaqueteMemoria = estructuras.PaqueteMemoria
 
-func RecibirPaquete(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
-		global.LoggerMemoria.Log("Se intentó acceder con un método no permitido", log.DEBUG)
-		return
-	}
-
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, "Error leyendo el cuerpo", http.StatusBadRequest)
-		global.LoggerMemoria.Log("Error leyendo el cuerpo del request: "+err.Error(), log.DEBUG)
-		return
-	}
-	defer r.Body.Close()
-
-	var paquete Paquete
-	err = json.Unmarshal(body, &paquete)
-	if err != nil {
-		http.Error(w, "Error parseando el paquete", http.StatusBadRequest)
-		global.LoggerMemoria.Log("Error al parsear el paquete JSON: "+err.Error(), log.DEBUG)
-		return
-	}
-	global.LoggerMemoria.Log("Memoria recibió paquete: Mensajes: "+strings.Join(paquete.Mensajes, ", ")+" Codigo: "+strconv.Itoa(paquete.Codigo), log.DEBUG)
-
-	w.Write([]byte("Memoria recibió el paquete correctamente"))
-}
-
-func TamanioProceso(w http.ResponseWriter, r *http.Request) {
-    partes := strings.Split(r.URL.Path, "/")
-    if len(partes) != 2 {
-        http.Error(w, "Faltan parámetros", http.StatusBadRequest)
+func RecibirProceso(w http.ResponseWriter, r *http.Request) {
+    if r.Method != http.MethodPost {
+        http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
         return
     }
 
-    tamanio, err := strconv.Atoi(partes[1])
-    if err != nil {
-        http.Error(w, "Tamaño inválido", http.StatusBadRequest)
+    var paquete PaqueteMemoria
+    if err := json.NewDecoder(r.Body).Decode(&paquete); err != nil {
+        http.Error(w, "Error al decodificar JSON", http.StatusBadRequest)
         return
     }
 
-    fmt.Printf("Me pidieron reservar %d bytes\n", tamanio)
-    w.WriteHeader(http.StatusOK) // o algún código según si tenés espacio o no
-
+	pid := paquete.PID
+	tamanio := paquete.TamanioProceso
+    archivoPseudocodigo := paquete.ArchivoPseudocodigo
 	
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(utilsMemoria.VerificarEspacioDisponible(tamanio))
+	pidString := strconv.Itoa(pid)
+	
+	utilsMemoria.CargarProceso(pid, archivoPseudocodigo)
+	global.LoggerMemoria.Log("## "+ pidString +": <"+ pidString +"> - Proceso Creado - Tamaño: <"+strconv.Itoa(tamanio)+">", log.DEBUG)
+
+    w.WriteHeader(http.StatusOK)
+    fmt.Fprintf(w, "Paquete recibido correctamente para PID %d", paquete.PID)
 }
+
+
+
+
+func VerificarEspacioDisponible(w http.ResponseWriter, r *http.Request) {
+	tamanioStr := r.URL.Query().Get("tamanioProceso") // Aquí debes asegurarte que el parámetro esté correcto
+	
+	// Intentamos convertir el parámetro a entero
+	tamanio, err := strconv.Atoi(tamanioStr)
+	if err != nil {
+		http.Error(w, "Tamaño de proceso inválido", http.StatusBadRequest)
+		return
+	}
+
+	// Verificamos si hay suficiente espacio en la memoria
+	espacioDisponible := utilsMemoria.VerificarEspacioDisponible(tamanio)
+	if espacioDisponible {
+		// Si hay espacio, respondemos con un OK
+		w.WriteHeader(http.StatusOK)
+	} else {
+		// Si no hay espacio, respondemos con un error
+		http.Error(w, "No hay suficiente espacio", http.StatusConflict)
+	}
+
+	// Retornamos la respuesta en formato JSON
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]bool{"espacioDisponible": espacioDisponible})
+}
+

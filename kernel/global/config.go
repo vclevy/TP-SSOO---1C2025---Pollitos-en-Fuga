@@ -33,10 +33,10 @@ func NuevoPCB() *PCB {
 	}
 }
 
-
 type Proceso struct {
 	PCB
 	MemoriaRequerida int
+	ArchivoPseudo string
 }
 
 type Config struct {
@@ -63,14 +63,24 @@ func InitGlobal() {
 
 var EstadoKernel string = "STOP" // Al inicio se está en STOP
 
-// Cola de procesos en estado NEW
+// Colas
 var ColaNew []Proceso
 
-// Cola de procesos en estado READY
 var ColaReady []Proceso
 
-// Cola de procesos en estado SUSPENDED-READY (para usar al finalizar otro proceso)
 var ColaSuspReady []Proceso
 
-// Lista de todos los procesos activos en el sistema
 var ColaExecuting []Proceso
+
+var ColaBlocked []Proceso
+
+var ColaSuspBlocked []Proceso
+
+//IO
+type DispositivoIO struct {
+	Nombre string
+	IP     string
+	Puerto int
+}
+
+var DispositivosIO = make(map[string]DispositivoIO)
