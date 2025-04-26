@@ -74,6 +74,9 @@ var ColaExecuting []Proceso
 var ColaBlocked []Proceso
 var ColaSuspBlocked []Proceso
 
+var ColaExit []Proceso
+var ColaIO []Proceso
+
 //IO
 
 type IOData = estructuras.IOData
