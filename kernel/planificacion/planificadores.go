@@ -58,7 +58,7 @@ func IniciarPlanificadorLargoPlazo() {
 		global.LoggerKernel.Log("Iniciando planificación de largo plazo...", log.INFO)
 
 		for {
-			// 🧹 Finalización de procesos
+			// Finalización de procesos
 			if len(global.ColaExit) > 0 {
 
 				p := global.ColaExit[0]
@@ -71,7 +71,7 @@ func IniciarPlanificadorLargoPlazo() {
 				}
 			}
 
-			// 🕒 Si no hay nada que hacer
+			// Si no hay nada que hacer
 			if len(global.ColaNew) == 0 {
 				time.Sleep(100 * time.Millisecond)
 				continue
@@ -164,7 +164,7 @@ func IntentarInicializarDesdeNew() bool {
 
 func SolicitarMemoria(tamanio int) bool {
 	cliente := &http.Client{}
-	endpoint := "verificarEspacioDisponible/" + strconv.Itoa(tamanio) // Correcto si 'tamanioProceso' es el handler de Memoria
+	endpoint := "verificarEspacioDisponible?tamanioProceso=" + strconv.Itoa(tamanio) // Correcto si 'tamanioProceso' es el handler de Memoria
 	url := fmt.Sprintf("http://%s:%d/%s", global.ConfigKernel.IPMemory, global.ConfigKernel.Port_Memory, endpoint)
 
 	// Crear la solicitud GET
@@ -206,7 +206,7 @@ func ActualizarEstadoPCB(pcb *PCB, nuevoEstado string) {
 }
 
 func InformarFinAMemoria(pid int) error {
-	url := "http://" + global.ConfigKernel.IPMemory + ":" + strconv.Itoa(global.ConfigKernel.Port_Memory) + "/finalizar-proceso"
+	url := "http://" + global.ConfigKernel.IPMemory + ":" + strconv.Itoa(global.ConfigKernel.Port_Memory) + "/finalizarProceso"
 
 	data := map[string]int{"pid": pid}
 	jsonData, _ := json.Marshal(data)
@@ -229,7 +229,7 @@ func FinalizarProceso(p *Proceso) {
 
 	err := InformarFinAMemoria(p.PID)
 	if err != nil {
-		// Manejo de error
+		global.LoggerKernel.Log(fmt.Sprintf("Error al informar finalización del proceso %d a Memoria: %s", p.PID, err.Error()), log.ERROR)
 		return
 	}
 
@@ -301,9 +301,9 @@ func SeleccionarYDespacharProceso() {
 		proceso = seleccionarProcesoSJF(true)
 	}
 
-	EnviarADispatch(proceso.PCB.PID)
+	//TODO EnviarADispatch(proceso.PCB.PID)
 	ActualizarEstadoPCB(&proceso.PCB, EXEC)
-	global.ProcesoEnEjecucion = proceso
+	global.ColaExecuting = append(global.ColaExecuting, proceso) // lo agrego a los procesos en ejecucion
 }
 
 func seleccionarProcesoSJF(desalojo bool) Proceso {
@@ -323,15 +323,29 @@ func EvaluarDesalojo(nuevo Proceso) {
 		return
 	}
 
-	ejecutando := global.ProcesoEnEjecucion
+	if len(global.ColaExecuting) == 0 {
+		return
+	}
 
-	if ejecutando.PCB.PID != 0 && nuevo.EstimacionRafaga < ejecutando.EstimacionRafaga {
-		global.LoggerKernel.Log(fmt.Sprintf("Desalojando proceso %d por nuevo proceso %d", ejecutando.PCB.PID, nuevo.PCB.PID), log.INFO)
-		EnviarInterrupcion(ejecutando.PCB.PID)
+	// Buscar el proceso en ejecución con mayor estimación de ráfaga
+	procesoADesalojar := global.ColaExecuting[0]
+	for _, proceso := range global.ColaExecuting {
+		if proceso.EstimacionRafaga > procesoADesalojar.EstimacionRafaga {
+			procesoADesalojar = proceso
+		}
+	}
+
+	// Comparar el mejor candidato a desalojar contra el nuevo
+	if nuevo.EstimacionRafaga < procesoADesalojar.EstimacionRafaga {
+		global.LoggerKernel.Log(fmt.Sprintf("Desalojando proceso %d por nuevo proceso %d", procesoADesalojar.PCB.PID, nuevo.PCB.PID), log.INFO)
+		EnviarInterrupcion(procesoADesalojar.PCB.PID)
 	}
 }
+
 
 func RecalcularRafaga(proceso *Proceso, rafagaReal float64) {
 	alpha := global.ConfigKernel.Alpha // [0,1]
 	proceso.EstimacionRafaga = alpha*rafagaReal + (1-alpha)*proceso.EstimacionRafaga
 }
+
+
