@@ -55,9 +55,9 @@ func VerificarEspacioDisponible(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Tamaño de proceso inválido", http.StatusBadRequest)
 		return
 	}
-
+//arreglar nombres de funciones
 	// Verificamos si hay suficiente espacio en la memoria
-	espacioDisponible := utilsMemoria.VerificarEspacioDisponible(tamanio)
+	espacioDisponible := utilsMemoria.HayLugar(tamanio)
 	if espacioDisponible {
 		// Si hay espacio, respondemos con un OK
 		w.WriteHeader(http.StatusOK)

@@ -10,7 +10,7 @@ import (
 //Esto mapea un pid con un array de strings
 
 type procesoMemoria struct{ //Ver fomato que necestian en KERNEL
-	pid int
+	pid int //sacar ver
 	instrucciones []string 
 	PC int //Program Counter
 }
@@ -49,6 +49,6 @@ func espacioDisponible()(int){ //MOCKUP
 	return 2048
 }
 
-func VerificarEspacioDisponible(tamanio int)(bool){
+func HayLugar(tamanio int)(bool){
 	return tamanio<=espacioDisponible()
 }
