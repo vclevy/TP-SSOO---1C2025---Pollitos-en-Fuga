@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/sisoputnfrba/tp-golang/io/global"
+	log "github.com/sisoputnfrba/tp-golang/utils/logger"
 )
 
 type Paquete struct {
@@ -72,4 +74,15 @@ func EnviarPaqueteAKernel(paquete Paquete, ip string) (*RespuestaKernel, error) 
 
 	// Devolver la respuesta
 	return &respuesta, nil
+}
+
+func IniciarIo(solicitud RespuestaKernel) {
+	// Log de inicio de E/S
+	global.LoggerIo.Log(fmt.Sprintf("## PID: %d - Inicio de IO - Tiempo: %dms", solicitud.PID, solicitud.TiempoEstimado), log.INFO)
+
+	// Simulación del proceso de E/S con sleep
+	time.Sleep(time.Duration(solicitud.TiempoEstimado) * time.Millisecond)
+
+	// Log de finalización de E/S
+	global.LoggerIo.Log(fmt.Sprintf("## PID: %d - Fin de IO", solicitud.PID), log.INFO)
 }
