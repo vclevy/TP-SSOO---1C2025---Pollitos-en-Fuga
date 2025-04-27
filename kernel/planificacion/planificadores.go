@@ -15,21 +15,21 @@ import (
 )
 
 const (
-	NEW    			string = "NEW"
-	READY  			string = "READY"
-	STOP   			string = "STOP"
-	RUN    			string = "RUN"
-	EXIT   			string = "EXIT"
-	SUSP_READY 		string = "SUSP READY"
-	SUSP_BLOCKED 	string = "SUSP BLOCKED"
+	NEW          string = "NEW"
+	READY        string = "READY"
+	EXEC          string = "EXEC"
+	EXIT         string = "EXIT"
+	BLOCKED         string = "BLOCKED"
+	SUSP_READY   string = "SUSP READY"
+	SUSP_BLOCKED string = "SUSP BLOCKED"
 )
 
 var estado = []string{
 	NEW,
 	READY,
-	STOP,
-	RUN,
+	EXEC,
 	EXIT,
+	BLOCKED,
 	SUSP_READY,
 	SUSP_BLOCKED,
 }
@@ -44,10 +44,10 @@ func CrearProceso(tamanio int, archivoPseudoCodigo string) Proceso {
 	proceso := Proceso{
 		PCB:              *pcb,
 		MemoriaRequerida: tamanio,
-		ArchivoPseudo: archivoPseudoCodigo,
+		ArchivoPseudo:    archivoPseudoCodigo,
+		EstimacionRafaga: global.ConfigKernel.EstimacionRafaga,
 	}
 
-	
 	global.LoggerKernel.Log(fmt.Sprintf("## (%d) Se crea el proceso - Estado: NEW", pcb.PID), log.INFO) //! LOG OBLIGATORIO: Creacion de Proceso
 	global.ColaNew = append(global.ColaNew, proceso)
 	return proceso
@@ -59,19 +59,20 @@ func IniciarPlanificadorLargoPlazo() {
 		global.LoggerKernel.Log("Iniciando planificación de largo plazo...", log.INFO)
 
 		for {
-			// 🧹 Finalización de procesos
+			// Finalización de procesos
 			if len(global.ColaExit) > 0 {
-				p := &global.ColaExit[0]
-				FinalizarProceso(p)
+
+				p := global.ColaExit[0]
+				FinalizarProceso(&p)
 				global.ColaExit = global.ColaExit[1:]
 
 				// Intentar inicializar proceso desde NEW
-				if intentarInicializarProceso(global.ColaNew) {
+				if IntentarInicializarDesdeNew() {
 					continue
 				}
 			}
 
-			// 🕒 Si no hay nada que hacer
+			// Si no hay nada que hacer
 			if len(global.ColaNew) == 0 {
 				time.Sleep(100 * time.Millisecond)
 				continue
@@ -82,15 +83,17 @@ func IniciarPlanificadorLargoPlazo() {
 			case "FIFO":
 				proceso := global.ColaNew[0]
 				if SolicitarMemoria(proceso.MemoriaRequerida) {
-					global.ColaNew = global.ColaNew[1:] // Quitar el primer proceso de NEW
+					global.ColaNew = global.ColaNew[1:]
 					ActualizarEstadoPCB(&proceso.PCB, READY)
 					global.ColaReady = append(global.ColaReady, proceso)
 					global.LoggerKernel.Log(fmt.Sprintf("## (%d) Pasa del estado NEW al estado READY", proceso.PCB.PID), log.INFO)
+
+					EvaluarDesalojo(proceso)
 				}
 			case "CHICO":
 				// Ordenar por menor memoria requerida
 				ordenada := make([]Proceso, len(global.ColaNew))
-				copy(ordenada, global.ColaNew)
+				copy(ordenada, global.ColaNew) // para no modificar la cola original
 				sort.Slice(ordenada, func(i, j int) bool {
 					return ordenada[i].MemoriaRequerida < ordenada[j].MemoriaRequerida
 				})
@@ -108,6 +111,9 @@ func IniciarPlanificadorLargoPlazo() {
 						ActualizarEstadoPCB(&proc.PCB, READY)
 						global.ColaReady = append(global.ColaReady, proc)
 						global.LoggerKernel.Log(fmt.Sprintf("## (%d) Pasa del estado NEW al estado READY", proc.PCB.PID), log.INFO)
+
+						EvaluarDesalojo(proc)
+
 						break
 					}
 				}
@@ -118,19 +124,22 @@ func IniciarPlanificadorLargoPlazo() {
 	}()
 }
 
-func IntentarInicializarDesdeNew() {
+func IntentarInicializarDesdeNew() bool {
 	if len(global.ColaNew) == 0 {
-		return
+		return false
 	}
+
+	moved := false
 
 	switch global.ConfigKernel.SchedulerAlgorithm {
 	case "FIFO":
 		proceso := global.ColaNew[0]
 		if SolicitarMemoria(proceso.MemoriaRequerida) {
-			ActualizarEstadoPCB(&proceso.PCB, "Ready")
+			ActualizarEstadoPCB(&proceso.PCB, READY)
 			global.ColaReady = append(global.ColaReady, proceso)
-			global.ColaNew = global.ColaNew[1:] // Eliminar de NEW
+			global.ColaNew = global.ColaNew[1:]
 			global.LoggerKernel.Log(fmt.Sprintf("PID: %d movido de NEW a READY (FIFO)", proceso.PCB.PID), log.INFO)
+			moved = true
 		}
 
 	case "CHICO":
@@ -140,21 +149,23 @@ func IntentarInicializarDesdeNew() {
 		nuevaCola := []Proceso{}
 		for _, proceso := range global.ColaNew {
 			if SolicitarMemoria(proceso.MemoriaRequerida) {
-				ActualizarEstadoPCB(&proceso.PCB, "Ready")
+				ActualizarEstadoPCB(&proceso.PCB, READY)
 				global.ColaReady = append(global.ColaReady, proceso)
 				global.LoggerKernel.Log(fmt.Sprintf("PID: %d movido de NEW a READY (CHICO)", proceso.PCB.PID), log.INFO)
+				moved = true
 			} else {
-				nuevaCola = append(nuevaCola, proceso) // No se movió, sigue en NEW
+				nuevaCola = append(nuevaCola, proceso)
 			}
 		}
-		global.ColaNew = nuevaCola // Actualiza la cola NEW con los procesos no movidos
+		global.ColaNew = nuevaCola
 	}
-}
 
+	return moved
+}
 
 func SolicitarMemoria(tamanio int) bool {
 	cliente := &http.Client{}
-	endpoint := "verificarEspacioDisponible/" + strconv.Itoa(tamanio) // Correcto si 'tamanioProceso' es el handler de Memoria
+	endpoint := "verificarEspacioDisponible?tamanioProceso=" + strconv.Itoa(tamanio)
 	url := fmt.Sprintf("http://%s:%d/%s", global.ConfigKernel.IPMemory, global.ConfigKernel.Port_Memory, endpoint)
 
 	// Crear la solicitud GET
@@ -170,12 +181,10 @@ func SolicitarMemoria(tamanio int) bool {
 	}
 	defer respuesta.Body.Close()
 
-	// Si la respuesta es 200 OK, entonces retornamos true (éxito)
 	if respuesta.StatusCode == http.StatusOK {
 		return true
 	}
 
-	// En cualquier otro caso, retornamos false (error)
 	return false
 }
 
@@ -197,7 +206,7 @@ func ActualizarEstadoPCB(pcb *PCB, nuevoEstado string) {
 }
 
 func InformarFinAMemoria(pid int) error {
-	url := "http://" + global.ConfigKernel.IPMemory + ":" + strconv.Itoa(global.ConfigKernel.Port_Memory) + "/finalizar-proceso"
+	url := "http://" + global.ConfigKernel.IPMemory + ":" + strconv.Itoa(global.ConfigKernel.Port_Memory) + "/finalizarProceso"
 
 	data := map[string]int{"pid": pid}
 	jsonData, _ := json.Marshal(data)
@@ -214,9 +223,35 @@ func InformarFinAMemoria(pid int) error {
 	return nil
 }
 
+func FinalizarProceso(p *Proceso) {
+
+	ActualizarEstadoPCB(&p.PCB, EXIT)
+
+	err := InformarFinAMemoria(p.PID)
+	if err != nil {
+		global.LoggerKernel.Log(fmt.Sprintf("Error al informar finalización del proceso %d a Memoria: %s", p.PID, err.Error()), log.ERROR)
+		return
+	}
+
+	LoguearMetricas(p) // (log obligatorio)
+	global.ColaExecuting = filtrarCola(global.ColaExecuting, p)
+	global.ColaExit = append(global.ColaExit, *p)
+
+}
+
+func filtrarCola(cola []global.Proceso, target *Proceso) []global.Proceso {
+	nueva := []global.Proceso{}
+	for _, proc := range cola {
+		if proc.PID != target.PID {
+			nueva = append(nueva, proc)
+		}
+	}
+	return nueva
+}
+
 func LoguearMetricas(p *Proceso) {
 	global.LoggerKernel.Log(fmt.Sprintf("## (%d) - Finaliza el proceso", p.PID), log.INFO) //! LOG OBLIGATORIO: Fin de Proceso
-	
+
 	msg := fmt.Sprintf("## (%d) - Métricas de estado:", p.PID)
 
 	for _, unEstado := range estado {
@@ -231,36 +266,103 @@ func LoguearMetricas(p *Proceso) {
 	global.LoggerKernel.Log(msg, log.INFO) //! LOG OBLIGATORIO: Metricas de Estado
 }
 
-func FinalizarProceso(p *Proceso) {
-	ActualizarEstadoPCB(&p.PCB, EXIT)
+/*	func EnviarProcessDataAMemoria(proceso Proceso, archPseudo string){
+	pid := proceso.PCB.PID
+	pseudoCodigo := proceso
+	return
+} */
 
-	// Informar a Memoria (como vimos antes)
-	err := InformarFinAMemoria(p.PID)
-	if err != nil {
-		// Manejo de error
+func IniciarPlanificadorCortoPlazo() {
+	go func() {
+		for {
+			SeleccionarYDespacharProceso()
+			time.Sleep(100 * time.Millisecond)
+		}
+	}()
+}
+
+func SeleccionarYDespacharProceso() {
+	// No hacer nada si no hay procesos READY o no hay CPUs libres
+	if len(global.ColaReady) == 0 || !HayCPUDisponible() {
 		return
 	}
 
-	// Loguear metricas
-	LoguearMetricas(p)
+	var proceso Proceso
 
-	// Eliminar de la cola
-	global.ColaExecuting = filtrarCola(global.ColaExecuting,p)
+	switch global.ConfigKernel.SchedulerAlgorithm {
+	case "FIFO":
+		proceso = global.ColaReady[0]
+		global.ColaReady = global.ColaReady[1:]
 
+	case "SJF":
+		proceso = seleccionarProcesoSJF(false)
+
+	case "SRTF":
+		proceso = seleccionarProcesoSJF(true)
+	}
+
+	//TODO EnviarADispatch(proceso.PCB.PID)
+	ActualizarEstadoPCB(&proceso.PCB, EXEC)
+	global.ColaExecuting = append(global.ColaExecuting, proceso) // lo agrego a los procesos en ejecucion
 }
 
-func filtrarCola(cola []global.Proceso, target *Proceso) []global.Proceso {
-	nueva := []global.Proceso{}
-	for _, proc := range cola {
-		if proc.PID != target.PID {
-			nueva = append(nueva, proc)
+func seleccionarProcesoSJF(desalojo bool) Proceso {
+	if len(global.ColaReady) == 0 {
+		return Proceso{}
+	}
+
+	// Hacemos copia para no destruir la cola original
+	copiaReady := make([]Proceso, len(global.ColaReady))
+	copy(copiaReady, global.ColaReady)
+
+	// Ordenamos la copia
+	sort.Slice(copiaReady, func(i, j int) bool {
+		return copiaReady[i].EstimacionRafaga < copiaReady[j].EstimacionRafaga
+	})
+
+	proceso := copiaReady[0]
+
+	// Remover el proceso seleccionado de la cola original
+	for i, p := range global.ColaReady {
+		if p.PID == proceso.PID {
+			global.ColaReady = append(global.ColaReady[:i], global.ColaReady[i+1:]...)
+			break
 		}
 	}
-	return nueva
+
+	return proceso
 }
 
-/*	func EnviarProcessDataAMemoria(proceso Proceso, archPseudo string){
-		pid := proceso.PCB.PID
-		pseudoCodigo := proceso
-		return 
-	} */
+
+func EvaluarDesalojo(nuevo Proceso) {
+	if global.ConfigKernel.SchedulerAlgorithm != "SRTF" {
+		return
+	}
+
+	if len(global.ColaExecuting) == 0 {
+		return
+	}
+
+	// Buscar el proceso en ejecución con mayor estimación de ráfaga
+	procesoADesalojar := global.ColaExecuting[0]
+	for _, proceso := range global.ColaExecuting {
+		if proceso.EstimacionRafaga > procesoADesalojar.EstimacionRafaga {
+			procesoADesalojar = proceso
+		}
+	}
+
+	// Comparar el mejor candidato a desalojar contra el nuevo
+	if nuevo.EstimacionRafaga < procesoADesalojar.EstimacionRafaga {
+		global.LoggerKernel.Log(fmt.Sprintf("Desalojando proceso %d por nuevo proceso %d", procesoADesalojar.PCB.PID, nuevo.PCB.PID), log.INFO)
+		//TODO EnviarInterrupcion(procesoADesalojar.PCB.PID) !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	}
+}
+
+func RecalcularRafaga(proceso *Proceso, rafagaReal float64) {
+	alpha := global.ConfigKernel.Alpha // [0,1]
+	proceso.EstimacionRafaga = alpha*rafagaReal + (1-alpha)*proceso.EstimacionRafaga
+}
+
+func HayCPUDisponible() bool {
+	return global.CantidadCPUsOcupadas < global.CantidadCPUsTotales
+}
