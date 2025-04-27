@@ -6,7 +6,7 @@
     "scheduler_algorithm": "FIFO",
     "suspension_time": 4500,
     "ready_ingress_algorithm": "PMCP",
-    "alpha": "PMCP",
+    "alpha": 0.5,
     "log_level": "DEBUG",
     "log_file": "kernel.log",
     "estimacion_Rafaga": 5

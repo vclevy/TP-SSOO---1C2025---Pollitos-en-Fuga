@@ -45,7 +45,7 @@ func CrearProceso(tamanio int, archivoPseudoCodigo string) Proceso {
 		PCB:              *pcb,
 		MemoriaRequerida: tamanio,
 		ArchivoPseudo:    archivoPseudoCodigo,
-		EstimacionRafaga: global.configKernel.EstimacionInicial,
+		EstimacionRafaga: global.ConfigKernel.EstimacionRafaga,
 	}
 
 	global.LoggerKernel.Log(fmt.Sprintf("## (%d) Se crea el proceso - Estado: NEW", pcb.PID), log.INFO) //! LOG OBLIGATORIO: Creacion de Proceso
@@ -354,10 +354,9 @@ func EvaluarDesalojo(nuevo Proceso) {
 	// Comparar el mejor candidato a desalojar contra el nuevo
 	if nuevo.EstimacionRafaga < procesoADesalojar.EstimacionRafaga {
 		global.LoggerKernel.Log(fmt.Sprintf("Desalojando proceso %d por nuevo proceso %d", procesoADesalojar.PCB.PID, nuevo.PCB.PID), log.INFO)
-		EnviarInterrupcion(procesoADesalojar.PCB.PID)
+		//TODO EnviarInterrupcion(procesoADesalojar.PCB.PID) !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	}
 }
-
 
 func RecalcularRafaga(proceso *Proceso, rafagaReal float64) {
 	alpha := global.ConfigKernel.Alpha // [0,1]

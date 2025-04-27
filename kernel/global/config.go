@@ -47,7 +47,7 @@ type Config struct {
     Port_Memory         	int    		`json:"port_memory"`
     SchedulerAlgorithm 		string 		`json:"scheduler_algorithm"`
 	ReadyIngressALgorithm 	string		`json:"ready_ingress_algorithm"`
-	Alpha 					string		`json:"alpha"`
+	Alpha 					float64		`json:"alpha"`
     SuspensionTime      	int    		`json:"suspension_time"`
     LogLevel          		string 		`json:"log_level"`
     Port_Kernel         	int    		`json:"port_kernel"`
@@ -76,18 +76,16 @@ var ColaSuspReady []Proceso
 var ColaExecuting []Proceso
 var ColaBlocked []Proceso
 var ColaSuspBlocked []Proceso
-
 var ColaExit []Proceso
-var ColaIO []Proceso
 
 //CPU
 var CantidadCPUsTotales int 
 var CantidadCPUsOcupadas int // *OBVIO Q ESTO no va a terminar así, es para q compile hayCpuDisponible
 
 
-
 //IO
 
 type IOData = estructuras.IOData
 var IOConectados map[string]*IOData
+var ColaIO []Proceso
 
