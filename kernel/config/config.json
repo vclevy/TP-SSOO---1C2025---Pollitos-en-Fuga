@@ -8,5 +8,6 @@
     "ready_ingress_algorithm": "PMCP",
     "alpha": "PMCP",
     "log_level": "DEBUG",
-    "log_file": "kernel.log"
+    "log_file": "kernel.log",
+    "estimacion_Rafaga": 5
 }

@@ -20,6 +20,12 @@ type PCB struct {
 	UltimoEstado string
 	InicioEstado time.Time
 }
+type Proceso struct {
+	PCB
+	MemoriaRequerida int
+	ArchivoPseudo    string
+	EstimacionRafaga float64
+}
 
 
 func NuevoPCB() *PCB {
@@ -34,11 +40,7 @@ func NuevoPCB() *PCB {
 	}
 }
 
-type Proceso struct {
-	PCB
-	MemoriaRequerida int
-	ArchivoPseudo string
-}
+
 
 type Config struct {
     IPMemory          		string 		`json:"ip_memory"`
@@ -51,6 +53,7 @@ type Config struct {
     Port_Kernel         	int    		`json:"port_kernel"`
 	Log_file          		string 		`json:"log_file"`
 	Ip_Kernel				string 		`json:"ip_kernel"`
+	EstimacionRafaga		float64		`json:"estimacion_rafaga"`
 }
 
 func InitGlobal() {
@@ -76,6 +79,12 @@ var ColaSuspBlocked []Proceso
 
 var ColaExit []Proceso
 var ColaIO []Proceso
+
+//CPU
+var CantidadCPUsTotales int 
+var CantidadCPUsOcupadas int // *OBVIO Q ESTO no va a terminar así, es para q compile hayCpuDisponible
+
+
 
 //IO
 

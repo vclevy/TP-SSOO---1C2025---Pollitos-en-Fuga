@@ -45,6 +45,7 @@ func CrearProceso(tamanio int, archivoPseudoCodigo string) Proceso {
 		PCB:              *pcb,
 		MemoriaRequerida: tamanio,
 		ArchivoPseudo:    archivoPseudoCodigo,
+		EstimacionRafaga: global.configKernel.EstimacionInicial,
 	}
 
 	global.LoggerKernel.Log(fmt.Sprintf("## (%d) Se crea el proceso - Estado: NEW", pcb.PID), log.INFO) //! LOG OBLIGATORIO: Creacion de Proceso
@@ -82,7 +83,7 @@ func IniciarPlanificadorLargoPlazo() {
 			case "FIFO":
 				proceso := global.ColaNew[0]
 				if SolicitarMemoria(proceso.MemoriaRequerida) {
-					global.ColaNew = global.ColaNew[1:] // Quitar el primer proceso de NEW
+					global.ColaNew = global.ColaNew[1:]
 					ActualizarEstadoPCB(&proceso.PCB, READY)
 					global.ColaReady = append(global.ColaReady, proceso)
 					global.LoggerKernel.Log(fmt.Sprintf("## (%d) Pasa del estado NEW al estado READY", proceso.PCB.PID), log.INFO)
@@ -92,7 +93,7 @@ func IniciarPlanificadorLargoPlazo() {
 			case "CHICO":
 				// Ordenar por menor memoria requerida
 				ordenada := make([]Proceso, len(global.ColaNew))
-				copy(ordenada, global.ColaNew)
+				copy(ordenada, global.ColaNew) // para no modificar la cola original
 				sort.Slice(ordenada, func(i, j int) bool {
 					return ordenada[i].MemoriaRequerida < ordenada[j].MemoriaRequerida
 				})
@@ -164,7 +165,7 @@ func IntentarInicializarDesdeNew() bool {
 
 func SolicitarMemoria(tamanio int) bool {
 	cliente := &http.Client{}
-	endpoint := "verificarEspacioDisponible?tamanioProceso=" + strconv.Itoa(tamanio) // Correcto si 'tamanioProceso' es el handler de Memoria
+	endpoint := "verificarEspacioDisponible?tamanioProceso=" + strconv.Itoa(tamanio)
 	url := fmt.Sprintf("http://%s:%d/%s", global.ConfigKernel.IPMemory, global.ConfigKernel.Port_Memory, endpoint)
 
 	// Crear la solicitud GET
@@ -180,7 +181,6 @@ func SolicitarMemoria(tamanio int) bool {
 	}
 	defer respuesta.Body.Close()
 
-	// Si la respuesta es 200 OK, entonces retornamos true (éxito)
 	if respuesta.StatusCode == http.StatusOK {
 		return true
 	}
@@ -307,16 +307,32 @@ func SeleccionarYDespacharProceso() {
 }
 
 func seleccionarProcesoSJF(desalojo bool) Proceso {
-	// Ordenar por estimación de ráfaga
-	sort.Slice(global.ColaReady, func(i, j int) bool {
-		return global.ColaReady[i].EstimacionRafaga < global.ColaReady[j].EstimacionRafaga
+	if len(global.ColaReady) == 0 {
+		return Proceso{}
+	}
+
+	// Hacemos copia para no destruir la cola original
+	copiaReady := make([]Proceso, len(global.ColaReady))
+	copy(copiaReady, global.ColaReady)
+
+	// Ordenamos la copia
+	sort.Slice(copiaReady, func(i, j int) bool {
+		return copiaReady[i].EstimacionRafaga < copiaReady[j].EstimacionRafaga
 	})
 
-	proceso := global.ColaReady[0]
-	global.ColaReady = global.ColaReady[1:]
+	proceso := copiaReady[0]
+
+	// Remover el proceso seleccionado de la cola original
+	for i, p := range global.ColaReady {
+		if p.PID == proceso.PID {
+			global.ColaReady = append(global.ColaReady[:i], global.ColaReady[i+1:]...)
+			break
+		}
+	}
 
 	return proceso
 }
+
 
 func EvaluarDesalojo(nuevo Proceso) {
 	if global.ConfigKernel.SchedulerAlgorithm != "SRTF" {
@@ -348,4 +364,6 @@ func RecalcularRafaga(proceso *Proceso, rafagaReal float64) {
 	proceso.EstimacionRafaga = alpha*rafagaReal + (1-alpha)*proceso.EstimacionRafaga
 }
 
-
+func HayCPUDisponible() bool {
+	return global.CantidadCPUsOcupadas < global.CantidadCPUsTotales
+}
