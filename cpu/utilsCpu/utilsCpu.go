@@ -8,6 +8,7 @@ import (
 	"io"
 	"github.com/sisoputnfrba/tp-golang/cpu/global"
 	"github.com/sisoputnfrba/tp-golang/utils/logger"
+	"strings"
 )
 
 func RealizarHandshakeConKernel() {
@@ -55,7 +56,7 @@ func RealizarHandshakeConKernel() {
 	global.LoggerCpu.Log(fmt.Sprintf("Kernel respondió con PID: %d y PC: %d", respuesta.Pid, respuesta.Pc), log.INFO)
 }
 
-func SolicitarInstruccionAMemoria(pid int, pc int) {
+func Fetch(pid int, pc int) {
 	type SolicitudInstruccion struct {
 		Pid		int		`json:"Pid"`
 		Pc		int		`json:"Pc"`
@@ -93,4 +94,76 @@ func SolicitarInstruccionAMemoria(pid int, pc int) {
 	}
 
 	global.LoggerCpu.Log(fmt.Sprintf("Memoria respondió con la instrucción: %s", instruccionAEjecutar), log.INFO)
+
+	Decode(instruccionAEjecutar)
 }
+
+
+func Decode(instruccion string){
+	type Instruccion struct {
+		Opcode  string	`json:"opcode"`  // El tipo de operación (e.g. WRITE, READ, GOTO, etc.)
+		Parametros string `json:"parametros"` // Los parámetros de la instrucción, de tipo variable
+	}
+
+	instruccionPartida := strings.SplitN(instruccion, " ", 2)
+
+	opcode := instruccionPartida[0]
+	parametros := instruccionPartida[1]
+
+	instruccionPartes := Instruccion{
+		Opcode: opcode,
+		Parametros:  parametros,
+	}
+
+	if instruccionPartes.Opcode == "WRITE" || instruccionPartes.Opcode == "READ" {
+        MMU(instruccion)
+    }
+}
+
+func MMU(instruccion string){}
+
+/* 
+TODO:
+? usar query paths
+? implementar que las funciones reciban errores(?) func Decode(instruccion string) (string, error) 
+*/ 
+
+/* func SolicitarInstruccionAMemoria(pid int, pc int) {
+	// Creamos la URL con los valores de pid y pc
+	url := fmt.Sprintf("http://%s:%d/memoria/%d/%d",global.CpuConfig.Ip_Memoria,global.CpuConfig.Port_Memoria, pid, pc)
+
+
+	// Realizamos el request GET
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		fmt.Println("Error al crear la solicitud:", err)
+		return
+	}
+
+	// Establecemos el tipo de contenido que estamos enviando
+	req.Header.Set("Content-Type", "application/json")
+
+	// Enviamos la solicitud
+	cliente := &http.Client{}
+	respuesta, err := cliente.Do(req)
+	if err != nil {
+		fmt.Println("Error al hacer la solicitud:", err)
+		return
+	}
+
+	// Verificamos el código de estado
+	if respuesta.StatusCode != http.StatusOK {
+		fmt.Println("Error, estado de respuesta:", respuesta.Status)
+		return
+	}
+
+	// Leemos el cuerpo de la respuesta
+	bodyBytes, err := io.ReadAll(respuesta.Body)
+	if err != nil {
+		fmt.Println("Error al leer la respuesta:", err)
+		return
+	}
+
+	// Imprimimos la respuesta
+	fmt.Println("Respuesta de Memoria:", string(bodyBytes))
+} */
