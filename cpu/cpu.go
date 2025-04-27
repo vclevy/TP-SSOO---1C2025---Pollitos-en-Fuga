@@ -2,12 +2,11 @@ package main
 
 import (
 	"os"
-/* 	"github.com/sisoputnfrba/tp-golang/cpu/api" */
-	"github.com/sisoputnfrba/tp-golang/cpu/global"
-	utilsCpu "github.com/sisoputnfrba/tp-golang/cpu/utilsCpu"
-/* 	"github.com/sisoputnfrba/tp-golang/utils/logger" */
-/* 	"github.com/sisoputnfrba/tp-golang/utils/paquetes" */
 	"fmt"
+	"github.com/sisoputnfrba/tp-golang/cpu/api"
+	"github.com/sisoputnfrba/tp-golang/cpu/api/handlers"
+	"github.com/sisoputnfrba/tp-golang/cpu/global"
+	log "github.com/sisoputnfrba/tp-golang/utils/logger"
 )
 
 func main() {
@@ -19,11 +18,9 @@ func main() {
 	idCPU := os.Args[1]
 	global.InitGlobal(idCPU)
 
-	utilsCpu.RealizarHandshakeConKernel()
-	
 	defer global.LoggerCpu.CloseLogger()
-/* 	s := api.CrearServer() 
-	
+	s := api.CrearServer()
+
 	go func() {
 		err_server := s.Iniciar()
 		if err_server != nil {
@@ -31,9 +28,7 @@ func main() {
 			os.Exit(1)
 		}
 	}()
-*/
-/* 	paqueteNuevo := paquetes.LeerConsola()	
-	paquetes.GenerarYEnviarPaquete(paqueteNuevo, "127.0.0.1") */
 
-	select{}
+	handlers.HandshakeConKernel(nil, nil) 
+	select {}
 }
