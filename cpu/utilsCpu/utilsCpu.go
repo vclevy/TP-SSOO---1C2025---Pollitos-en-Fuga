@@ -11,6 +11,12 @@ import (
 	"strings"
 )
 
+var instruccionesConMMU = map[string]bool{
+	"WRITE":      true,
+	"READ":       true,
+	"GOTO":       true,
+}
+
 func Fetch(pid int, pc int) {
 	type SolicitudInstruccion struct {
 		Pid		int		`json:"Pid"`
@@ -68,21 +74,39 @@ func Decode(instruccionAEjecutar string){
 		Opcode: opcode,
 		Parametros:  parametros,
 	}
-
-	if instruccion.Opcode == "WRITE" || instruccion.Opcode == "READ" {
-        MMU(instruccion)
-    }
+	Execute(instruccion)
 }
 
-func MMU(instruccion Instruccion){}
-func Execute(instruccion Instruccion){}
+func Execute(instruccion Instruccion){
+	if _, requiereMMU := instruccionesConMMU[instruccion.Opcode]; requiereMMU {
+		MMU(instruccion)
+	}
+}
+
+func MMU(instruccion Instruccion){
+	
+	/* traducir direcciones lógicas a físicas, 
+		dirección logica [entrada_nivel_1 | entrada_nivel_2 | … | entrada_nivel_X | desplazamiento] 
+		
+		Teniendo una cantidad de niveles N y un identificador X de cada nivel podemos utilizar las siguientes fórmulas:
+		nro_página = floor(dirección_lógica / tamaño_página)
+		entrada_nivel_X = floor(nro_página  / cant_entradas_tabla ^ (N - X)) % cant_entradas_tabla
+		desplazamiento = dirección_lógica % tamaño_página
+	*/
+}
+
 func CheckInterrupt(instruccion Instruccion){}
 
+func EnviarAKernel(){
+
+}
 
 /* 
 TODO:
 ? usar query paths
 ? implementar que las funciones reciban errores(?) func Decode(instruccion string) (string, error) 
+? hacer mmu
+? delegar las syscalls a kernel, me devuelve algo kernel?
 */ 
 
 /* 
