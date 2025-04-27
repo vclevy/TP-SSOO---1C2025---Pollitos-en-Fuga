@@ -11,6 +11,81 @@ import (
 	"strings"
 )
 
+func Fetch(pid int, pc int) {
+	type SolicitudInstruccion struct {
+		Pid		int		`json:"Pid"`
+		Pc		int		`json:"Pc"`
+	}
+	solicitudInstruccion := SolicitudInstruccion{
+		Pid: pid,
+		Pc:  pc,
+	}
+
+	jsonData, err := json.Marshal(solicitudInstruccion)
+	if err != nil {
+		global.LoggerCpu.Log("Error serializando solicitud: "+err.Error(), log.ERROR)
+		return
+	}
+
+	url := fmt.Sprintf("http://%s:%d/solicitudInstruccion", global.CpuConfig.Ip_Memoria, global.CpuConfig.Port_Memoria) //url a la que se va a conectar
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData)) //se abre la conexión
+	
+	if err != nil {
+		global.LoggerCpu.Log("Error enviando solicitud de instrucción a memoria: " + err.Error(), log.ERROR)
+		return
+	}
+	defer resp.Body.Close() //se cierra la conexión
+
+	global.LoggerCpu.Log("✅ Solicitud enviada a Memoria con éxito", log.INFO)
+
+	//respuesta
+	body, _ := io.ReadAll(resp.Body)
+
+	var instruccionAEjecutar string
+	err = json.Unmarshal(body, &instruccionAEjecutar)
+	if err != nil {
+		global.LoggerCpu.Log("Error parseando instruccion de Memoria: "+err.Error(), log.ERROR)
+		return
+	}
+
+	global.LoggerCpu.Log(fmt.Sprintf("Memoria respondió con la instrucción: %s", instruccionAEjecutar), log.INFO)
+
+	Decode(instruccionAEjecutar)
+}
+
+type Instruccion struct {
+	Opcode  string	`json:"opcode"`  // El tipo de operación (e.g. WRITE, READ, GOTO, etc.)
+	Parametros []string `json:"parametros"` // Los parámetros de la instrucción, de tipo variable
+}
+
+func Decode(instruccionAEjecutar string){
+	instruccionPartida := strings.Fields(instruccionAEjecutar)
+
+	opcode := instruccionPartida[0]
+	parametros := instruccionPartida[1:]
+
+	instruccion := Instruccion{
+		Opcode: opcode,
+		Parametros:  parametros,
+	}
+
+	if instruccion.Opcode == "WRITE" || instruccion.Opcode == "READ" {
+        MMU(instruccion)
+    }
+}
+
+func MMU(instruccion Instruccion){}
+func Execute(instruccion Instruccion){}
+func CheckInterrupt(instruccion Instruccion){}
+
+
+/* 
+TODO:
+? usar query paths
+? implementar que las funciones reciban errores(?) func Decode(instruccion string) (string, error) 
+*/ 
+
+/* 
 func RealizarHandshakeConKernel() {
 	type datosEnvio struct {
 		Id		string 	 `json:"id"`
@@ -55,78 +130,7 @@ func RealizarHandshakeConKernel() {
 
 	global.LoggerCpu.Log(fmt.Sprintf("Kernel respondió con PID: %d y PC: %d", respuesta.Pid, respuesta.Pc), log.INFO)
 }
-
-func Fetch(pid int, pc int) {
-	type SolicitudInstruccion struct {
-		Pid		int		`json:"Pid"`
-		Pc		int		`json:"Pc"`
-	}
-	solicitudInstruccion := SolicitudInstruccion{
-		Pid: pid,
-		Pc:  pc,
-	}
-
-	jsonData, err := json.Marshal(solicitudInstruccion)
-	if err != nil {
-		global.LoggerCpu.Log("Error serializando solicitud: "+err.Error(), log.ERROR)
-		return
-	}
-
-	url := fmt.Sprintf("http://%s:%d/solicitudInstruccion", global.CpuConfig.Ip_Memoria, global.CpuConfig.Port_Memoria) //url a la que se va a conectar
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData)) //se abre la conexión
-	
-	if err != nil {
-		global.LoggerCpu.Log("Error enviando solicitud de instrucción a memoria: " + err.Error(), log.ERROR)
-		return
-	}
-	defer resp.Body.Close() //se cierra la conexión
-
-	global.LoggerCpu.Log("✅ Solicitud enviada a Memoria con éxito", log.INFO)
-
-	//respuesta
-	body, _ := io.ReadAll(resp.Body)
-
-	var instruccionAEjecutar string
-	err = json.Unmarshal(body, &instruccionAEjecutar)
-	if err != nil {
-		global.LoggerCpu.Log("Error parseando instruccion de Memoria: "+err.Error(), log.ERROR)
-		return
-	}
-
-	global.LoggerCpu.Log(fmt.Sprintf("Memoria respondió con la instrucción: %s", instruccionAEjecutar), log.INFO)
-
-	Decode(instruccionAEjecutar)
-}
-
-
-func Decode(instruccion string){
-	type Instruccion struct {
-		Opcode  string	`json:"opcode"`  // El tipo de operación (e.g. WRITE, READ, GOTO, etc.)
-		Parametros string `json:"parametros"` // Los parámetros de la instrucción, de tipo variable
-	}
-
-	instruccionPartida := strings.SplitN(instruccion, " ", 2)
-
-	opcode := instruccionPartida[0]
-	parametros := instruccionPartida[1]
-
-	instruccionPartes := Instruccion{
-		Opcode: opcode,
-		Parametros:  parametros,
-	}
-
-	if instruccionPartes.Opcode == "WRITE" || instruccionPartes.Opcode == "READ" {
-        MMU(instruccion)
-    }
-}
-
-func MMU(instruccion string){}
-
-/* 
-TODO:
-? usar query paths
-? implementar que las funciones reciban errores(?) func Decode(instruccion string) (string, error) 
-*/ 
+*/
 
 /* func SolicitarInstruccionAMemoria(pid int, pc int) {
 	// Creamos la URL con los valores de pid y pc

@@ -2,17 +2,14 @@ package main
 
 import (
 	"os"
+	"fmt"
 	"github.com/sisoputnfrba/tp-golang/cpu/api"
 	"github.com/sisoputnfrba/tp-golang/cpu/api/handlers"
 	"github.com/sisoputnfrba/tp-golang/cpu/global"
-	"github.com/sisoputnfrba/tp-golang/utils/logger"
-	/* "github.com/sisoputnfrba/tp-golang/utils/paquetes" */
-	"fmt"
+	log "github.com/sisoputnfrba/tp-golang/utils/logger"
 )
 
 func main() {
-	// configurar logger e inicializar config
-
 	if len(os.Args) < 2 {
 		fmt.Println("Uso: ./cpu <ID_CPU>")
 		return
@@ -21,21 +18,17 @@ func main() {
 	idCPU := os.Args[1]
 	global.InitGlobal(idCPU)
 
-	handlers.RealizarHandshakeConKernel()
-	
 	defer global.LoggerCpu.CloseLogger()
 	s := api.CrearServer()
-	
+
 	go func() {
 		err_server := s.Iniciar()
 		if err_server != nil {
 			global.LoggerCpu.Log("Error al iniciar el servidor: "+err_server.Error(), log.ERROR)
 			os.Exit(1)
 		}
-		}()
+	}()
 
-	/* paqueteNuevo := paquetes.LeerConsola()	
-	paquetes.GenerarYEnviarPaquete(paqueteNuevo, "127.0.0.1")
- */
-	select{}
+	handlers.HandshakeConKernel(nil, nil) 
+	select {}
 }
