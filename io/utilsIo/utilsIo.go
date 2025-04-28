@@ -10,13 +10,10 @@ import (
 
 	"github.com/sisoputnfrba/tp-golang/io/global"
 	log "github.com/sisoputnfrba/tp-golang/utils/logger"
+	estructuras "github.com/sisoputnfrba/tp-golang/utils/estructuras"
 )
 
-type Paquete struct {
-	Mensajes []string `json:"mensaje"`
-	Codigo  	int    `json:"codigo"`
-	PuertoDestino    int     `json:"puertoDestino"`
-}
+type PaqueteHandshakeIO = estructuras.PaqueteHandshakeIO
 type RespuestaKernel struct {
 	Status         string `json:"status"`
 	Detalle        string `json:"detalle"`
@@ -24,55 +21,47 @@ type RespuestaKernel struct {
 	TiempoEstimado int    `json:"tiempo_estimado"`
 }
 
-func EnviarPaqueteAKernel(paquete Paquete, ip string) (*RespuestaKernel, error) {
-	// Paso 1: Validar que haya mensajes en el paquete
-	if len(paquete.Mensajes) == 0 {
-		global.LoggerIo.Log("No se ingresaron mensajes para enviar.", "ERROR")
-		return nil, fmt.Errorf("no se ingresaron mensajes para enviar")
-	}
+func HandshakeConKernel(paquete PaqueteHandshakeIO) (*RespuestaKernel, error) {
 
-	// Paso 2: Log de paquete a enviar
-	global.LoggerIo.Log(fmt.Sprintf("Paquete a enviar: %+v", paquete), "DEBUG")
+	global.LoggerIo.Log(fmt.Sprintf("Paquete a enviar: %+v", paquete), log.DEBUG)
 
-	// Paso 3: Convertir el paquete a JSON
 	body, err := json.Marshal(paquete)
 	if err != nil {
-		global.LoggerIo.Log("Error codificando paquete a JSON: "+err.Error(), "ERROR")
+		global.LoggerIo.Log("Error codificando paquete a JSON: "+err.Error(), log.ERROR)
 		return nil, err
 	}
 
 	// Paso 4: Enviar el paquete al Kernel (POST)
-	url := fmt.Sprintf("http://%s:%d/responder", ip, paquete.PuertoDestino)
+	url := fmt.Sprintf("http://%s:%d/handshakeIO", global.IoConfig.IPKernel, global.IoConfig.Port_Kernel)
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(body))
 	if err != nil {
-		global.LoggerIo.Log(fmt.Sprintf("Error enviando paquete a %s:%d - %s", ip, paquete.PuertoDestino, err.Error()), "ERROR")
-		return nil, err
+		global.LoggerIo.Log(fmt.Sprintf("Error enviando paquete a %s:%d - %s", global.IoConfig.IPKernel, global.IoConfig.Port_Kernel, err.Error()), log.ERROR)
+		return nil, err 
 	}
 	defer resp.Body.Close()
 
 	// Paso 5: Log de la respuesta HTTP
-	global.LoggerIo.Log("Respuesta HTTP del Kernel: "+resp.Status, "DEBUG")
+	global.LoggerIo.Log("Respuesta HTTP del Kernel: "+resp.Status, log.DEBUG)
 
 	// Paso 6: Leer y procesar la respuesta
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		global.LoggerIo.Log("Error leyendo la respuesta del Kernel: "+err.Error(), "ERROR")
+		global.LoggerIo.Log("Error leyendo la respuesta del Kernel: "+err.Error(), log.ERROR)
 		return nil, err
 	}
 
 	// Paso 7: Deserializar la respuesta
-	var respuesta RespuestaKernel
+	var respuesta RespuestaKernel //! ACA SALTA EL ERROR
 	err = json.Unmarshal(respBody, &respuesta)
 	if err != nil {
-		global.LoggerIo.Log("Error parseando la respuesta del Kernel: "+err.Error(), "ERROR")
+		global.LoggerIo.Log("Error parseando la respuesta del Kernel: "+err.Error(), log.ERROR)
 		return nil, err
 	}
 
 	// Paso 8: Loguear la respuesta del Kernel en el log de IO
 	global.LoggerIo.Log(fmt.Sprintf("Respuesta del Kernel: Status=%s | Detalle=%s | PID=%d | TiempoEstimado=%dms",
-		respuesta.Status, respuesta.Detalle, respuesta.PID, respuesta.TiempoEstimado), "DEBUG")
+		respuesta.Status, respuesta.Detalle, respuesta.PID, respuesta.TiempoEstimado), log.DEBUG)
 
-	// Devolver la respuesta
 	return &respuesta, nil
 }
 

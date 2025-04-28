@@ -4,7 +4,7 @@ import (
 	"github.com/sisoputnfrba/tp-golang/memoria/api"
 	"github.com/sisoputnfrba/tp-golang/memoria/global"
 	"github.com/sisoputnfrba/tp-golang/utils/logger"
-	"github.com/sisoputnfrba/tp-golang/utils/paquetes"
+	//"github.com/sisoputnfrba/tp-golang/utils/paquetes"
 )
 
 //CONEXIÓN;
@@ -24,8 +24,8 @@ func main() {
 		}
 		}()
 
-	paqueteNuevo := paquetes.LeerConsola()	
-	paquetes.GenerarYEnviarPaquete(paqueteNuevo, "127.0.0.1")
+	// paqueteNuevo := paquetes.LeerConsola()	
+	// paquetes.GenerarYEnviarPaquete(paqueteNuevo, "127.0.0.1")
 	
 	
 

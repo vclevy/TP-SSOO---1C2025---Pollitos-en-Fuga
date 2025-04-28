@@ -3,12 +3,10 @@ package main
 import (
 	"fmt"
 	"os"
-	"strconv"
 
 	"github.com/sisoputnfrba/tp-golang/io/global"
-	"github.com/sisoputnfrba/tp-golang/io/utilsIo"
+	utilsIO "github.com/sisoputnfrba/tp-golang/io/utilsIo"
 	"github.com/sisoputnfrba/tp-golang/utils/logger"
-	"github.com/sisoputnfrba/tp-golang/utils/paquetes"
 )
 
 func main() {
@@ -27,31 +25,28 @@ func main() {
 
 	fmt.Printf("Se conectó %s!\n", nombreInterfaz)
 
-	infoIO := paquetes.Paquete{
-		Mensajes:      []string{"Nombre de IO:" + nombreInterfaz, global.IoConfig.IPIo, strconv.Itoa(global.IoConfig.Port_Io)},
-		Codigo:        200, //??????
-		PuertoDestino: global.IoConfig.Port_Kernel,
+	infoIO := utilsIO.PaqueteHandshakeIO{
+		NombreIO: nombreInterfaz,
+		IPIO: global.IoConfig.IPIo,
+		PuertoIO: global.IoConfig.Port_Io,
 	}
 
-	respuesta, err := utilsIo.EnviarPaqueteAKernel(utilsIo.Paquete(infoIO), global.IoConfig.IPKernel) //Usa el archivo utilsIo
+	respuesta, err := utilsIO.HandshakeConKernel(infoIO) //Usa el archivo utilsIo
 	if err != nil {
 		fmt.Println("Error al enviar paquete al Kernel:", err)
 		return
 	}
 
-	fmt.Println("Respuesta del Kernel:")
-	fmt.Println("Status:", respuesta.Status)
-	fmt.Println("Detalle:", respuesta.Detalle)
 
 	// Simulación de la recepción de solicitudes de E/S
 	for {
 		// Aquí se puede simular una solicitud de I/O. En la práctica, esta parte debería estar en espera de peticiones del Kernel.
-		solicitud := utilsIo.RespuestaKernel{
+		solicitud := utilsIO.RespuestaKernel{
 			PID:            respuesta.PID,
 			TiempoEstimado: 1000, // Tiempo simulado de E/S
 		}
 
-		utilsIo.IniciarIo(solicitud)
+		utilsIO.IniciarIo(solicitud)
 
 		// Enviar una respuesta de finalización de I/O al Kernel
 		// Este es el lugar donde puedes enviar una respuesta al Kernel indicando que la operación de I/O terminó.
