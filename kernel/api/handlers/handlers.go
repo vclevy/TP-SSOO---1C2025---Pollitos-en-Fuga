@@ -9,18 +9,14 @@ import (
 	"strings"
 
 	"github.com/sisoputnfrba/tp-golang/kernel/global"
-	planificacion"github.com/sisoputnfrba/tp-golang/kernel/planificacion"
+	planificacion "github.com/sisoputnfrba/tp-golang/kernel/planificacion"
 
+	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
 	"github.com/sisoputnfrba/tp-golang/utils/logger"
-	utils "github.com/sisoputnfrba/tp-golang/utils/paquetes"
 	//conexionConIO "github.com/sisoputnfrba/tp-golang/kernel/utilsKernel"
 )
 
-type Paquete struct {
-	Mensajes []string `json:"mensaje"`
-	Codigo  	int    `json:"codigo"`
-	PuertoDestino    int     `json:"puertoDestino"`
-}
+type PaqueteHandshakeIO = estructuras.PaqueteHandshakeIO
 
 type Respuesta struct {
 	Status        string `json:"status"`
@@ -44,7 +40,7 @@ func RecibirPaquete(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	var paquete Paquete
+	var paquete PaqueteHandshakeIO
 	err = json.Unmarshal(body, &paquete)
 	if err != nil {
 		http.Error(w, "Error parseando el paquete", http.StatusBadRequest)
@@ -52,28 +48,20 @@ func RecibirPaquete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	global.LoggerKernel.Log("Kernel recibió paquete desde IO - Mensajes: "+strings.Join(paquete.Mensajes, ", ")+" | Código: "+strconv.Itoa(paquete.Codigo), log.DEBUG)
+	global.LoggerKernel.Log("Kernel recibió paquete desde IO - Nombre: "+ paquete.NombreIO+" | IP IO: "+paquete.IPIO+" | Puerto Io: "+ strconv.Itoa(paquete.PuertoIO), log.DEBUG)
 
-	// Simulación de asignación de PID y tiempo
-	fmt.Println("Ingrese el PID: ")
-	str_pid := utils.LeerStringDeConsola()
-	fmt.Println("Ingrese el tiempo estimado: ")
-	str_tiempoEstimado := utils.LeerStringDeConsola()
-	
-	pid, _:= strconv.Atoi(str_pid)
-	tiempoEstimado, _ :=  strconv.Atoi(str_tiempoEstimado); // no se si conviene hacer este cambio o que leerstring lea int
+	// // Simulación de asignación de PID y tiempo
+	// respuesta := Respuesta{
+	// 	Status:        "OK",
+	// 	Detalle:       "Paquete procesado correctamente",
+	// 	PID:           pid,
+	// 	TiempoEstimado:	tiempoEstimado}
 
-	respuesta := Respuesta{
-		Status:        "OK",
-		Detalle:       "Paquete procesado correctamente",
-		PID:           pid,
-		TiempoEstimado:	tiempoEstimado}
-
-	global.LoggerKernel.Log("Kernel responde a IO: PID="+strconv.Itoa(pid)+", Tiempo="+strconv.Itoa(tiempoEstimado)+"ms", log.DEBUG)
+	// global.LoggerKernel.Log("Kernel responde a IO: PID="+strconv.Itoa(pid)+", Tiempo="+strconv.Itoa(tiempoEstimado)+"ms", log.DEBUG)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(respuesta)
+	//json.NewEncoder(w).Encode(respuesta)
 }
 
 

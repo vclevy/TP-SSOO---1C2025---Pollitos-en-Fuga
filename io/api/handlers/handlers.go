@@ -6,14 +6,12 @@ import (
 	"github.com/sisoputnfrba/tp-golang/io/global"
 	"github.com/sisoputnfrba/tp-golang/utils/logger"
 	"encoding/json"
-	"strings"
 	"strconv"
 )
 
 type Paquete struct {
-	Mensajes []string `json:"mensaje"`
-	Codigo  	int    `json:"codigo"`
-	PuertoDestino    int     `json:"puertoDestino"`
+	PID    int `json:"pid"`
+	TiempoDeBloqueo int `json:"tiempo"`
 }
 
 func RecibirPaquete(w http.ResponseWriter, r *http.Request) {
@@ -38,7 +36,8 @@ func RecibirPaquete(w http.ResponseWriter, r *http.Request) {
 		global.LoggerIo.Log("Error al parsear el paquete JSON: "+err.Error(), log.DEBUG)
 		return
 	}
-	global.LoggerIo.Log("IO recibió paquete: Mensajes: "+strings.Join(paquete.Mensajes, ", ")+" Codigo: "+strconv.Itoa(paquete.Codigo), log.DEBUG)
+
+	global.LoggerIo.Log("IO recibió paquete: PID: "+strconv.Itoa(paquete.PID)+", Tiempo: "+strconv.Itoa(paquete.TiempoDeBloqueo), log.DEBUG)
 
 	w.Write([]byte("IO recibió el paquete correctamente"))
 }

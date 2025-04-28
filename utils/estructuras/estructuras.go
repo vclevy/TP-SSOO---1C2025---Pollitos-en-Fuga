@@ -20,3 +20,9 @@ type MensajeIO struct {
 	IP       string `json:"ip"`       // Solo para registro
 	Puerto   int    `json:"puerto"`   // Solo para registro
 }
+
+type PaqueteHandshakeIO struct {
+	NombreIO 		string	 `json:"nombreIO"`
+	IPIO 			string    	 `json:"ipio"`
+	PuertoIO    	int      `json:"puertoIO"`
+}
