@@ -8,7 +8,6 @@ import (
 	"io"
 	"github.com/sisoputnfrba/tp-golang/cpu/global"
 	"github.com/sisoputnfrba/tp-golang/utils/logger"
-	"github.com/sisoputnfrba/tp-golang/cpu/api/handlers"
 	"strings"
 )
 
@@ -27,6 +26,9 @@ var instruccionesSyscall = map[string]bool{
 var pidEnEjecucion int
 
 func Fetch(pid int, pc int) {
+	
+	global.LoggerCpu.Log(fmt.Sprintf(" ## PID: %d - FETCH - Program Counter: %d", pid, pc), log.INFO)
+	
 	type SolicitudInstruccion struct {
 		Pid		int		`json:"Pid"`
 		Pc		int		`json:"Pc"`
@@ -94,7 +96,7 @@ func Execute(instruccion Instruccion){
 		MMU(instruccion)
 	}
 	if _, esSyscall:= instruccionesSyscall[instruccion.Opcode]; esSyscall {
-		handlers.EnviarInstruccionAKernel(instruccion,pidEnEjecucion)
+		EnviarInstruccionAKernel(instruccion,pidEnEjecucion)
 	}
 }
 
@@ -111,9 +113,37 @@ func MMU(instruccion Instruccion){
 
 func CheckInterrupt(instruccion Instruccion){}
 
+func EnviarInstruccionAKernel(instruccion Instruccion,  pid int){
+	type Syscall struct {
+		Instruccion	 Instruccion `json:"Instruccion"`
+		Pid		int		`json:"Pid"`
+	}
+	syscall := Syscall{
+		Pid: pid,
+		Instruccion:  instruccion,
+	}
+
+	jsonData, err := json.Marshal(syscall)
+	if err != nil {
+		global.LoggerCpu.Log("Error serializando solicitud: "+err.Error(), log.ERROR)
+		return
+	}
+
+	url := fmt.Sprintf("http://%s:%d/envioSyscall", global.CpuConfig.Ip_Kernel, global.CpuConfig.Port_Kernel) //url a la que se va a conectar
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData)) //se abre la conexión
+	
+	if err != nil {
+		global.LoggerCpu.Log("Error enviando solicitud de instrucción a Kernel: " + err.Error(), log.ERROR)
+		return
+	}
+
+	defer resp.Body.Close() //se cierra la conexión
+}
 
 /* 
 TODO:
+? a kernel le paso el struct o el string?
+? las instrucciones que me pasa memoria son strings?
 ? usar query paths
 ? implementar que las funciones reciban errores(?) func Decode(instruccion string) (string, error) 
 ? hacer mmu
