@@ -31,7 +31,7 @@ func main() {
 		PuertoIO: global.IoConfig.Port_Io,
 	}
 
-	respuesta, err := utilsIO.HandshakeConKernel(infoIO) //Usa el archivo utilsIo
+	err := utilsIO.HandshakeConKernel(infoIO) //Usa el archivo utilsIo
 	if err != nil {
 		fmt.Println("Error al enviar paquete al Kernel:", err)
 		return

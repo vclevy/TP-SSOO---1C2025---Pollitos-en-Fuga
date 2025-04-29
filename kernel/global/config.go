@@ -86,6 +86,16 @@ var CantidadCPUsOcupadas int // *OBVIO Q ESTO no va a terminar así, es para q c
 //IO
 
 type IOData = estructuras.IOData
-var IOConectados map[string]*IOData
-var ColaIO []Proceso
+var IOConectados []IODevice
+
+type IODevice struct {
+    Nombre      string           // ej. "impresora"
+    IP          string           // IP del módulo IO
+    Puerto      int              // Puerto del módulo IO
+    Ocupado     bool             // ¿Está actualmente ocupado?
+    ProcesoEnUso *Proceso        // Proceso que está usando la IO (nil si está libre)
+    ColaEspera  []Proceso        // Lista de procesos esperando esta IO
+}
+
+
 

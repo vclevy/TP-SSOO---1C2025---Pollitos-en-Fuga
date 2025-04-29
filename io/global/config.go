@@ -8,6 +8,7 @@ import(
 var IoConfig *Config
 var LoggerIo *logger.LoggerStruct
 
+
 type Config struct {
 	IPKernel           	string 	`json:"ip_kernel"`
     Port_Kernel         int    	`json:"port_kernel"`

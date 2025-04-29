@@ -12,7 +12,6 @@ type IOData struct {
 	Cola   []int
 	PID int 
 }
-
 type MensajeIO struct {
 	NombreIO string `json:"nombre_io"`
 	Evento   string `json:"evento"`   // "registro", "fin", "desconexion"
