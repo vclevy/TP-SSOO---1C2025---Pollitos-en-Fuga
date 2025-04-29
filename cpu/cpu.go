@@ -29,6 +29,6 @@ func main() {
 		}
 	}()
 
-	handlers.HandshakeConKernel(nil, nil) 
+	handlers.HandshakeKernel(nil, nil) 
 	select {}
 }

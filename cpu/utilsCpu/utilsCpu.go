@@ -8,14 +8,23 @@ import (
 	"io"
 	"github.com/sisoputnfrba/tp-golang/cpu/global"
 	"github.com/sisoputnfrba/tp-golang/utils/logger"
+	"github.com/sisoputnfrba/tp-golang/cpu/api/handlers"
 	"strings"
 )
 
 var instruccionesConMMU = map[string]bool{
 	"WRITE":      true,
 	"READ":       true,
-	"GOTO":       true,
 }
+
+var instruccionesSyscall = map[string]bool{
+	"IO": true,
+	"INIT_PROC": true,
+	"DUMP_MEMORY": true,
+	"EXIT": true,
+}
+
+var pidEnEjecucion int
 
 func Fetch(pid int, pc int) {
 	type SolicitudInstruccion struct {
@@ -26,6 +35,8 @@ func Fetch(pid int, pc int) {
 		Pid: pid,
 		Pc:  pc,
 	}
+
+	pidEnEjecucion = pid
 
 	jsonData, err := json.Marshal(solicitudInstruccion)
 	if err != nil {
@@ -65,7 +76,7 @@ type Instruccion struct {
 }
 
 func Decode(instruccionAEjecutar string){
-	instruccionPartida := strings.Fields(instruccionAEjecutar)
+	instruccionPartida := strings.Fields(instruccionAEjecutar) //ver
 
 	opcode := instruccionPartida[0]
 	parametros := instruccionPartida[1:]
@@ -74,6 +85,7 @@ func Decode(instruccionAEjecutar string){
 		Opcode: opcode,
 		Parametros:  parametros,
 	}
+
 	Execute(instruccion)
 }
 
@@ -81,10 +93,12 @@ func Execute(instruccion Instruccion){
 	if _, requiereMMU := instruccionesConMMU[instruccion.Opcode]; requiereMMU {
 		MMU(instruccion)
 	}
+	if _, esSyscall:= instruccionesSyscall[instruccion.Opcode]; esSyscall {
+		handlers.EnviarInstruccionAKernel(instruccion,pidEnEjecucion)
+	}
 }
 
-func MMU(instruccion Instruccion){
-	
+func MMU(instruccion Instruccion){	
 	/* traducir direcciones lógicas a físicas, 
 		dirección logica [entrada_nivel_1 | entrada_nivel_2 | … | entrada_nivel_X | desplazamiento] 
 		
@@ -97,9 +111,6 @@ func MMU(instruccion Instruccion){
 
 func CheckInterrupt(instruccion Instruccion){}
 
-func EnviarAKernel(){
-
-}
 
 /* 
 TODO:

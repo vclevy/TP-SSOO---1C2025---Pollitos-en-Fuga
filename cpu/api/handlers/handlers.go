@@ -12,11 +12,11 @@ import (
 	"bytes"
 )
 
-type Paquete struct {
+/* type Paquete struct {
 	Mensajes []string `json:"mensaje"`
 	Codigo  	int    `json:"codigo"`
 	PuertoDestino    int     `json:"puertoDestino"`
-}
+} */
 /* 
 type Respuesta struct {
 	Status        string `json:"status"`
@@ -25,7 +25,7 @@ type Respuesta struct {
 	TiempoEstimado int   `json:"tiempo_estimado"`
 }
  */
-func HandshakeConKernel(w http.ResponseWriter, r *http.Request) {
+func HandshakeKernel(w http.ResponseWriter, r *http.Request) {
 	datos := map[string]string{
 		"id":     global.CpuID,
 		"ip":     global.CpuConfig.Ip_Cpu,
@@ -62,6 +62,21 @@ func HandshakeConKernel(w http.ResponseWriter, r *http.Request) {
 
 	global.LoggerCpu.Log(fmt.Sprintf(" Kernel respondió con PID: %d y PC: %d", pid, pc), log.INFO)
 }
+
+type Instruccion struct {
+	Opcode  string	`json:"opcode"`  // El tipo de operación (e.g. WRITE, READ, GOTO, etc.)
+	Parametros []string `json:"parametros"` // Los parámetros de la instrucción, de tipo variable
+}
+
+func EnviarInstruccionAKernel(instruccion Instruccion,  pid int){
+	
+}
+
+/* 
+TODO:
+? Ver lineas pid := datosRespuesta["pid"] y pc := datosRespuesta["pc"]
+
+*/
 
 /* func RecibirPaquete(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
