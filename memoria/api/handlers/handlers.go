@@ -3,10 +3,8 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/sisoputnfrba/tp-golang/memoria/global"
 	utilsMemoria"github.com/sisoputnfrba/tp-golang/memoria/utilsMemoria"
@@ -17,6 +15,7 @@ import (
 )
 
 type PaqueteMemoria = estructuras.PaqueteMemoria
+type PaquetePedidoDeCPU = estructuras.PaquetePedidoDeCPU
 
 func RecibirProceso(w http.ResponseWriter, r *http.Request) {
     if r.Method != http.MethodPost {
@@ -44,10 +43,8 @@ func RecibirProceso(w http.ResponseWriter, r *http.Request) {
 }
 
 
-
-
 func VerificarEspacioDisponible(w http.ResponseWriter, r *http.Request) {
-	tamanioStr := r.URL.Query().Get("tamanioProceso") // Aquí debes asegurarte que el parámetro esté correcto
+	tamanioStr := r.URL.Query().Get("verificarEspacioDisponible") 
 	
 	// Intentamos convertir el parámetro a entero
 	tamanio, err := strconv.Atoi(tamanioStr)
@@ -70,4 +67,30 @@ func VerificarEspacioDisponible(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]bool{"espacioDisponible": espacioDisponible})
 }
+
+func PedidoInstruccion(w http.ResponseWriter, r *http.Request) {
+	
+	var paquete PaquetePedidoDeCPU
+	err := json.NewDecoder(r.Body).Decode(&paquete)
+	if err != nil {
+		http.Error(w, "Error al leer el paquete de la CPU", http.StatusBadRequest)
+		return
+	}
+
+	pid := paquete.PID
+	pc := paquete.PC
+
+	paqueteADevolver, err := utilsMemoria.DevolverInstruccion(pid, pc)
+	
+
+	// Devolver la instrucción a la CPU como JSON
+	w.Header().Set("Content-Type", "application/json")
+	err = json.NewEncoder(w).Encode(paqueteADevolver)
+	if err != nil {
+		http.Error(w, "Error al enviar la instrucción", http.StatusInternalServerError)
+		return
+	}
+}
+
+
 
