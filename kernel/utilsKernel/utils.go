@@ -5,11 +5,12 @@ import(
 	"github.com/sisoputnfrba/tp-golang/kernel/global"
 )
 
-func ObtenerDispositivoIO(nombreBuscado string) *global.IODevice {
-    for _, io := range global.IOConectados {
-        if io.Nombre == nombreBuscado {
-            return &io
+func ObtenerDispositivoIO(nombreBuscado string) []*global.IODevice {
+    var dispositivos []*global.IODevice
+    for i := range global.IOConectados {
+        if global.IOConectados[i].Nombre == nombreBuscado {
+            dispositivos = append(dispositivos, &global.IOConectados[i])
         }
     }
-    return nil
+    return dispositivos
 }

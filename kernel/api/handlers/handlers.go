@@ -123,10 +123,10 @@ func IO(w http.ResponseWriter, r *http.Request) {
 
 	// Obtener dispositivo IO
 	global.IOListMutex.RLock()
-	ioSolicitada := ObtenerDispositivoIO(nombre)
+	iosSolicitadas := utilsKernel.ObtenerDispositivoIO(nombre)
 	global.IOListMutex.RUnlock()
 
-	if ioSolicitada == nil {
+	if iosSolicitadas == nil {
 		proceso := obtenerProcesoActual()
 		if proceso != nil {
 			planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.EXIT)
@@ -147,12 +147,18 @@ func IO(w http.ResponseWriter, r *http.Request) {
 	ioSolicitada.Mutex.Lock()
 	defer ioSolicitada.Mutex.Unlock()
 
-	if ioSolicitada.Ocupado {
-		manejarIOOcupado(ioSolicitada, proceso, w)
+	
+
+	for _, io := range iosSolicitadas {
+	if !io.Ocupado {
+		manejarIOLibre(io, proceso, tiempoUso, w)
 		return
 	}
+	}
 
-	manejarIOLibre(ioSolicitada, proceso, tiempoUso, w)
+	// Si llegamos acá, es porque todos están ocupados
+	manejarIOOcupado(iosSolicitadas[0], proceso, w)//! No se como gestionariamos si estan todas ocupadas a q cola la mandamos
+
 }
 
 func manejarIOOcupado(io *global.IODevice, proceso *global.Proceso, w http.ResponseWriter) {
