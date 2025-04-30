@@ -26,7 +26,7 @@ type PaqueteHandshakeIO struct {
 	PuertoIO    	int      `json:"puertoIO"`
 }
 
-type PaquetePedidoDeCPU struct {
-	PID      int    `json:"pid"`
-	PC       int `json:"ip"` 
+type SolicitudInstruccion struct {
+	Pid		int		`json:"Pid"`
+	Pc		int		`json:"Pc"`
 }

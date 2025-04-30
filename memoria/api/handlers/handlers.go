@@ -15,7 +15,7 @@ import (
 )
 
 type PaqueteMemoria = estructuras.PaqueteMemoria
-type PaquetePedidoDeCPU = estructuras.PaquetePedidoDeCPU
+type PaqueteSolicitudInstruccion = estructuras.SolicitudInstruccion
 
 func RecibirProceso(w http.ResponseWriter, r *http.Request) {
     if r.Method != http.MethodPost {
@@ -68,29 +68,37 @@ func VerificarEspacioDisponible(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]bool{"espacioDisponible": espacioDisponible})
 }
 
-func PedidoInstruccion(w http.ResponseWriter, r *http.Request) {
+func DevolverInstruccion(w http.ResponseWriter, r *http.Request) {
 	
-	var paquete PaquetePedidoDeCPU
+	var paquete PaqueteSolicitudInstruccion
+
+	// Decodificar JSON recibido
 	err := json.NewDecoder(r.Body).Decode(&paquete)
 	if err != nil {
-		http.Error(w, "Error al leer el paquete de la CPU", http.StatusBadRequest)
+		http.Error(w, "Error al parsear la solicitud", http.StatusBadRequest)
 		return
 	}
 
-	pid := paquete.PID
-	pc := paquete.PC
-
-	paqueteADevolver, err := utilsMemoria.DevolverInstruccion(pid, pc)
-	
-
-	// Devolver la instrucción a la CPU como JSON
-	w.Header().Set("Content-Type", "application/json")
-	err = json.NewEncoder(w).Encode(paqueteADevolver)
+	// Obtener instrucción desde memoria
+	instruccion, err := utilsMemoria.ObtenerInstruccion(paquete.Pid, paquete.Pc)
 	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Devolver instrucción como JSON
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(instruccion); err != nil {
 		http.Error(w, "Error al enviar la instrucción", http.StatusInternalServerError)
 		return
 	}
+	pidString := strconv.Itoa(paquete.Pid)
+	pcString :=  strconv.Itoa(paquete.Pc)
+	
+	global.LoggerMemoria.Log("## "+ pidString +": <"+ pidString +"> - Obtener instrucción: <"+ pcString +"> - Instrucción: <"+ instruccion +"> <...ARGS>", log.DEBUG)
 }
+
+
 
 
 

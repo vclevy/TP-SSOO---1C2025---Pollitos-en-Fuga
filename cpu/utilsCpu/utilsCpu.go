@@ -8,6 +8,7 @@ import (
 	"io"
 	"github.com/sisoputnfrba/tp-golang/cpu/global"
 	"github.com/sisoputnfrba/tp-golang/utils/logger"
+	estructuras "github.com/sisoputnfrba/tp-golang/utils/estructuras"
 	"strings"
 )
 
@@ -18,11 +19,8 @@ var instruccionesConMMU = map[string]bool{
 }
 
 func Fetch(pid int, pc int) {
-	type SolicitudInstruccion struct {
-		Pid		int		`json:"Pid"`
-		Pc		int		`json:"Pc"`
-	}
-	solicitudInstruccion := SolicitudInstruccion{
+
+	solicitudInstruccion := estructuras.SolicitudInstruccion{
 		Pid: pid,
 		Pc:  pc,
 	}
