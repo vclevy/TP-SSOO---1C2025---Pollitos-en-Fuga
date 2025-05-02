@@ -53,7 +53,7 @@ type Config struct {
     Port_Kernel         	int    		`json:"port_kernel"`
 	Log_file          		string 		`json:"log_file"`
 	Ip_Kernel				string 		`json:"ip_kernel"`
-	EstimacionRafaga		float64		`json:"estimacion_rafaga"`
+	InitialEstimate			int 		`json:"initial_estimate"`
 }
 
 func InitGlobal() {

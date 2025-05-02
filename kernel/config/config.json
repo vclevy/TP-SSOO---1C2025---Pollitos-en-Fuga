@@ -9,5 +9,5 @@
     "alpha": 0.5,
     "log_level": "DEBUG",
     "log_file": "kernel.log",
-    "estimacion_Rafaga": 5
+    "initial_estimate": 10000
 }
