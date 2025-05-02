@@ -7,6 +7,7 @@
         {
             "folderPath": "tp-2025-1c-Pollitos-en-Fuga\\kernel\\",
             "color": "foldercolorizer.color_00cc99"
+            "color": "foldercolorizer.color_cc6699"
         },
         {
             "folderPath": "tp-2025-1c-Pollitos-en-Fuga\\memoria\\",
@@ -15,6 +16,11 @@
         {
             "folderPath": "tp-2025-1c-Pollitos-en-Fuga\\cpu\\",
             "color": "foldercolorizer.color_006699"
+            "color": "foldercolorizer.color_006699"
+        },
+        {
+            "folderPath": "tp-2025-1c-Pollitos-en-Fuga\\kernel\\",
+            "color": "foldercolorizer.color_660066"
         }
     ]
 }

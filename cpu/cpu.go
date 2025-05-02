@@ -1,11 +1,13 @@
 package main
 
 import (
-	"os"
 	"fmt"
+	"os"
+
 	"github.com/sisoputnfrba/tp-golang/cpu/api"
 	"github.com/sisoputnfrba/tp-golang/cpu/api/handlers"
 	"github.com/sisoputnfrba/tp-golang/cpu/global"
+	utilsIo "github.com/sisoputnfrba/tp-golang/cpu/utilsCpu"
 	log "github.com/sisoputnfrba/tp-golang/utils/logger"
 )
 
@@ -30,5 +32,7 @@ func main() {
 	}()
 
 	handlers.HandshakeKernel(nil, nil) 
+	utilsIo.ConfigMMU()
+	
 	select {}
 }
