@@ -29,15 +29,10 @@ var instruccionesSyscall = map[string]bool{
 var pidEnEjecucion int
 
 func Fetch(pid int, pc int) {
-	
-	global.LoggerCpu.Log(fmt.Sprintf(" ## PID: %d - FETCH - Program Counter: %d", pid, pc), log.INFO)
-	
 	type SolicitudInstruccion struct {
 		Pid		int		`json:"Pid"`
 		Pc		int		`json:"Pc"`
 	}
-	solicitudInstruccion := SolicitudInstruccion{
-
 	solicitudInstruccion := estructuras.SolicitudInstruccion{
 		Pid: pid,
 		Pc:  pc,
