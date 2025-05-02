@@ -1,12 +1,16 @@
 package handlers
 
 import (
+	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
-	"github.com/sisoputnfrba/tp-golang/io/global"
-	"github.com/sisoputnfrba/tp-golang/utils/logger"
-	"encoding/json"
 	"strconv"
+
+	utilsIo "github.com/sisoputnfrba/tp-golang/io/utilsIo"
+	"github.com/sisoputnfrba/tp-golang/io/global"
+	estructuras "github.com/sisoputnfrba/tp-golang/utils/estructuras"
+	"github.com/sisoputnfrba/tp-golang/utils/logger"
 )
 
 type Paquete struct {
@@ -40,4 +44,21 @@ func RecibirPaquete(w http.ResponseWriter, r *http.Request) {
 	global.LoggerIo.Log("IO recibió paquete: PID: "+strconv.Itoa(paquete.PID)+", Tiempo: "+strconv.Itoa(paquete.TiempoDeBloqueo), log.DEBUG)
 
 	w.Write([]byte("IO recibió el paquete correctamente"))
+}
+
+func ProcesoRecibidoHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var tarea estructuras.TareaDeIo
+	if err := json.NewDecoder(r.Body).Decode(&tarea); err != nil {
+		http.Error(w, "Error al parsear JSON", http.StatusBadRequest)
+		return
+	}
+
+	utilsIo.IniciarIo(tarea)
+	fmt.Printf("IO: Recibí PID %d con tiempo %d\n", tarea.PID, tarea.TiempoEstimado)
+	w.WriteHeader(http.StatusOK)
 }

@@ -38,18 +38,5 @@ func main() {
 	}
 
 
-	// Simulación de la recepción de solicitudes de E/S
-	for {
-		// Aquí se puede simular una solicitud de I/O. En la práctica, esta parte debería estar en espera de peticiones del Kernel.
-		solicitud := utilsIO.RespuestaKernel{
-			PID:            respuesta.PID,
-			TiempoEstimado: 1000, // Tiempo simulado de E/S
-		}
-
-		utilsIO.IniciarIo(solicitud)
-
-		// Enviar una respuesta de finalización de I/O al Kernel
-		// Este es el lugar donde puedes enviar una respuesta al Kernel indicando que la operación de I/O terminó.
-		// Se puede enviar otro paquete con el status de finalización si es necesario.
-	}
+	//esta en los handlers -> cuando le llega una solicitud a la io, se iniciaIo con la funcion de utilsIO
 }

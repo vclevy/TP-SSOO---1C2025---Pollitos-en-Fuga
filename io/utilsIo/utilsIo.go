@@ -14,13 +14,6 @@ import (
 
 type PaqueteHandshakeIO = estructuras.PaqueteHandshakeIO
 
-type RespuestaKernel struct {
-	Status         string `json:"status"`
-	Detalle        string `json:"detalle"`
-	PID            int    `json:"pid"`
-	TiempoEstimado int    `json:"tiempo_estimado"`
-}
-
 func HandshakeConKernel(paquete PaqueteHandshakeIO) error {
 	global.LoggerIo.Log(fmt.Sprintf("Paquete a enviar: %+v", paquete), log.DEBUG)
 
@@ -45,7 +38,7 @@ func HandshakeConKernel(paquete PaqueteHandshakeIO) error {
 	return nil
 }
 
-func IniciarIo(solicitud RespuestaKernel) {
+func IniciarIo(solicitud estructuras.TareaDeIo) {
 	// Log de inicio de E/S
 	global.LoggerIo.Log(fmt.Sprintf("## PID: %d - Inicio de IO - Tiempo: %dms", solicitud.PID, solicitud.TiempoEstimado), log.INFO)
 

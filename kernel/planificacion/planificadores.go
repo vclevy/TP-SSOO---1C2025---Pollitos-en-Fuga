@@ -45,7 +45,7 @@ func CrearProceso(tamanio int, archivoPseudoCodigo string) Proceso {
 		PCB:              *pcb,
 		MemoriaRequerida: tamanio,
 		ArchivoPseudo:    archivoPseudoCodigo,
-		EstimacionRafaga: global.ConfigKernel.EstimacionRafaga,
+		EstimacionRafaga: float64(global.ConfigKernel.InitialEstimate), //? chequear
 	}
 
 	global.LoggerKernel.Log(fmt.Sprintf("## (%d) Se crea el proceso - Estado: NEW", pcb.PID), log.INFO) //! LOG OBLIGATORIO: Creacion de Proceso

@@ -1,6 +1,7 @@
 package global
 
 import (
+	"sync"
 	"time"
 
 	utils "github.com/sisoputnfrba/tp-golang/utils/config"
@@ -85,17 +86,21 @@ var CantidadCPUsOcupadas int // *OBVIO Q ESTO no va a terminar así, es para q c
 
 //IO
 
+var IOListMutex sync.RWMutex
+
 type IOData = estructuras.IOData
-var IOConectados []IODevice
+var IOConectados []*IODevice
 
 type IODevice struct {
-    Nombre      string           // ej. "impresora"
-    IP          string           // IP del módulo IO
-    Puerto      int              // Puerto del módulo IO
-    Ocupado     bool             // ¿Está actualmente ocupado?
-    ProcesoEnUso *Proceso        // Proceso que está usando la IO (nil si está libre)
-    ColaEspera  []Proceso        // Lista de procesos esperando esta IO
+    Nombre        string
+    IP            string
+    Puerto        int
+    Ocupado       bool
+    ProcesoEnUso  *Proceso
+    ColaEspera    []*Proceso // uso de punteros
+    Mutex         sync.Mutex
 }
+
 
 
 

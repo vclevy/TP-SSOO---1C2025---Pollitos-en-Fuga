@@ -18,6 +18,7 @@ import (
 type PaqueteHandshakeIO = estructuras.PaqueteHandshakeIO
 type IODevice = global.IODevice
 type PCB = planificacion.PCB
+type SyscallIO = estructuras.SyscallIO
 
 type Respuesta struct {
 	Status         string `json:"status"`
@@ -51,7 +52,7 @@ func RecibirPaquete(w http.ResponseWriter, r *http.Request) {
 
 	global.LoggerKernel.Log("Kernel recibió paquete desde IO - Nombre: "+paquete.NombreIO+" | IP IO: "+paquete.IPIO+" | Puerto Io: "+strconv.Itoa(paquete.PuertoIO), log.DEBUG)
 
-	ioConectado := IODevice{
+	ioConectado := &IODevice{
 		Nombre:       paquete.NombreIO,
 		IP:           paquete.IPIO,
 		Puerto:       paquete.PuertoIO,
@@ -106,28 +107,22 @@ func HandshakeConCPU(w http.ResponseWriter, r *http.Request) {
 }
 
 func IO(w http.ResponseWriter, r *http.Request) {
-	// Validación de parámetros
-	nombre := r.URL.Query().Get("nombre")
-	tiempoUsoStr := r.URL.Query().Get("tiempoUso")
-	
-	if nombre == "" || tiempoUsoStr == "" {
-		http.Error(w, "Parámetros requeridos: 'nombre' y 'tiempoUso'", http.StatusBadRequest)
+	var syscall SyscallIO
+	if err := json.NewDecoder(r.Body).Decode(&syscall); err != nil {
+		http.Error(w, "Error al parsear la syscall", http.StatusBadRequest)
 		return
 	}
-	
-	tiempoUso, err := strconv.Atoi(tiempoUsoStr)
-	if err != nil || tiempoUso <= 0 {
-		http.Error(w, "tiempoUso debe ser un entero positivo", http.StatusBadRequest)
-		return
-	}
+	nombre := syscall.IoSolicitada
+	tiempoUso := syscall.TiempoEstimado
+	pid := syscall.PIDproceso
 
-	// Obtener dispositivo IO
 	global.IOListMutex.RLock()
-	iosSolicitadas := utilsKernel.ObtenerDispositivoIO(nombre)
+	dispositivos := utilsKernel.ObtenerDispositivoIO(nombre)
 	global.IOListMutex.RUnlock()
 
-	if iosSolicitadas == nil {
-		proceso := obtenerProcesoActual()
+	if dispositivos == nil || len(dispositivos) == 0 {
+		proceso := BuscarProcesoPorPID(global.ColaExecuting, pid)
+	
 		if proceso != nil {
 			planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.EXIT)
 		}
@@ -136,35 +131,40 @@ func IO(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Obtener proceso actual
-	proceso := obtenerProcesoActual()
+	proceso := BuscarProcesoPorPID(global.ColaExecuting, pid)
 	if proceso == nil {
 		http.Error(w, "No se pudo obtener el proceso actual", http.StatusInternalServerError)
 		return
 	}
 
-	// Manejo del dispositivo
-	ioSolicitada.Mutex.Lock()
-	defer ioSolicitada.Mutex.Unlock()
+	// Buscar un dispositivo libre
+	for _, dispositivo := range dispositivos {
+		dispositivo.Mutex.Lock()
+		if !dispositivo.Ocupado {
+			dispositivo.Ocupado = true
+			dispositivo.ProcesoEnUso = proceso
+			dispositivo.Mutex.Unlock()
 
-	
-
-	for _, io := range iosSolicitadas {
-	if !io.Ocupado {
-		manejarIOLibre(io, proceso, tiempoUso, w)
-		return
+			go utilsKernel.EnviarAIO(dispositivo, proceso.PCB.PID, tiempoUso)
+			planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.BLOCKED)
+			return
+		}
+		dispositivo.Mutex.Unlock()
 	}
-	}
 
-	// Si llegamos acá, es porque todos están ocupados
-	manejarIOOcupado(iosSolicitadas[0], proceso, w)//! No se como gestionariamos si estan todas ocupadas a q cola la mandamos
-
+	// Si todos están ocupados, se encola en el primero
+	primero := dispositivos[0]
+	primero.Mutex.Lock()
+	planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.BLOCKED)
+	primero.ColaEspera = append(primero.ColaEspera, proceso)
+	primero.Mutex.Unlock()
 }
+
 
 func manejarIOOcupado(io *global.IODevice, proceso *global.Proceso, w http.ResponseWriter) {
 	// Agregar a cola de espera
 	io.ColaEspera = append(io.ColaEspera, proceso)
-	
+
 	// Cambiar estado según si está en memoria o swap
 	if proceso.PCB.UltimoEstado == planificacion.SUSP_READY || proceso.PCB.UltimoEstado == planificacion.SUSP_BLOCKED {
 		planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.SUSP_BLOCKED)
@@ -172,7 +172,7 @@ func manejarIOOcupado(io *global.IODevice, proceso *global.Proceso, w http.Respo
 		planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.BLOCKED)
 		global.ColaBlocked = append(global.ColaBlocked, *proceso)
 	}
-	
+
 	w.WriteHeader(http.StatusAccepted)
 	fmt.Fprintf(w, "Proceso %d en cola para %s", proceso.PID, io.Nombre)
 }
@@ -211,7 +211,7 @@ func manejarIOLibre(io *global.IODevice, proceso *global.Proceso, tiempoUso int,
 
 			// Si no estaba suspendido, mover a READY
 			planificacion.ActualizarEstadoPCB(&siguiente.PCB, planificacion.READY)
-			global.ColaReady = append(global.ColaReady, siguiente)
+			global.ColaReady = append(global.ColaReady, *siguiente)
 
 			// Remover de BLOCKED si estaba allí
 			for i, p := range global.ColaBlocked {
@@ -227,38 +227,39 @@ func manejarIOLibre(io *global.IODevice, proceso *global.Proceso, tiempoUso int,
 	fmt.Fprintf(w, "Proceso %d accediendo a %s por %d ms", proceso.PID, io.Nombre, tiempoUso)
 }
 
-func obtenerProcesoActual() *global.Proceso {
-	if len(global.ColaExecuting) > 0 {
-		return &global.ColaExecuting[0]
+func BuscarProcesoPorPID(cola []global.Proceso, pid int) (*global.Proceso) {
+	for i := range cola {
+		if cola[i].PCB.PID == pid {
+			return &cola[i]
+		}
 	}
 	return nil
 }
 
-
-
 // func manejarOperacionIO(dispositivo *utilsKernel.IODevice, proceso *kernel.Proceso, tiempoUso int64) {
 //     // Simular operación IO (en producción sería llamada HTTP real al módulo)
 //     time.Sleep(time.Duration(tiempoUso) * time.Millisecond)
-// 
+//
 //     // Bloquear para actualizar estado del dispositivo
 //     dispositivo.Mutex.Lock()
 //     defer dispositivo.Mutex.Unlock()
-// 
+//
 //     // Liberar dispositivo
 //     dispositivo.Ocupado = false
 //     dispositivo.ProcesoEnUso = nil
-// 
+//
 //     // Manejar cola de espera
 //     if len(dispositivo.ColaEspera) > 0 {
 //         // Tomar siguiente proceso (FIFO)
 //         siguienteProceso := dispositivo.ColaEspera[0]
 //         dispositivo.ColaEspera = dispositivo.ColaEspera[1:]
-// 
+//
 //         // Asignar dispositivo
 //         dispositivo.Ocupado = true
 //         dispositivo.ProcesoEnUso = siguienteProceso
-// 
+//
 //         // Notificar al kernel para despertar proceso
 //         kernel.NotificarIOLista(siguienteProceso.PID, dispositivo.Nombre)
 //     }
 // }
+
