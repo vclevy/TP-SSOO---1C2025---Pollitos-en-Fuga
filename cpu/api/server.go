@@ -11,8 +11,7 @@ func CrearServer() *server.Server {
 	configServer := server.Config{
 		Port: global.CpuConfig.Port_Cpu,
 		Handlers: map[string]http.HandlerFunc{
-		/* "POST /responder": handlers.RecibirPaquete, */
-			"POST /handshake": handlers.HandshakeConKernel,
+			"POST /handshake": handlers.HandshakeKernel,
 		},
 	}
 	fmt.Printf("🟢 CPU prendido en http://localhost:%d\n", global.CpuConfig.Port_Cpu)
