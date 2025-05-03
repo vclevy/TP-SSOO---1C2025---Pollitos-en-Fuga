@@ -11,21 +11,23 @@ import (
 	"github.com/sisoputnfrba/tp-golang/cpu/global"
 	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
 	"github.com/sisoputnfrba/tp-golang/utils/logger"
-	/* 	"math" */)
+	"time"
+)
 
 var instruccionesConMMU = map[string]bool{
 	"WRITE":      true,
 	"READ":       true,
 }
 
-var instruccionesSyscall = map[string]bool{
+/* var instruccionesSyscall = map[string]bool{
 	"IO": true,
 	"INIT_PROC": true,
 	"DUMP_MEMORY": true,
 	"EXIT": true,
 }
-
-var pidEnEjecucion int
+ */
+var pidActual int
+var pcActual int
 
 func Fetch(pid int, pc int) {
 	
@@ -36,7 +38,8 @@ func Fetch(pid int, pc int) {
 		Pc:  pc,
 	}
 
-	pidEnEjecucion = pid
+	pidActual = pid
+	pcActual = pc
 
 	jsonData, err := json.Marshal(solicitudInstruccion)
 	if err != nil {
@@ -90,6 +93,7 @@ func Decode(instruccionAEjecutar string){
 }
 
 func Execute(instruccion Instruccion){
+/*  *//*  *//*  *//*  *//*  *//*  *//*  *//*  */
 	if _, requiereMMU := instruccionesConMMU[instruccion.Opcode]; requiereMMU {
 		direccionLogicaStr := instruccion.Parametros[0]
 		direccionLogica, err := strconv.Atoi(direccionLogicaStr)
@@ -99,7 +103,33 @@ func Execute(instruccion Instruccion){
 			MMU(direccionLogica)
 		}
 	}
-	
+/*  *//*  *//*  *//*  *//*  *//*  *//*  *//*  */
+	if(instruccion.Opcode == "IO"){
+		SyscallIO(instruccion)
+	}
+	if(instruccion.Opcode == "INIT_PROC"){
+
+	}
+	if(instruccion.Opcode == "DUMP_MEMORY"){
+
+	}
+	if(instruccion.Opcode == "EXIT"){
+
+	}
+/*  *//*  *//*  *//*  *//*  *//*  *//*  *//*  */
+	if(instruccion.Opcode == "NOOP"){
+		time.Sleep(10) // ! CAMBIAR (hardcodeado)
+	}
+	if(instruccion.Opcode == "GOTO"){	
+		pcNuevo, err := strconv.Atoi(instruccion.Parametros[1])
+		if err != nil {
+			global.LoggerCpu.Log("Error al convertir tiempo estimado: %v", log.ERROR)
+			return
+		}
+
+		pcActual = pcNuevo
+	}
+
 }
 
 func MMU(direccionLogica int){
@@ -118,25 +148,26 @@ func MMU(direccionLogica int){
 
 func CheckInterrupt(instruccion Instruccion){}
 
-func EnviarInstruccionAKernel(instruccion Instruccion,  pid int){
-	type Syscall struct {
-		/* IDCpu  	 */	
-		Instruccion	 Instruccion `json:"Instruccion"`
-		Pid		int		`json:"Pid"`
-	}
-	syscall := Syscall{
-		/* IDCpu  */
-		Pid: pid,
-		Instruccion:  instruccion,
+func SyscallIO(instruccion Instruccion){
+	tiempo, err := strconv.Atoi(instruccion.Parametros[1])
+	if err != nil {
+		global.LoggerCpu.Log("Error al convertir tiempo estimado: %v", log.ERROR)
+		return
 	}
 
-	jsonData, err := json.Marshal(syscall)
+	syscallIO := estructuras.SyscallIO{
+		IoSolicitada : instruccion.Parametros[0],
+		TiempoEstimado : tiempo,
+		PIDproceso: pidActual,
+	}
+
+	jsonData, err := json.Marshal(syscallIO)
 	if err != nil {
 		global.LoggerCpu.Log("Error serializando solicitud: "+err.Error(), log.ERROR)
 		return
 	}
 
-	url := fmt.Sprintf("http://%s:%d/envioSyscall", global.CpuConfig.Ip_Kernel, global.CpuConfig.Port_Kernel) //url a la que se va a conectar
+	url := fmt.Sprintf("http://%s:%d/IO", global.CpuConfig.Ip_Kernel, global.CpuConfig.Port_Kernel) //url a la que se va a conectar
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData)) //se abre la conexión
 	
 	if err != nil {
@@ -146,6 +177,10 @@ func EnviarInstruccionAKernel(instruccion Instruccion,  pid int){
 
 	defer resp.Body.Close() //se cierra la conexión
 }
+
+/* 
+TODO lo mismo que SyscallIO pero con las demás
+*/
 
 type configuracionMMU struct {
 	Tamaño_página 			int 	`json:"tamaño_página"`
