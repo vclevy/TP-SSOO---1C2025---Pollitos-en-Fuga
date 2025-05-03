@@ -5,11 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/sisoputnfrba/tp-golang/io/global"
-	log "github.com/sisoputnfrba/tp-golang/utils/logger"
 	estructuras "github.com/sisoputnfrba/tp-golang/utils/estructuras"
+	log "github.com/sisoputnfrba/tp-golang/utils/logger"
 )
 
 type PaqueteHandshakeIO = estructuras.PaqueteHandshakeIO
@@ -45,6 +46,26 @@ func IniciarIo(solicitud estructuras.TareaDeIo) {
 	// Simulación del proceso de E/S con sleep
 	time.Sleep(time.Duration(solicitud.TiempoEstimado) * time.Millisecond)
 
-	// Log de finalización de E/S
-	global.LoggerIo.Log(fmt.Sprintf("## PID: %d - Fin de IO", solicitud.PID), log.INFO)
+	InformarFinalizacionDeIO(solicitud.PID)
 }
+
+func InformarFinalizacionDeIO(pid int){
+	
+	url := fmt.Sprintf("http://%s:%d/finalizacionIO?pid=%d", global.IoConfig.IPKernel, global.IoConfig.Port_Kernel,pid)
+
+	req, err := http.NewRequest("POST", url, nil)
+	if err != nil {
+		panic(err)
+	}
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
+
+	pidString := strconv.Itoa(pid)
+	global.LoggerIo.Log(fmt.Sprintf("## PID: <%s> - Fin de IO", pidString), log.INFO)
+}
+
