@@ -2,12 +2,20 @@
     "folder-color.pathColors": [
         {
             "folderPath": "tp-2025-1c-Pollitos-en-Fuga\\io\\",
+<<<<<<< Updated upstream
             "color": "foldercolorizer.color_9966ff"
         },
         {
             "folderPath": "tp-2025-1c-Pollitos-en-Fuga\\kernel\\",
             "color": "foldercolorizer.color_00cc99"
             "color": "foldercolorizer.color_cc6699"
+=======
+            "color": "foldercolorizer.color_666699"
+        },
+        {
+            "folderPath": "tp-2025-1c-Pollitos-en-Fuga\\kernel\\",
+            "color": "foldercolorizer.color_ffccff"
+>>>>>>> Stashed changes
         },
         {
             "folderPath": "tp-2025-1c-Pollitos-en-Fuga\\memoria\\",
