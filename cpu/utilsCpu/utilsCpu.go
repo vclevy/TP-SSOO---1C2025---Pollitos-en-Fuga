@@ -31,7 +31,7 @@ func Fetch(pid int, pc int) {
 	
 	global.LoggerCpu.Log(fmt.Sprintf(" ## PID: %d - FETCH - Program Counter: %d", pid, pc), log.INFO)
 	
-	solicitudInstruccion := estructuras.Instruccion{
+	solicitudInstruccion := estructuras.SolicitudInstruccion{
 		Pid: pid,
 		Pc:  pc,
 	}
