@@ -4,14 +4,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"io"
-	"github.com/sisoputnfrba/tp-golang/cpu/global"
-	"github.com/sisoputnfrba/tp-golang/utils/logger"
-	"strings"
+	"net/http"
 	"strconv"
-/* 	"math" */
-)
+	"strings"
+	"github.com/sisoputnfrba/tp-golang/cpu/global"
+	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
+	"github.com/sisoputnfrba/tp-golang/utils/logger"
+	/* 	"math" */)
 
 var instruccionesConMMU = map[string]bool{
 	"WRITE":      true,
@@ -28,18 +28,10 @@ var instruccionesSyscall = map[string]bool{
 var pidEnEjecucion int
 
 func Fetch(pid int, pc int) {
-<<<<<<< Updated upstream
 	
 	global.LoggerCpu.Log(fmt.Sprintf(" ## PID: %d - FETCH - Program Counter: %d", pid, pc), log.INFO)
 	
-	type SolicitudInstruccion struct {
-		Pid		int		`json:"Pid"`
-		Pc		int		`json:"Pc"`
-	}
-	solicitudInstruccion := SolicitudInstruccion{
-=======
-	solicitudInstruccion := estructuras.SolicitudInstruccion{
->>>>>>> Stashed changes
+	solicitudInstruccion := estructuras.Instruccion{
 		Pid: pid,
 		Pc:  pc,
 	}
@@ -107,31 +99,7 @@ func Execute(instruccion Instruccion){
 			MMU(direccionLogica)
 		}
 	}
-	if _, esSyscall := instruccionesSyscall[instruccion.Opcode]; esSyscall {
-		instruccionSyscall := estructuras.SolicitudInstruccion{
-			Pid: pid,
-			Pc:  pc,
-		}
 	
-		pidEnEjecucion = pid
-	
-		jsonData, err := json.Marshal(solicitudInstruccion)
-		if err != nil {
-			global.LoggerCpu.Log("Error serializando solicitud: "+err.Error(), log.ERROR)
-			return
-		}
-	
-		url := fmt.Sprintf("http://%s:%d/solicitudInstruccion", global.CpuConfig.Ip_Memoria, global.CpuConfig.Port_Memoria) //url a la que se va a conectar
-		resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData)) //se abre la conexión
-		
-		if err != nil {
-			global.LoggerCpu.Log("Error enviando solicitud de instrucción a memoria: " + err.Error(), log.ERROR)
-			return
-		}
-		defer resp.Body.Close() //se cierra la conexión
-	
-		global.LoggerCpu.Log("✅ Solicitud enviada a Memoria de forma exitosa", log.INFO)
-	}
 }
 
 func MMU(direccionLogica int){
