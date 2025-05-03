@@ -16,6 +16,7 @@ import (
 
 type PaqueteMemoria = estructuras.PaqueteMemoria
 type PaqueteSolicitudInstruccion = estructuras.SolicitudInstruccion
+type PaqueteConfigMMU = estructuras.ConfiguracionMMU
 
 func RecibirProceso(w http.ResponseWriter, r *http.Request) {
     if r.Method != http.MethodPost {
@@ -98,6 +99,19 @@ func DevolverInstruccion(w http.ResponseWriter, r *http.Request) {
 	global.LoggerMemoria.Log("## "+ pidString +": <"+ pidString +"> - Obtener instrucción: <"+ pcString +"> - Instrucción: <"+ instruccion +"> <...ARGS>", log.DEBUG)
 }
 
+func ArmarPaqueteConfigMMU(w http.ResponseWriter, r *http.Request) {
+	paquete := PaqueteConfigMMU {
+			Tamaño_página :global.ConfigMemoria.Page_Size,
+			Cant_entradas_tabla : global.ConfigMemoria.Entries_per_page,
+			Cant_N_Niveles: global.ConfigMemoria.Number_of_levels,	
+	} 
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(paquete); err != nil {
+		http.Error(w, "Error al enviar la configuracion a CPU sobre MMU", http.StatusInternalServerError)
+		return
+	}
+}
 
 
 

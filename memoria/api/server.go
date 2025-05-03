@@ -15,6 +15,8 @@ func CrearServer() *server.Server {
 			"POST /procesoAMemoria": handlers.RecibirProceso,
 			"POST /verificarEspacioDisponible": handlers.VerificarEspacioDisponible,
 			"POST /solicitudInstruccion": handlers.DevolverInstruccion,
+			"POST /configuracionMMU": handlers.ArmarPaqueteConfigMMU,
+			
 		},
 	}
 	fmt.Printf("🟢 Memoria prendida en http://localhost:%d\n", global.ConfigMemoria.Port_Memory)

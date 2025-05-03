@@ -187,7 +187,7 @@ type configuracionMMU struct {
 	Cant_entradas_tabla  	int     `json:"cant_entradas_tabla"`
 	Cant_N_Niveles    		int     `json:"cant_N_Niveles"`
 }
-var configMMU configuracionMMU
+var configMMU estructuras.ConfiguracionMMU
 
 func ConfigMMU() error {
 	url := fmt.Sprintf("http://%s:%d/configuracionMMU", global.CpuConfig.Ip_Memoria, global.CpuConfig.Port_Memoria)

@@ -39,6 +39,11 @@ type SyscallIO struct {
 	PIDproceso     int    `json:"PIDproceso"`
 }
 
+type ConfiguracionMMU struct {
+	Tamaño_página 			int 	`json:"tamaño_página"`
+	Cant_entradas_tabla  	int     `json:"cant_entradas_tabla"`
+	Cant_N_Niveles    		int     `json:"cant_N_Niveles"`
+}
 // para syscall init proc creo que es lo mismo que Paquete memoria mas arriba
 // exit no recibe parametros solo necesito saber el proceso que la invoco asi q solo pasame el pid creo
 // dump memory solo neceisto saber el proceso que la invoco tmb (o sea su pid)
