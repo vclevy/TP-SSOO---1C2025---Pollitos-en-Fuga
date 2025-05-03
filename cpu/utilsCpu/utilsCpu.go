@@ -4,15 +4,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"io"
-	"github.com/sisoputnfrba/tp-golang/cpu/global"
-	"github.com/sisoputnfrba/tp-golang/utils/logger"
-	estructuras "github.com/sisoputnfrba/tp-golang/utils/estructuras"
-	"strings"
+	"net/http"
 	"strconv"
-	"math"
-)
+	"strings"
+	"github.com/sisoputnfrba/tp-golang/cpu/global"
+	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
+	"github.com/sisoputnfrba/tp-golang/utils/logger"
+	/* 	"math" */)
 
 var instruccionesConMMU = map[string]bool{
 	"WRITE":      true,
@@ -29,11 +28,10 @@ var instruccionesSyscall = map[string]bool{
 var pidEnEjecucion int
 
 func Fetch(pid int, pc int) {
-	type SolicitudInstruccion struct {
-		Pid		int		`json:"Pid"`
-		Pc		int		`json:"Pc"`
-	}
-	solicitudInstruccion := estructuras.SolicitudInstruccion{
+	
+	global.LoggerCpu.Log(fmt.Sprintf(" ## PID: %d - FETCH - Program Counter: %d", pid, pc), log.INFO)
+	
+	solicitudInstruccion := estructuras.Instruccion{
 		Pid: pid,
 		Pc:  pc,
 	}
@@ -55,7 +53,7 @@ func Fetch(pid int, pc int) {
 	}
 	defer resp.Body.Close() //se cierra la conexión
 
-	global.LoggerCpu.Log("✅ Solicitud enviada a Memoria con éxito", log.INFO)
+	global.LoggerCpu.Log("✅ Solicitud enviada a Memoria de forma exitosa", log.INFO)
 
 	//respuesta
 	body, _ := io.ReadAll(resp.Body)
@@ -101,14 +99,12 @@ func Execute(instruccion Instruccion){
 			MMU(direccionLogica)
 		}
 	}
+	
 }
 
 func MMU(direccionLogica int){
-	nro_pagina := math.Floor(float64(direccionLogica) / float64(configMMU.Tamaño_página)) 
-	desplazamiento := direccionLogica % configMMU.Tamaño_página
-
-
-
+	/* nro_pagina := math.Floor(float64(direccionLogica) / float64(configMMU.Tamaño_página)) 
+	desplazamiento := direccionLogica % configMMU.Tamaño_página */
 	/* traducir direcciones lógicas a físicas, 
 		dirección logica [entrada_nivel_1 | entrada_nivel_2 | … | entrada_nivel_X | desplazamiento] 
 		
@@ -117,16 +113,19 @@ func MMU(direccionLogica int){
 		entrada_nivel_X = floor(nro_página  / cant_entradas_tabla ^ (N - X)) % cant_entradas_tabla
 		desplazamiento = dirección_lógica % tamaño_página
 	*/
+/* 	return 0 */
 }
 
 func CheckInterrupt(instruccion Instruccion){}
 
 func EnviarInstruccionAKernel(instruccion Instruccion,  pid int){
 	type Syscall struct {
+		/* IDCpu  	 */	
 		Instruccion	 Instruccion `json:"Instruccion"`
 		Pid		int		`json:"Pid"`
 	}
 	syscall := Syscall{
+		/* IDCpu  */
 		Pid: pid,
 		Instruccion:  instruccion,
 	}
@@ -157,13 +156,13 @@ var configMMU configuracionMMU
 
 func ConfigMMU() error {
 	url := fmt.Sprintf("http://%s:%d/configuracionMMU", global.CpuConfig.Ip_Memoria, global.CpuConfig.Port_Memoria)
-	resp, err := http.Get(url) 
+	resp, err := http.Get(url)
 	
 	if err != nil {
 		global.LoggerCpu.Log("Error al conectar con Memoria:", log.ERROR)
 		return err
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //cierra automáticamente el cuerpo de la respuesta HTTP
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -171,16 +170,14 @@ func ConfigMMU() error {
 		return err
 	}
 
-	err = json.Unmarshal(body, &configMMU)
+	err = json.Unmarshal(body, &configMMU) // convierto el JSON que recibi de Memoria y lo guardo en el struct configMMU.
 	if err != nil {
 		global.LoggerCpu.Log("Error parseando JSON de configuración:", log.ERROR)
 		return err
 	}
-
+	
 	return nil
 }
-
-
 
 /* 
 TODO:
@@ -189,4 +186,4 @@ TODO:
 ? implementar que las funciones reciban errores(?) func Decode(instruccion string) (string, error) 
 ? hacer mmu
 ? delegar las syscalls a kernel, me devuelve algo kernel?
-*/ 
+*/
