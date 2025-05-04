@@ -14,6 +14,7 @@ import (
 
 type IODevice = global.IODevice
 type Proceso = global.Proceso
+type ProcesoIO = global.ProcesoIO
 
 func ObtenerDispositivoIO(nombreBuscado string) []*global.IODevice {
 	var dispositivos []*global.IODevice
@@ -45,6 +46,8 @@ func EnviarAIO(dispositivo *IODevice, pid int, tiempoUso int) {
 
 }
 
+//@valenchu agregue estas funciones de abajo
+
 func BuscarDispositivo(host string, port int) (*global.IODevice, error) {
 	global.IOListMutex.RLock()
 	defer global.IOListMutex.RUnlock()
@@ -62,6 +65,16 @@ func FiltrarCola(cola []*Proceso, target *Proceso) []*Proceso {
 	for _, p := range cola {
 		if p != target {
 			resultado = append(resultado, p)
+		}
+	}
+	return resultado
+}
+
+func FiltrarColaIO(cola []*ProcesoIO, target *ProcesoIO) []*ProcesoIO {
+	resultado := make([]*ProcesoIO, 0, len(cola))
+	for _, pio := range cola {
+		if pio != target {
+			resultado = append(resultado, pio)
 		}
 	}
 	return resultado

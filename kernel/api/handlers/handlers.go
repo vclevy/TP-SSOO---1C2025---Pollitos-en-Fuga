@@ -241,7 +241,7 @@ func BuscarProcesoPorPID(cola []global.Proceso, pid int) (*global.Proceso) {
 	}
 	return nil
 }
-//! Falta esto creo: Al momento que se conecte una nueva IO o se reciba el desbloqueo por medio de una de ellas, se deberá verificar si hay proceso encolados para dicha IO y enviarlo a la misma. 
+//! Falta esto creo @valenchu: Al momento que se conecte una nueva IO o se reciba el desbloqueo por medio de una de ellas, se deberá verificar si hay proceso encolados para dicha IO y enviarlo a la misma. 
 
 func FinalizacionIO(w http.ResponseWriter, r *http.Request){
 
@@ -278,25 +278,35 @@ func FinalizacionIO(w http.ResponseWriter, r *http.Request){
     case "FIN_IO":
         // Lógica para FIN_IO
         // 1. Verificar si hay más procesos en cola de I/O
-		fmt.Fprintf(w, "Proceso %d completó E/S. Verificando cola...", dispositivo.ProcesoEnUso.PID)
+		fmt.Fprintf(w, "Proceso %d completó E/S. Verificando cola...", dispositivo.ProcesoEnUso.Proceso.PID)
+		//! @valenchu Aca va la parte del planificador de mediano plazo creom tiene que pasar a susp ready?
 		dispositivo.ProcesoEnUso = nil //saco el proceso actual
 		if dispositivo.ColaEspera != nil{
-			siguiente := dispositivo.ColaEspera[0]
-			//? que se hace? si hay mas procesos deberian ejecutarse?
-			dispositivo.ColaEspera = utilsKernel.FiltrarCola(dispositivo.ColaEspera,siguiente)
+
+			nuevoProcesoEnIO := dispositivo.ColaEspera[0]
+			dispositivo.ColaEspera = utilsKernel.FiltrarColaIO(dispositivo.ColaEspera,nuevoProcesoEnIO)
+			dispositivo.ProcesoEnUso = nuevoProcesoEnIO
+			pidNuevo := dispositivo.ProcesoEnUso.Proceso.PID
+			utilsKernel.EnviarAIO(dispositivo, pidNuevo, nuevoProcesoEnIO.TiempoUso)
+			//? que se hace si hay mas procesos deberian ejecutarse? esta bien esto q hice?
 			
+		} else{
+			dispositivo.Ocupado = false
 		}
-        // 2. Si hay, iniciar el siguiente proceso
-        // Ejemplo:
+    
         w.WriteHeader(http.StatusOK)
 
     case "DESCONEXION_IO":
         // Lógica para DESCONEXION_IO
         // 1. Cambiar estado del proceso a EXIT
-        // 2. Notificar al scheduler
+		global.ColaBlocked = utilsKernel.FiltrarCola(global.ColaBlocked, dispositivo.ProcesoEnUso.Proceso)
+		global.ColaExit = append(global.ColaExit, dispositivo.ProcesoEnUso.Proceso)
+		planificacion.ActualizarEstadoPCB(&dispositivo.ProcesoEnUso.Proceso.PCB, planificacion.EXIT)
+		//! Chequeame esto @valenchu
+
         // Ejemplo:
         w.WriteHeader(http.StatusOK)
-        fmt.Fprintf(w, "Proceso %d desconectado de E/S. Marcado como EXIT.", dispositivo.ProcesoEnUso.PID)
+        fmt.Fprintf(w, "Proceso %d desconectado de E/S. Marcado como EXIT.", dispositivo.ProcesoEnUso.Proceso.PID)
 
     default:
         http.Error(w, "Tipo de operación no válido", http.StatusBadRequest)
