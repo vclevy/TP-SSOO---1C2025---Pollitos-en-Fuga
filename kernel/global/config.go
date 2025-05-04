@@ -41,8 +41,6 @@ func NuevoPCB() *PCB {
 	}
 }
 
-
-
 type Config struct {
     IPMemory          		string 		`json:"ip_memory"`
     Port_Memory         	int    		`json:"port_memory"`

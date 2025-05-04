@@ -50,7 +50,7 @@ func CrearProceso(tamanio int, archivoPseudoCodigo string) Proceso {
 	}
 
 	global.LoggerKernel.Log(fmt.Sprintf("## (%d) Se crea el proceso - Estado: NEW", pcb.PID), log.INFO) //! LOG OBLIGATORIO: Creacion de Proceso
-	global.ColaNew = append(global.ColaNew, proceso)
+	global.ColaNew = append(global.ColaNew, &proceso)
 	return proceso
 }
 
@@ -70,7 +70,7 @@ func IniciarPlanificadorLargoPlazo() {
 			// 2. Finalización de procesos (liberación de recursos)
 			if len(global.ColaExit) > 0 {
 				p := global.ColaExit[0]
-				FinalizarProceso(&p)
+				FinalizarProceso(p)
 				global.ColaExit = global.ColaExit[1:]
 
 				// Al liberar recursos, intentar cargar SUSP_READY de nuevo
@@ -87,27 +87,33 @@ func IniciarPlanificadorLargoPlazo() {
 						ActualizarEstadoPCB(&proceso.PCB, READY)
 						global.ColaReady = append(global.ColaReady, proceso)
 						global.LoggerKernel.Log(fmt.Sprintf("## (%d) Pasa del estado NEW al estado READY", proceso.PCB.PID), log.INFO)
-						EvaluarDesalojo(proceso)
+						EvaluarDesalojo(*proceso)
 					}
 				case "CHICO":
-					ordenada := make([]global.Proceso, len(global.ColaNew))
-					copy(ordenada, global.ColaNew)
+					// Create a slice of pointers to global.Proceso
+					ordenada := make([]*global.Proceso, len(global.ColaNew)) 
+					copy(ordenada, global.ColaNew)  // Copy the pointers from ColaNew to ordenada
+
+					// Sort the slice based on MemoriaRequerida
 					sort.Slice(ordenada, func(i, j int) bool {
 						return ordenada[i].MemoriaRequerida < ordenada[j].MemoriaRequerida
 					})
 
+					// Try to load processes in order of smallest memory requirement
 					for _, proc := range ordenada {
 						if SolicitarMemoria(proc.MemoriaRequerida) {
+							// Remove the process from ColaNew
 							for i, p := range global.ColaNew {
 								if p.PCB.PID == proc.PCB.PID {
 									global.ColaNew = append(global.ColaNew[:i], global.ColaNew[i+1:]...)
 									break
 								}
 							}
+							// Update the process state to READY
 							ActualizarEstadoPCB(&proc.PCB, READY)
-							global.ColaReady = append(global.ColaReady, proc)
+							global.ColaReady = append(global.ColaReady, proc)  // Dereference to add to ColaReady
 							global.LoggerKernel.Log(fmt.Sprintf("## (%d) Pasa del estado NEW al estado READY", proc.PCB.PID), log.INFO)
-							EvaluarDesalojo(proc)
+							EvaluarDesalojo(*proc)  // Dereference when passing
 							break
 						}
 					}
@@ -119,6 +125,7 @@ func IniciarPlanificadorLargoPlazo() {
 	}()
 }
 
+
 func IntentarCargarDesdeSuspReady() bool {
 	for i := 0; i < len(global.ColaSuspReady); i++ {
 		proceso := global.ColaSuspReady[i]
@@ -129,8 +136,8 @@ func IntentarCargarDesdeSuspReady() bool {
 				continue
 			}
 
-			ActualizarEstadoPCB(&proceso.PCB, READY)
 			global.ColaReady = append(global.ColaReady, proceso)
+			ActualizarEstadoPCB(&proceso.PCB, READY)
 			global.ColaSuspReady = append(global.ColaSuspReady[:i], global.ColaSuspReady[i+1:]...)
 
 			global.LoggerKernel.Log(fmt.Sprintf("Proceso %d movido de SUSP_READY a READY", proceso.PID), log.INFO)
@@ -170,7 +177,7 @@ func IntentarInicializarDesdeNew() bool {
 				global.LoggerKernel.Log(fmt.Sprintf("PID: %d movido de NEW a READY (CHICO)", proceso.PCB.PID), log.INFO)
 				moved = true
 			} else {
-				nuevaCola = append(nuevaCola, proceso)
+				nuevaCola = append(nuevaCola, *proceso)
 			}
 		}
 		global.ColaNew = nuevaCola
@@ -380,17 +387,18 @@ func HayCPUDisponible() bool {
 func IniciarPlanificadorMedioPlazo() {
 	go func() {
 		for {
-			// 1. Verificar procesos BLOCKED para suspensión
-			for i := 0; i < len(global.ColaBlocked); i++ {
-				proceso := &global.ColaBlocked[i]
+			nuevaColaBlocked := make([]*global.Proceso, 0)
 
-				if time.Since(proceso.PCB.InicioEstado) > time.Duration(global.ConfigKernel.TiempoMaxBlocked)*time.Millisecond {
-					suspenderProceso(proceso, i)
-					i-- // Ajustar índice después de remover
+			for _, proceso := range global.ColaBlocked {
+				if time.Since(proceso.PCB.InicioEstado) > time.Duration(global.ConfigKernel.SuspensionTime)*time.Millisecond {
+					suspenderProceso(proceso)
+				} else {
+					nuevaColaBlocked = append(nuevaColaBlocked, proceso)
 				}
 			}
 
-			// 2. Verificar recursos para cargar procesos suspendidos
+			global.ColaBlocked = nuevaColaBlocked
+
 			if len(global.ColaSuspReady) > 0 {
 				IntentarCargarDesdeSuspReady()
 			}
@@ -400,22 +408,20 @@ func IniciarPlanificadorMedioPlazo() {
 	}()
 }
 
-func suspenderProceso(proceso *global.Proceso, index int) {
-	// Cambiar estado
+
+func suspenderProceso(proceso *global.Proceso) {
 	ActualizarEstadoPCB(&proceso.PCB, SUSP_BLOCKED)
 
-	// Mover a swap
 	if err := MoverASwap(proceso.PID); err != nil {
 		global.LoggerKernel.Log(fmt.Sprintf("Error moviendo proceso %d a swap: %v", proceso.PID, err), log.ERROR)
 		return
 	}
 
-	// Mover a cola SUSP_BLOCKED
-	global.ColaSuspBlocked = append(global.ColaSuspBlocked, *proceso)
-	global.ColaBlocked = append(global.ColaBlocked[:index], global.ColaBlocked[index+1:]...)
+	global.ColaSuspBlocked = append(global.ColaSuspBlocked, proceso)
 
 	global.LoggerKernel.Log(fmt.Sprintf("Proceso %d movido a SUSP_BLOCKED", proceso.PID), log.INFO)
 }
+
 
 func MoverASwap(pid int) error {
 	url := fmt.Sprintf("http://%s:%d/moverASwap?pid=%d",
