@@ -3,6 +3,7 @@ package utilskernel
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -11,34 +12,57 @@ import (
 	log "github.com/sisoputnfrba/tp-golang/utils/logger"
 )
 
-type IoDevice = global.IODevice
+type IODevice = global.IODevice
+type Proceso = global.Proceso
 
 func ObtenerDispositivoIO(nombreBuscado string) []*global.IODevice {
-    var dispositivos []*global.IODevice
-    for _, io := range global.IOConectados {
-        if io.Nombre == nombreBuscado {
-            dispositivos = append(dispositivos, io)
-        }
-    }
-    return dispositivos
+	var dispositivos []*global.IODevice
+	for _, io := range global.IOConectados {
+		if io.Nombre == nombreBuscado {
+			dispositivos = append(dispositivos, io)
+		}
+	}
+	return dispositivos
 }
 
-func EnviarAIO(dispositivo *IoDevice, pid int, tiempoUso int){
-    puerto := dispositivo.Puerto
-    ip := dispositivo.IP
+func EnviarAIO(dispositivo *IODevice, pid int, tiempoUso int) {
+	puerto := dispositivo.Puerto
+	ip := dispositivo.IP
 
 	paqueteAEnviar := estructuras.TareaDeIo{
-		PID:           pid,
+		PID:            pid,
 		TiempoEstimado: tiempoUso,
 	}
 
 	jsonData, _ := json.Marshal(paqueteAEnviar)
-    url := fmt.Sprintf("http://%s:%d/procesoRecibido", ip, puerto)
+	url := fmt.Sprintf("http://%s:%d/procesoRecibido", ip, puerto)
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
-		global.LoggerKernel.Log("Error enviando handshake al Kernel: " + err.Error(), log.ERROR)
+		global.LoggerKernel.Log("Error enviando el paquete a IO: "+err.Error(), log.ERROR)
 		return
 	}
 	defer resp.Body.Close()
 
+}
+
+func BuscarDispositivo(host string, port int) (*global.IODevice, error) {
+	global.IOListMutex.RLock()
+	defer global.IOListMutex.RUnlock()
+
+	for _, dispositivo := range global.IOConectados {
+		if dispositivo.IP == host && dispositivo.Puerto == port {
+			return dispositivo, nil
+		}
+	}
+	return nil, errors.New("dispositivo no encontrado")
+}
+
+func FiltrarCola(cola []*Proceso, target *Proceso) []*Proceso {
+	resultado := make([]*Proceso, 0)
+	for _, p := range cola {
+		if p != target {
+			resultado = append(resultado, p)
+		}
+	}
+	return resultado
 }

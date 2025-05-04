@@ -71,13 +71,13 @@ func InitGlobal() {
 
 var InicioPlanificacionLargoPlazo chan struct{}
 
-var ColaNew []Proceso
-var ColaReady []Proceso
-var ColaSuspReady []Proceso
-var ColaExecuting []Proceso
-var ColaBlocked []Proceso
-var ColaSuspBlocked []Proceso
-var ColaExit []Proceso
+var ColaNew []*Proceso
+var ColaReady []*Proceso
+var ColaSuspReady []*Proceso
+var ColaExecuting []*Proceso
+var ColaBlocked []*Proceso
+var ColaSuspBlocked []*Proceso
+var ColaExit []*Proceso
 
 //CPU
 var CantidadCPUsTotales int 
@@ -90,14 +90,18 @@ var IOListMutex sync.RWMutex
 
 type IOData = estructuras.IOData
 var IOConectados []*IODevice
+type ProcesoIO struct {
+    Proceso     *Proceso
+    TiempoUso   int
+}
 
 type IODevice struct {
     Nombre        string
     IP            string
     Puerto        int
     Ocupado       bool
-    ProcesoEnUso  *Proceso
-    ColaEspera    []*Proceso // uso de punteros
+    ProcesoEnUso  *ProcesoIO
+    ColaEspera    []*ProcesoIO // mantiene el orden
     Mutex         sync.Mutex
 }
 

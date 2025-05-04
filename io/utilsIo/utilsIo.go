@@ -1,11 +1,14 @@
 package utilsIo
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/sisoputnfrba/tp-golang/io/global"
@@ -14,6 +17,7 @@ import (
 )
 
 type PaqueteHandshakeIO = estructuras.PaqueteHandshakeIO
+type FinDeIO = estructuras.FinDeIO
 
 func HandshakeConKernel(paquete PaqueteHandshakeIO) error {
 	global.LoggerIo.Log(fmt.Sprintf("Paquete a enviar: %+v", paquete), log.DEBUG)
@@ -51,21 +55,63 @@ func IniciarIo(solicitud estructuras.TareaDeIo) {
 
 func InformarFinalizacionDeIO(pid int){
 	
-	url := fmt.Sprintf("http://%s:%d/finalizacionIO?pid=%d", global.IoConfig.IPKernel, global.IoConfig.Port_Kernel,pid)
-
-	req, err := http.NewRequest("POST", url, nil)
+	tipo, err := strconv.Atoi(leerOpcionConsola())
 	if err != nil {
-		panic(err)
+		global.LoggerIo.Log(fmt.Sprintf("Error convirtiendo opción a entero: %v", err), log.ERROR)
+		return
 	}
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		panic(err)
-	}
-	defer resp.Body.Close()
+	var mensaje FinDeIO
 
-	pidString := strconv.Itoa(pid)
-	global.LoggerIo.Log(fmt.Sprintf("## PID: <%s> - Fin de IO", pidString), log.INFO)
+	if tipo==1{
+		mensaje.Tipo = "FIN_IO"
+	} else if tipo==2{
+		mensaje.Tipo = "DESCONEXION_IO"
+	}
+
+	body, err := json.Marshal(mensaje)
+    if err != nil {
+        global.LoggerIo.Log(fmt.Sprintf("Error codificando mensaje: %v", err), log.ERROR)
+        return
+    }
+
+    url := fmt.Sprintf("http://%s:%d/finalizacionIO", global.IoConfig.IPKernel, global.IoConfig.Port_Kernel)
+    req, err := http.NewRequest("POST", url, bytes.NewBuffer(body))
+    if err != nil {
+        global.LoggerIo.Log(fmt.Sprintf("Error creando request: %v", err), log.ERROR)
+        return
+    }
+    req.Header.Set("Content-Type", "application/json")
+
+    client := &http.Client{}
+    resp, err := client.Do(req)
+    if err != nil {
+        global.LoggerIo.Log(fmt.Sprintf("Error enviando mensaje: %v", err), log.ERROR)
+        return
+    }
+    defer resp.Body.Close()
+
+    global.LoggerIo.Log(fmt.Sprintf("## PID: <%d> - Fin de IO notificado", pid), log.INFO)
 }
 
+
+func leerOpcionConsola() string {
+	reader := bufio.NewReader(os.Stdin)
+
+	for { // Bucle infinito hasta que se ingrese 1 o 2
+		fmt.Println("\nSeleccione el tipo de mensaje:")
+		fmt.Println("1 - FIN_IO")
+		fmt.Println("2 - DESCONEXION_IO")
+		fmt.Print("Ingrese opción (1/2): ")
+
+		opcion, _ := reader.ReadString('\n')
+		opcion = strings.TrimSpace(opcion) // Elimina espacios y saltos de línea
+
+		if opcion == "1" || opcion == "2" {
+			return opcion // Retorna la opción válida
+		}
+
+		// Mensaje de error y reintento
+		fmt.Printf("\n** ERROR: '%s' no es válido. Solo se permite 1 o 2 **\n", opcion)
+	}
+}

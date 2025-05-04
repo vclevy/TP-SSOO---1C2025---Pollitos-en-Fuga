@@ -55,3 +55,7 @@ type TareaDeIo struct {
 	PID            int    `json:"pid"`
 	TiempoEstimado int    `json:"tiempo_estimado"`
 }
+
+type FinDeIO struct {
+	Tipo    string `json:"tipo"` 
+}

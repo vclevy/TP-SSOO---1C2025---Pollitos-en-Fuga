@@ -14,6 +14,7 @@ func CrearServer() *server.Server {
 		Handlers: map[string]http.HandlerFunc{
 			"POST /handshakeCPU" : handlers.HandshakeConCPU,
 			"POST /handshakeIO": handlers.RecibirPaquete,
+			"POST /finalizacionIO": handlers.FinalizacionIO,
 		},
 	}
 	fmt.Printf("🟢 Kernel prendido en http://localhost:%d\n", global.ConfigKernel.Port_Kernel)

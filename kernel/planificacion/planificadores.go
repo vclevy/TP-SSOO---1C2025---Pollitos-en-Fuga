@@ -10,16 +10,17 @@ import (
 	"time"
 
 	"github.com/sisoputnfrba/tp-golang/kernel/global"
-	"github.com/sisoputnfrba/tp-golang/utils/logger"
+	utilskernel "github.com/sisoputnfrba/tp-golang/kernel/utilsKernel"
+	log "github.com/sisoputnfrba/tp-golang/utils/logger"
 	//estructuras "github.com/sisoputnfrba/tp-golang/utils/estructuras"
 )
 
 const (
 	NEW          string = "NEW"
 	READY        string = "READY"
-	EXEC          string = "EXEC"
+	EXEC         string = "EXEC"
 	EXIT         string = "EXIT"
-	BLOCKED         string = "BLOCKED"
+	BLOCKED      string = "BLOCKED"
 	SUSP_READY   string = "SUSP READY"
 	SUSP_BLOCKED string = "SUSP BLOCKED"
 )
@@ -53,7 +54,6 @@ func CrearProceso(tamanio int, archivoPseudoCodigo string) Proceso {
 	return proceso
 }
 
-
 func IniciarPlanificadorLargoPlazo() {
 	go func() {
 		<-global.InicioPlanificacionLargoPlazo
@@ -72,7 +72,7 @@ func IniciarPlanificadorLargoPlazo() {
 				p := global.ColaExit[0]
 				FinalizarProceso(&p)
 				global.ColaExit = global.ColaExit[1:]
-				
+
 				// Al liberar recursos, intentar cargar SUSP_READY de nuevo
 				continue
 			}
@@ -122,17 +122,17 @@ func IniciarPlanificadorLargoPlazo() {
 func IntentarCargarDesdeSuspReady() bool {
 	for i := 0; i < len(global.ColaSuspReady); i++ {
 		proceso := global.ColaSuspReady[i]
-		
+
 		if SolicitarMemoria(proceso.MemoriaRequerida) {
 			if err := MoverAMemoria(proceso.PID); err != nil {
 				global.LoggerKernel.Log(fmt.Sprintf("Error moviendo proceso %d a memoria: %v", proceso.PID, err), log.ERROR)
 				continue
 			}
-			
+
 			ActualizarEstadoPCB(&proceso.PCB, READY)
 			global.ColaReady = append(global.ColaReady, proceso)
 			global.ColaSuspReady = append(global.ColaSuspReady[:i], global.ColaSuspReady[i+1:]...)
-			
+
 			global.LoggerKernel.Log(fmt.Sprintf("Proceso %d movido de SUSP_READY a READY", proceso.PID), log.INFO)
 			return true
 		}
@@ -250,19 +250,9 @@ func FinalizarProceso(p *Proceso) {
 	}
 
 	LoguearMetricas(p) // (log obligatorio)
-	global.ColaExecuting = filtrarCola(global.ColaExecuting, p)
-	global.ColaExit = append(global.ColaExit, *p)
+	global.ColaExecuting = utilskernel.FiltrarCola(global.ColaExecuting, p)
+	global.ColaExit = append(global.ColaExit, p)
 
-}
-
-func filtrarCola(cola []global.Proceso, target *Proceso) []global.Proceso {
-	nueva := []global.Proceso{}
-	for _, proc := range cola {
-		if proc.PID != target.PID {
-			nueva = append(nueva, proc)
-		}
-	}
-	return nueva
 }
 
 func LoguearMetricas(p *Proceso) {
@@ -387,14 +377,13 @@ func HayCPUDisponible() bool {
 	return global.CantidadCPUsOcupadas < global.CantidadCPUsTotales
 }
 
-
 func IniciarPlanificadorMedioPlazo() {
 	go func() {
 		for {
 			// 1. Verificar procesos BLOCKED para suspensión
 			for i := 0; i < len(global.ColaBlocked); i++ {
 				proceso := &global.ColaBlocked[i]
-				
+
 				if time.Since(proceso.PCB.InicioEstado) > time.Duration(global.ConfigKernel.TiempoMaxBlocked)*time.Millisecond {
 					suspenderProceso(proceso, i)
 					i-- // Ajustar índice después de remover
@@ -414,54 +403,54 @@ func IniciarPlanificadorMedioPlazo() {
 func suspenderProceso(proceso *global.Proceso, index int) {
 	// Cambiar estado
 	ActualizarEstadoPCB(&proceso.PCB, SUSP_BLOCKED)
-	
+
 	// Mover a swap
 	if err := MoverASwap(proceso.PID); err != nil {
 		global.LoggerKernel.Log(fmt.Sprintf("Error moviendo proceso %d a swap: %v", proceso.PID, err), log.ERROR)
 		return
 	}
-	
+
 	// Mover a cola SUSP_BLOCKED
 	global.ColaSuspBlocked = append(global.ColaSuspBlocked, *proceso)
 	global.ColaBlocked = append(global.ColaBlocked[:index], global.ColaBlocked[index+1:]...)
-	
+
 	global.LoggerKernel.Log(fmt.Sprintf("Proceso %d movido a SUSP_BLOCKED", proceso.PID), log.INFO)
 }
 
 func MoverASwap(pid int) error {
-	url := fmt.Sprintf("http://%s:%d/moverASwap?pid=%d", 
-		global.ConfigKernel.IPMemory, 
-		global.ConfigKernel.Port_Memory, 
+	url := fmt.Sprintf("http://%s:%d/moverASwap?pid=%d",
+		global.ConfigKernel.IPMemory,
+		global.ConfigKernel.Port_Memory,
 		pid)
-	
+
 	resp, err := http.Post(url, "application/json", nil)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("error en la respuesta del servidor de memoria")
 	}
-	
+
 	return nil
 }
 
 func MoverAMemoria(pid int) error {
-	url := fmt.Sprintf("http://%s:%d/moverAMemoria?pid=%d", 
-		global.ConfigKernel.IPMemory, 
-		global.ConfigKernel.Port_Memory, 
+	url := fmt.Sprintf("http://%s:%d/moverAMemoria?pid=%d",
+		global.ConfigKernel.IPMemory,
+		global.ConfigKernel.Port_Memory,
 		pid)
-	
+
 	resp, err := http.Post(url, "application/json", nil)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("error en la respuesta del servidor de memoria")
 	}
-	
+
 	return nil
 }

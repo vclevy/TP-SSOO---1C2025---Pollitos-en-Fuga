@@ -3,7 +3,9 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"go/doc"
 	"io"
+	"net"
 	"net/http"
 	"strconv"
 	"time"
@@ -19,6 +21,7 @@ type PaqueteHandshakeIO = estructuras.PaqueteHandshakeIO
 type IODevice = global.IODevice
 type PCB = planificacion.PCB
 type SyscallIO = estructuras.SyscallIO
+type FinDeIO = estructuras.FinDeIO
 
 type Respuesta struct {
 	Status         string `json:"status"`
@@ -142,7 +145,8 @@ func IO(w http.ResponseWriter, r *http.Request) {
 		dispositivo.Mutex.Lock()
 		if !dispositivo.Ocupado {
 			dispositivo.Ocupado = true
-			dispositivo.ProcesoEnUso = proceso
+			dispositivo.ProcesoEnUso.Proceso = proceso
+			dispositivo.ProcesoEnUso.TiempoUso =tiempoUso
 			dispositivo.Mutex.Unlock()
 
 			go utilsKernel.EnviarAIO(dispositivo, proceso.PCB.PID, tiempoUso)
@@ -151,12 +155,14 @@ func IO(w http.ResponseWriter, r *http.Request) {
 		}
 		dispositivo.Mutex.Unlock()
 	}
-
+	var procesoEncolado global.ProcesoIO
+	procesoEncolado.Proceso = proceso
+	procesoEncolado.TiempoUso = tiempoUso
 	// Si todos están ocupados, se encola en el primero
 	primero := dispositivos[0]
 	primero.Mutex.Lock()
 	planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.BLOCKED)
-	primero.ColaEspera = append(primero.ColaEspera, proceso)
+	primero.ColaEspera = append(primero.ColaEspera, &procesoEncolado)
 	primero.Mutex.Unlock()
 }
 
@@ -235,31 +241,65 @@ func BuscarProcesoPorPID(cola []global.Proceso, pid int) (*global.Proceso) {
 	}
 	return nil
 }
+//! Falta esto creo: Al momento que se conecte una nueva IO o se reciba el desbloqueo por medio de una de ellas, se deberá verificar si hay proceso encolados para dicha IO y enviarlo a la misma. 
 
-// func manejarOperacionIO(dispositivo *utilsKernel.IODevice, proceso *kernel.Proceso, tiempoUso int64) {
-//     // Simular operación IO (en producción sería llamada HTTP real al módulo)
-//     time.Sleep(time.Duration(tiempoUso) * time.Millisecond)
-//
-//     // Bloquear para actualizar estado del dispositivo
-//     dispositivo.Mutex.Lock()
-//     defer dispositivo.Mutex.Unlock()
-//
-//     // Liberar dispositivo
-//     dispositivo.Ocupado = false
-//     dispositivo.ProcesoEnUso = nil
-//
-//     // Manejar cola de espera
-//     if len(dispositivo.ColaEspera) > 0 {
-//         // Tomar siguiente proceso (FIFO)
-//         siguienteProceso := dispositivo.ColaEspera[0]
-//         dispositivo.ColaEspera = dispositivo.ColaEspera[1:]
-//
-//         // Asignar dispositivo
-//         dispositivo.Ocupado = true
-//         dispositivo.ProcesoEnUso = siguienteProceso
-//
-//         // Notificar al kernel para despertar proceso
-//         kernel.NotificarIOLista(siguienteProceso.PID, dispositivo.Nombre)
-//     }
-// }
+func FinalizacionIO(w http.ResponseWriter, r *http.Request){
 
+	// Extraer IP y puerto del remitente
+    host, portStr, err := net.SplitHostPort(r.RemoteAddr)
+    if err != nil {
+        http.Error(w, "Error al parsear dirección remota", http.StatusBadRequest)
+        return
+    }
+    
+    port, err := strconv.Atoi(portStr)
+    if err != nil {
+        http.Error(w, "Puerto inválido", http.StatusBadRequest)
+        return
+    }
+
+    //? Buscar dispositivo por puerto e ip
+    dispositivo, err := utilsKernel.BuscarDispositivo(host, port)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusNotFound)
+        return
+    }
+
+	var finDeIo FinDeIO
+	if err := json.NewDecoder(r.Body).Decode(&finDeIo); err != nil {
+		http.Error(w, "Error al parsear la syscall", http.StatusBadRequest)
+		return
+	}
+
+	tipo := finDeIo.Tipo
+	
+
+	switch tipo {
+    case "FIN_IO":
+        // Lógica para FIN_IO
+        // 1. Verificar si hay más procesos en cola de I/O
+		fmt.Fprintf(w, "Proceso %d completó E/S. Verificando cola...", dispositivo.ProcesoEnUso.PID)
+		dispositivo.ProcesoEnUso = nil //saco el proceso actual
+		if dispositivo.ColaEspera != nil{
+			siguiente := dispositivo.ColaEspera[0]
+			//? que se hace? si hay mas procesos deberian ejecutarse?
+			dispositivo.ColaEspera = utilsKernel.FiltrarCola(dispositivo.ColaEspera,siguiente)
+			
+		}
+        // 2. Si hay, iniciar el siguiente proceso
+        // Ejemplo:
+        w.WriteHeader(http.StatusOK)
+
+    case "DESCONEXION_IO":
+        // Lógica para DESCONEXION_IO
+        // 1. Cambiar estado del proceso a EXIT
+        // 2. Notificar al scheduler
+        // Ejemplo:
+        w.WriteHeader(http.StatusOK)
+        fmt.Fprintf(w, "Proceso %d desconectado de E/S. Marcado como EXIT.", dispositivo.ProcesoEnUso.PID)
+
+    default:
+        http.Error(w, "Tipo de operación no válido", http.StatusBadRequest)
+    }
+	
+}
