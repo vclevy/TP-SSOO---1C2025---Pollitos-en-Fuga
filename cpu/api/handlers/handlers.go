@@ -1,26 +1,28 @@
 package handlers
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
-	"encoding/json"
+
 	"github.com/sisoputnfrba/tp-golang/cpu/global"
+	utilsIo "github.com/sisoputnfrba/tp-golang/cpu/utilsCpu"
 	"github.com/sisoputnfrba/tp-golang/utils/logger"
-	"fmt"
-	"bytes"
 )
 
 func HandshakeKernel(w http.ResponseWriter, r *http.Request) {
-	datos := map[string]string{
+	datosEnvio := map[string]interface{}{
 		"id":     global.CpuID,
 		"ip":     global.CpuConfig.Ip_Cpu,
 		"puerto": fmt.Sprintf("%d", global.CpuConfig.Port_Cpu),
 	}
 
-	jsonData, _ := json.Marshal(datos)
+	jsonData, _ := json.Marshal(datosEnvio)
 	url := fmt.Sprintf("http://%s:%d/handshake", global.CpuConfig.Ip_Kernel, global.CpuConfig.Port_Kernel)
 
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData)) //envia datosEnvio
 	if err != nil {
 		global.LoggerCpu.Log("Error enviando handshake al Kernel: " + err.Error(), log.ERROR)
 		return
@@ -44,8 +46,9 @@ func HandshakeKernel(w http.ResponseWriter, r *http.Request) {
 
 	pid := datosRespuesta["pid"]
 	pc := datosRespuesta["pc"]
-
-	global.LoggerCpu.Log(fmt.Sprintf(" Kernel respondió con PID: %d y PC: %d", pid, pc), log.INFO)
+	
+	utilsIo.Fetch(pid,pc)
+	/* global.LoggerCpu.Log(fmt.Sprintf(" Kernel respondió con PID: %d y PC: %d", pid, pc), log.INFO) */
 }
 
 /* 

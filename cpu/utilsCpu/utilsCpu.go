@@ -11,7 +11,6 @@ import (
 	"github.com/sisoputnfrba/tp-golang/cpu/global"
 	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
 	"github.com/sisoputnfrba/tp-golang/utils/logger"
-	"time"
 )
 
 var instruccionesConMMU = map[string]bool{
@@ -30,16 +29,15 @@ var pidActual int
 var pcActual int
 
 func Fetch(pid int, pc int) {
-	
-	global.LoggerCpu.Log(fmt.Sprintf(" ## PID: %d - FETCH - Program Counter: %d", pid, pc), log.INFO)
+	pidActual = pid
+	pcActual = pc
+		
+	global.LoggerCpu.Log(fmt.Sprintf(" ## PID: %d - FETCH - Program Counter: %d", pidActual, pcActual), log.INFO)
 	
 	solicitudInstruccion := estructuras.SolicitudInstruccion{
 		Pid: pid,
 		Pc:  pc,
 	}
-
-	pidActual = pid
-	pcActual = pc
 
 	jsonData, err := json.Marshal(solicitudInstruccion)
 	if err != nil {
@@ -93,7 +91,9 @@ func Decode(instruccionAEjecutar string){
 }
 
 func Execute(instruccion Instruccion){
-/*  *//*  *//*  *//*  *//*  *//*  *//*  *//*  */
+	global.LoggerCpu.Log(fmt.Sprintf("## PID: %d - Ejecutando: %s - %s", pidActual, instruccion.Opcode , instruccion.Parametros), log.INFO)
+  	
+	//todo INSTRUCCIONES MMU
 	if _, requiereMMU := instruccionesConMMU[instruccion.Opcode]; requiereMMU {
 		direccionLogicaStr := instruccion.Parametros[0]
 		direccionLogica, err := strconv.Atoi(direccionLogicaStr)
@@ -103,7 +103,7 @@ func Execute(instruccion Instruccion){
 			MMU(direccionLogica)
 		}
 	}
-/*  *//*  *//*  *//*  *//*  *//*  *//*  *//*  */
+  	//todo INSTRUCCIONES SYSCALLS
 	if(instruccion.Opcode == "IO"){
 		Syscall_IO(instruccion)
 	}
@@ -116,10 +116,9 @@ func Execute(instruccion Instruccion){
 	if(instruccion.Opcode == "EXIT"){
 		Syscall_Exit()
 	}
-/*  *//*  *//*  *//*  *//*  *//*  *//*  *//*  */
-	if(instruccion.Opcode == "NOOP"){
-		time.Sleep(10) // ! CAMBIAR (hardcodeado)
-	}
+	//todo INSTRUCCIONES NORMALES
+	if(instruccion.Opcode == "NOOP"){}
+	
 	if(instruccion.Opcode == "GOTO"){	
 		pcNuevo, err := strconv.Atoi(instruccion.Parametros[1])
 		if err != nil {
@@ -131,20 +130,38 @@ func Execute(instruccion Instruccion){
 }
 
 func MMU(direccionLogica int){
-	/* nro_pagina := math.Floor(float64(direccionLogica) / float64(configMMU.Tamaño_página)) 
-	desplazamiento := direccionLogica % configMMU.Tamaño_página */
-	/* traducir direcciones lógicas a físicas, 
-		dirección logica [entrada_nivel_1 | entrada_nivel_2 | … | entrada_nivel_X | desplazamiento] 
-		
-		Teniendo una cantidad de niveles N y un identificador X de cada nivel podemos utilizar las siguientes fórmulas:
-		nro_página = floor(dirección_lógica / tamaño_página)
-		entrada_nivel_X = floor(nro_página  / cant_entradas_tabla ^ (N - X)) % cant_entradas_tabla
-		desplazamiento = dirección_lógica % tamaño_página
-	*/
-/* 	return 0 */
 }
 
 func CheckInterrupt(instruccion Instruccion){}
+
+var configMMU estructuras.ConfiguracionMMU
+
+func ConfigMMU() error {
+	url := fmt.Sprintf("http://%s:%d/configuracionMMU", global.CpuConfig.Ip_Memoria, global.CpuConfig.Port_Memoria)
+	resp, err := http.Get(url)
+	
+	if err != nil {
+		global.LoggerCpu.Log("Error al conectar con Memoria:", log.ERROR)
+		return err
+	}
+	defer resp.Body.Close() //cierra automáticamente el cuerpo de la respuesta HTTP
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		global.LoggerCpu.Log("Error leyendo respuesta de Memoria:", log.ERROR)
+		return err
+	}
+
+	err = json.Unmarshal(body, &configMMU) // convierto el JSON que recibi de Memoria y lo guardo en el struct configMMU.
+	if err != nil {
+		global.LoggerCpu.Log("Error parseando JSON de configuración:", log.ERROR)
+		return err
+	}
+	
+	return nil
+}
+
+//todo DELEGO SYSCALLS
 
 func Syscall_IO(instruccion Instruccion){
 	tiempo, err := strconv.Atoi(instruccion.Parametros[1])
@@ -230,38 +247,8 @@ func Syscall_Exit(){
 	defer resp.Body.Close() //se cierra la conexión
 }
 
-var configMMU estructuras.ConfiguracionMMU
-
-func ConfigMMU() error {
-	url := fmt.Sprintf("http://%s:%d/configuracionMMU", global.CpuConfig.Ip_Memoria, global.CpuConfig.Port_Memoria)
-	resp, err := http.Get(url)
-	
-	if err != nil {
-		global.LoggerCpu.Log("Error al conectar con Memoria:", log.ERROR)
-		return err
-	}
-	defer resp.Body.Close() //cierra automáticamente el cuerpo de la respuesta HTTP
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		global.LoggerCpu.Log("Error leyendo respuesta de Memoria:", log.ERROR)
-		return err
-	}
-
-	err = json.Unmarshal(body, &configMMU) // convierto el JSON que recibi de Memoria y lo guardo en el struct configMMU.
-	if err != nil {
-		global.LoggerCpu.Log("Error parseando JSON de configuración:", log.ERROR)
-		return err
-	}
-	
-	return nil
-}
-
 /* 
 TODO:
-? a kernel le paso el struct o el string?
-? usar query paths
 ? implementar que las funciones reciban errores(?) func Decode(instruccion string) (string, error) 
-? hacer mmu
-? delegar las syscalls a kernel, me devuelve algo kernel?
+? que es lo que hace arrancar el fetch? Por ahora es el handshake con kernel
 */

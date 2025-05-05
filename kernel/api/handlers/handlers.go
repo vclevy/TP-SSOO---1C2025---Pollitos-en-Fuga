@@ -100,7 +100,7 @@ func HandshakeConCPU(w http.ResponseWriter, r *http.Request) {
 
 	pcb := global.NuevoPCB()
 
-	respuesta := map[string]interface{}{
+	respuesta := map[string]int{
 		"pid": pcb.PID,
 		"pc":  pcb.PC,
 	}
