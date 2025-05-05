@@ -37,8 +37,7 @@ type ConfiguracionMMU struct {
 	Cant_N_Niveles    		int     `json:"cant_N_Niveles"`
 }
 
-//*Syscalls
-
+// Syscalls
 type Syscall_IO struct {
 	IoSolicitada   string `json:"ioSolicitada"`
 	TiempoEstimado int    `json:"tiempoEstimado"`
@@ -51,18 +50,6 @@ type Syscall_Init_Proc struct {
 	PIDproceso				int    `json:"PIDproceso"`
 }
 
-/* type Syscall_Dump_Memory struct {	
-	PIDproceso     int    `json:"PIDproceso"`
-}
-
-type Syscall_Exit struct {
-	PIDproceso     int    `json:"PIDproceso"`
-} */
-
-
-// para syscall init proc creo que es lo mismo que Paquete memoria mas arriba
-// exit no recibe parametros solo necesito saber el proceso que la invoco asi q solo pasame el pid creo
-// dump memory solo neceisto saber el proceso que la invoco tmb (o sea su pid)
 /*CONSIGNA PARA LAS SYSCALLS (kernel)
 	Dentro de las syscalls que se pueden atender referidas a procesos, tendremos las instrucciones INIT_PROC y EXIT.
 INIT_PROC, esta syscall recibirá 2 parámetros de la CPU, el primero será el nombre del archivo de pseudocódigo que deberá ejecutar el proceso y el segundo parámetro es el tamaño del proceso en Memoria. El Kernel creará un nuevo PCB y lo dejará en estado NEW, esta syscall no implica cambio de estado, por lo que el proceso que llamó a esta syscall, inmediatamente volverá a ejecutar en la CPU.

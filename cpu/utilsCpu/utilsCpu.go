@@ -13,8 +13,6 @@ import (
 	"github.com/sisoputnfrba/tp-golang/utils/logger"
 	"time"
 )
-	"time"
-)
 
 var instruccionesConMMU = map[string]bool{
 	"WRITE":      true,
@@ -107,16 +105,16 @@ func Execute(instruccion Instruccion){
 	}
 /*  *//*  *//*  *//*  *//*  *//*  *//*  *//*  */
 	if(instruccion.Opcode == "IO"){
-		SyscallIO(instruccion)
+		Syscall_IO(instruccion)
 	}
 	if(instruccion.Opcode == "INIT_PROC"){
-
+		Syscall_Init_Proc(instruccion)
 	}
 	if(instruccion.Opcode == "DUMP_MEMORY"){
-
+		Syscall_Dump_Memory(instruccion)
 	}
 	if(instruccion.Opcode == "EXIT"){
-
+		Syscall_Exit(instruccion)
 	}
 /*  *//*  *//*  *//*  *//*  *//*  *//*  *//*  */
 	if(instruccion.Opcode == "NOOP"){
@@ -128,10 +126,8 @@ func Execute(instruccion Instruccion){
 			global.LoggerCpu.Log("Error al convertir tiempo estimado: %v", log.ERROR)
 			return
 		}
-
 		pcActual = pcNuevo
 	}
-
 }
 
 func MMU(direccionLogica int){
@@ -150,14 +146,14 @@ func MMU(direccionLogica int){
 
 func CheckInterrupt(instruccion Instruccion){}
 
-func SyscallIO(instruccion Instruccion){
+func Syscall_IO(instruccion Instruccion){
 	tiempo, err := strconv.Atoi(instruccion.Parametros[1])
 	if err != nil {
 		global.LoggerCpu.Log("Error al convertir tiempo estimado: %v", log.ERROR)
 		return
 	}
 
-	syscallIO := estructuras.SyscallIO{
+	syscall_IO := estructuras.Syscall_IO{
 		IoSolicitada : instruccion.Parametros[0],
 		TiempoEstimado : tiempo,
 		PIDproceso: pidActual,
@@ -179,10 +175,6 @@ func SyscallIO(instruccion Instruccion){
 
 	defer resp.Body.Close() //se cierra la conexión
 }
-
-/* 
-TODO lo mismo que SyscallIO pero con las demás
-*/
 
 func Syscall_Init_Proc(instruccion Instruccion){
 	tamanio, err := strconv.Atoi(instruccion.Parametros[1]) //convieto tamanio de string a int
@@ -237,10 +229,6 @@ func Syscall_Exit(instruccion Instruccion){
 
 	defer resp.Body.Close() //se cierra la conexión
 }
-
-/* 
-TODO lo mismo que SyscallIO pero con las demás
-*/
 
 var configMMU estructuras.ConfiguracionMMU
 
