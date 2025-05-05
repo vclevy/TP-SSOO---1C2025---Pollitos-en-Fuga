@@ -3,7 +3,6 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
-	"go/doc"
 	"io"
 	"net"
 	"net/http"
@@ -71,18 +70,24 @@ func RecibirPaquete(w http.ResponseWriter, r *http.Request) {
 }
 
 func INIT_PROC(w http.ResponseWriter, r *http.Request) {
-	//? archivo := r.URL.Query().Get("archivo") //? no se que hacer con el archivo este
-	tamanioStr := r.URL.Query().Get("tamanio")
+    // archivo := r.URL.Query().Get("archivo") // futuro uso
+    tamanioStr := r.URL.Query().Get("tamanio")
 
-	pcb := global.NuevoPCB()
+    tamanio, err := strconv.Atoi(tamanioStr)
+    if err != nil {
+        http.Error(w, "Tamaño inválido", http.StatusBadRequest)
+        return
+    }
 
-	tamanio, _ := strconv.Atoi(tamanioStr)
+    pcb := global.NuevoPCB()
+    // opcional: pcb.NombreArchivo = archivo
 
-	procesoCreado := global.Proceso{PCB: *pcb, MemoriaRequerida: tamanio}
-	global.LoggerKernel.Log(fmt.Sprintf("Proceso creado: %+v", procesoCreado), log.DEBUG)
+    procesoCreado := global.Proceso{PCB: *pcb, MemoriaRequerida: tamanio}
+    global.LoggerKernel.Log(fmt.Sprintf("Proceso creado: %+v", procesoCreado), log.DEBUG)
 
-	global.ColaNew = append(global.ColaNew, &procesoCreado) // Agregar puntero al proceso creado
+	global.ColaNew = append(global.ColaNew, global.Proceso(procesoCreado)) // no estoy segura si esta bien la sintaxis
 }
+
 
 func HandshakeConCPU(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -125,7 +130,6 @@ func IO(w http.ResponseWriter, r *http.Request) {
 
 	if dispositivos == nil || len(dispositivos) == 0 {
 		proceso := BuscarProcesoPorPID(global.ColaExecuting, pid)
-	
 		if proceso != nil {
 			planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.EXIT)
 		}
@@ -145,8 +149,10 @@ func IO(w http.ResponseWriter, r *http.Request) {
 		dispositivo.Mutex.Lock()
 		if !dispositivo.Ocupado {
 			dispositivo.Ocupado = true
-			dispositivo.ProcesoEnUso.Proceso = proceso
-			dispositivo.ProcesoEnUso.TiempoUso =tiempoUso
+			dispositivo.ProcesoEnUso = &global.ProcesoIO{
+				Proceso:   proceso,
+				TiempoUso: tiempoUso,
+			}
 			dispositivo.Mutex.Unlock()
 
 			go utilsKernel.EnviarAIO(dispositivo, proceso.PCB.PID, tiempoUso)
@@ -155,21 +161,23 @@ func IO(w http.ResponseWriter, r *http.Request) {
 		}
 		dispositivo.Mutex.Unlock()
 	}
-	var procesoEncolado global.ProcesoIO
-	procesoEncolado.Proceso = proceso
-	procesoEncolado.TiempoUso = tiempoUso
+
 	// Si todos están ocupados, se encola en el primero
+	procesoEncolado := &global.ProcesoIO{
+		Proceso:   proceso,
+		TiempoUso: tiempoUso,
+	}
+
 	primero := dispositivos[0]
 	primero.Mutex.Lock()
 	planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.BLOCKED)
-	primero.ColaEspera = append(primero.ColaEspera, &procesoEncolado)
+	primero.ColaEspera = append(primero.ColaEspera, procesoEncolado)
 	primero.Mutex.Unlock()
 }
 
-
-func manejarIOOcupado(io *global.IODevice, proceso *global.Proceso, w http.ResponseWriter) {
+func manejarIOOcupado(io *global.IODevice, proceso *global.Proceso, tiempoUso int, w http.ResponseWriter) {
 	// Agregar a cola de espera
-	io.ColaEspera = append(io.ColaEspera, proceso) 
+	io.ColaEspera = append(io.ColaEspera, proceso)
 
 	// Cambiar estado según si está en memoria o swap
 	if proceso.PCB.UltimoEstado == planificacion.SUSP_READY || proceso.PCB.UltimoEstado == planificacion.SUSP_BLOCKED {
@@ -183,10 +191,14 @@ func manejarIOOcupado(io *global.IODevice, proceso *global.Proceso, w http.Respo
 	fmt.Fprintf(w, "Proceso %d en cola para %s", proceso.PID, io.Nombre)
 }
 
+
 func manejarIOLibre(io *global.IODevice, proceso *global.Proceso, tiempoUso int, w http.ResponseWriter) {
 	// Asignar dispositivo
 	io.Ocupado = true
-	io.ProcesoEnUso = proceso
+	io.ProcesoEnUso = &global.ProcesoIO{
+		Proceso:   proceso,
+		TiempoUso: tiempoUso,
+	}
 
 	// Ejecutar operación IO en goroutine
 	go func() {
@@ -203,11 +215,11 @@ func manejarIOLibre(io *global.IODevice, proceso *global.Proceso, tiempoUso int,
 		if len(io.ColaEspera) > 0 {
 			siguiente := io.ColaEspera[0]
 			io.ColaEspera = io.ColaEspera[1:]
+			proxProceso := siguiente.Proceso
 
 			// Verificar si el proceso está suspendido
 			for i, p := range global.ColaSuspBlocked {
-				if p.PID == siguiente.PID {
-					// Mover a SUSP_READY
+				if p.PID == proxProceso.PID {
 					planificacion.ActualizarEstadoPCB(&p.PCB, planificacion.SUSP_READY)
 					global.ColaSuspReady = append(global.ColaSuspReady, p)
 					global.ColaSuspBlocked = append(global.ColaSuspBlocked[:i], global.ColaSuspBlocked[i+1:]...)
@@ -216,12 +228,12 @@ func manejarIOLibre(io *global.IODevice, proceso *global.Proceso, tiempoUso int,
 			}
 
 			// Si no estaba suspendido, mover a READY
-			planificacion.ActualizarEstadoPCB(&siguiente.PCB, planificacion.READY)
-			global.ColaReady = append(global.ColaReady, *siguiente)
+			planificacion.ActualizarEstadoPCB(&proxProceso.PCB, planificacion.READY)
+			global.ColaReady = append(global.ColaReady, proxProceso)
 
 			// Remover de BLOCKED si estaba allí
 			for i, p := range global.ColaBlocked {
-				if p.PID == siguiente.PID {
+				if p.PID == proxProceso.PID {
 					global.ColaBlocked = append(global.ColaBlocked[:i], global.ColaBlocked[i+1:]...)
 					break
 				}
@@ -233,14 +245,16 @@ func manejarIOLibre(io *global.IODevice, proceso *global.Proceso, tiempoUso int,
 	fmt.Fprintf(w, "Proceso %d accediendo a %s por %d ms", proceso.PID, io.Nombre, tiempoUso)
 }
 
-func BuscarProcesoPorPID(cola []*global.Proceso, pid int) (*global.Proceso) {
+func BuscarProcesoPorPID(cola []global.Proceso, pid int) (*global.Proceso) {
 	for i := range cola {
 		if cola[i].PCB.PID == pid {
-			return cola[i]
+			return &cola[i]
 		}
 	}
 	return nil
 }
+
+
 //! Falta esto creo @valenchu: Al momento que se conecte una nueva IO o se reciba el desbloqueo por medio de una de ellas, se deberá verificar si hay proceso encolados para dicha IO y enviarlo a la misma. 
 
 func FinalizacionIO(w http.ResponseWriter, r *http.Request){
