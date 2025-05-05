@@ -31,19 +31,35 @@ type SolicitudInstruccion struct {
 	Pc  int `json:"Pc"`
 }
 
-//*Syscalls
-
-type SyscallIO struct {
-	IoSolicitada   string `json:"ioSolicitada"`
-	TiempoEstimado int    `json:"tiempoEstimado"`
-	PIDproceso     int    `json:"PIDproceso"`
-}
-
 type ConfiguracionMMU struct {
 	Tamaño_página 			int 	`json:"tamaño_página"`
 	Cant_entradas_tabla  	int     `json:"cant_entradas_tabla"`
 	Cant_N_Niveles    		int     `json:"cant_N_Niveles"`
 }
+
+//*Syscalls
+
+type Syscall_IO struct {
+	IoSolicitada   string `json:"ioSolicitada"`
+	TiempoEstimado int    `json:"tiempoEstimado"`
+	PIDproceso     int    `json:"PIDproceso"`
+}
+
+type Syscall_Init_Proc struct {
+	ArchivoInstrucciones	string `json:"archivoInstrucciones"`
+	Tamanio					int    `json:"tamanio"`
+	PIDproceso				int    `json:"PIDproceso"`
+}
+
+/* type Syscall_Dump_Memory struct {	
+	PIDproceso     int    `json:"PIDproceso"`
+}
+
+type Syscall_Exit struct {
+	PIDproceso     int    `json:"PIDproceso"`
+} */
+
+
 // para syscall init proc creo que es lo mismo que Paquete memoria mas arriba
 // exit no recibe parametros solo necesito saber el proceso que la invoco asi q solo pasame el pid creo
 // dump memory solo neceisto saber el proceso que la invoco tmb (o sea su pid)

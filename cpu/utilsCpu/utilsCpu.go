@@ -13,6 +13,8 @@ import (
 	"github.com/sisoputnfrba/tp-golang/utils/logger"
 	"time"
 )
+	"time"
+)
 
 var instruccionesConMMU = map[string]bool{
 	"WRITE":      true,
@@ -161,7 +163,7 @@ func SyscallIO(instruccion Instruccion){
 		PIDproceso: pidActual,
 	}
 
-	jsonData, err := json.Marshal(syscallIO)
+	jsonData, err := json.Marshal(syscall_IO)
 	if err != nil {
 		global.LoggerCpu.Log("Error serializando solicitud: "+err.Error(), log.ERROR)
 		return
@@ -182,11 +184,64 @@ func SyscallIO(instruccion Instruccion){
 TODO lo mismo que SyscallIO pero con las demás
 */
 
-type configuracionMMU struct {
-	Tamaño_página 			int 	`json:"tamaño_página"`
-	Cant_entradas_tabla  	int     `json:"cant_entradas_tabla"`
-	Cant_N_Niveles    		int     `json:"cant_N_Niveles"`
+func Syscall_Init_Proc(instruccion Instruccion){
+	tamanio, err := strconv.Atoi(instruccion.Parametros[1]) //convieto tamanio de string a int
+	if err != nil {
+		global.LoggerCpu.Log("Error al convertir tamanio: %v", log.ERROR)
+		return
+	}
+
+	syscall_Init_Proc := estructuras.Syscall_Init_Proc{
+		ArchivoInstrucciones : instruccion.Parametros[0],
+		Tamanio : tamanio,
+		PIDproceso: pidActual,
+	}
+
+	jsonData, err := json.Marshal(syscall_Init_Proc)
+	if err != nil {
+		global.LoggerCpu.Log("Error serializando solicitud: "+err.Error(), log.ERROR)
+		return
+	}
+
+	url := fmt.Sprintf("http://%s:%d/Init_Proc", global.CpuConfig.Ip_Kernel, global.CpuConfig.Port_Kernel) //url a la que se va a conectar
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData)) //se abre la conexión
+	
+	if err != nil {
+		global.LoggerCpu.Log("Error enviando solicitud de instrucción a Kernel: " + err.Error(), log.ERROR)
+		return
+	}
+
+	defer resp.Body.Close() //se cierra la conexión
 }
+
+func Syscall_Dump_Memory(instruccion Instruccion){
+	url := fmt.Sprintf("http://%s:%d/Dump_Memory?pid=%d", global.CpuConfig.Ip_Kernel, global.CpuConfig.Port_Kernel,pidActual) //url a la que se va a conectar
+	resp, err := http.Post(url, "application/json", nil) //se abre la conexión
+	
+	if err != nil {
+		global.LoggerCpu.Log("Error enviando solicitud de instrucción a Kernel: " + err.Error(), log.ERROR)
+		return
+	}
+
+	defer resp.Body.Close() //se cierra la conexión
+}
+
+func Syscall_Exit(instruccion Instruccion){
+	url := fmt.Sprintf("http://%s:%d/Exit?pid=%d", global.CpuConfig.Ip_Kernel, global.CpuConfig.Port_Kernel,pidActual) //url a la que se va a conectar
+	resp, err := http.Post(url, "application/json", nil) //se abre la conexión
+	
+	if err != nil {
+		global.LoggerCpu.Log("Error enviando solicitud de instrucción a Kernel: " + err.Error(), log.ERROR)
+		return
+	}
+
+	defer resp.Body.Close() //se cierra la conexión
+}
+
+/* 
+TODO lo mismo que SyscallIO pero con las demás
+*/
+
 var configMMU estructuras.ConfiguracionMMU
 
 func ConfigMMU() error {
