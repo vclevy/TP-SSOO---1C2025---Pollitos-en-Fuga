@@ -81,7 +81,7 @@ func INIT_PROC(w http.ResponseWriter, r *http.Request) {
 	procesoCreado := global.Proceso{PCB: *pcb, MemoriaRequerida: tamanio}
 	global.LoggerKernel.Log(fmt.Sprintf("Proceso creado: %+v", procesoCreado), log.DEBUG)
 
-	global.ColaNew = append(global.ColaNew, global.Proceso(procesoCreado)) // no estoy segura si esta bien la sintaxis
+	global.ColaNew = append(global.ColaNew, &procesoCreado) // Agregar puntero al proceso creado
 }
 
 func HandshakeConCPU(w http.ResponseWriter, r *http.Request) {
@@ -169,14 +169,14 @@ func IO(w http.ResponseWriter, r *http.Request) {
 
 func manejarIOOcupado(io *global.IODevice, proceso *global.Proceso, w http.ResponseWriter) {
 	// Agregar a cola de espera
-	io.ColaEspera = append(io.ColaEspera, proceso)
+	io.ColaEspera = append(io.ColaEspera, proceso) 
 
 	// Cambiar estado según si está en memoria o swap
 	if proceso.PCB.UltimoEstado == planificacion.SUSP_READY || proceso.PCB.UltimoEstado == planificacion.SUSP_BLOCKED {
 		planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.SUSP_BLOCKED)
 	} else {
 		planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.BLOCKED)
-		global.ColaBlocked = append(global.ColaBlocked, *proceso)
+		global.ColaBlocked = append(global.ColaBlocked, proceso)
 	}
 
 	w.WriteHeader(http.StatusAccepted)
@@ -233,10 +233,10 @@ func manejarIOLibre(io *global.IODevice, proceso *global.Proceso, tiempoUso int,
 	fmt.Fprintf(w, "Proceso %d accediendo a %s por %d ms", proceso.PID, io.Nombre, tiempoUso)
 }
 
-func BuscarProcesoPorPID(cola []global.Proceso, pid int) (*global.Proceso) {
+func BuscarProcesoPorPID(cola []*global.Proceso, pid int) (*global.Proceso) {
 	for i := range cola {
 		if cola[i].PCB.PID == pid {
-			return &cola[i]
+			return cola[i]
 		}
 	}
 	return nil

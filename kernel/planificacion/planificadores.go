@@ -181,8 +181,8 @@ func IntentarInicializarDesdeNew() bool {
 
 func SolicitarMemoria(tamanio int) bool {
 	cliente := &http.Client{}
-	endpoint := "verificarEspacioDisponible" + strconv.Itoa(tamanio)
-	url := fmt.Sprintf("http://%s:%d/%s", global.ConfigKernel.IPMemory, global.ConfigKernel.Port_Memory, endpoint)
+	endpoint := "verificarEspacioDisponible"
+	url := fmt.Sprintf("http://%s:%d/%s?tamanio=%d", global.ConfigKernel.IPMemory, global.ConfigKernel.Port_Memory, endpoint, tamanio)
 
 	// Crear la solicitud GET
 	req, err := http.NewRequest("GET", url, nil)

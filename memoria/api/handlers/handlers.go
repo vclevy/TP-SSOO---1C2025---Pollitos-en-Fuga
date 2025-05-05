@@ -45,7 +45,7 @@ func RecibirProceso(w http.ResponseWriter, r *http.Request) {
 
 
 func VerificarEspacioDisponible(w http.ResponseWriter, r *http.Request) {
-	tamanioStr := r.URL.Query().Get("verificarEspacioDisponible") 
+	tamanioStr := r.URL.Query().Get("tamanio") // http/ip:puerto/verificarEspacioDisponoble?verificarEspacioDisponoble=432
 	
 	// Intentamos convertir el parámetro a entero
 	tamanio, err := strconv.Atoi(tamanioStr)
