@@ -111,10 +111,10 @@ func Execute(instruccion Instruccion){
 		Syscall_Init_Proc(instruccion)
 	}
 	if(instruccion.Opcode == "DUMP_MEMORY"){
-		Syscall_Dump_Memory(instruccion)
+		Syscall_Dump_Memory()
 	}
 	if(instruccion.Opcode == "EXIT"){
-		Syscall_Exit(instruccion)
+		Syscall_Exit()
 	}
 /*  *//*  *//*  *//*  *//*  *//*  *//*  *//*  */
 	if(instruccion.Opcode == "NOOP"){
@@ -206,7 +206,7 @@ func Syscall_Init_Proc(instruccion Instruccion){
 	defer resp.Body.Close() //se cierra la conexión
 }
 
-func Syscall_Dump_Memory(instruccion Instruccion){
+func Syscall_Dump_Memory(){
 	url := fmt.Sprintf("http://%s:%d/Dump_Memory?pid=%d", global.CpuConfig.Ip_Kernel, global.CpuConfig.Port_Kernel,pidActual) //url a la que se va a conectar
 	resp, err := http.Post(url, "application/json", nil) //se abre la conexión
 	
@@ -218,7 +218,7 @@ func Syscall_Dump_Memory(instruccion Instruccion){
 	defer resp.Body.Close() //se cierra la conexión
 }
 
-func Syscall_Exit(instruccion Instruccion){
+func Syscall_Exit(){
 	url := fmt.Sprintf("http://%s:%d/Exit?pid=%d", global.CpuConfig.Ip_Kernel, global.CpuConfig.Port_Kernel,pidActual) //url a la que se va a conectar
 	resp, err := http.Post(url, "application/json", nil) //se abre la conexión
 	
