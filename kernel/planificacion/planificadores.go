@@ -14,31 +14,28 @@ import (
 	log "github.com/sisoputnfrba/tp-golang/utils/logger"
 	//estructuras "github.com/sisoputnfrba/tp-golang/utils/estructuras"
 )
+ const (
+ 	NEW          string = "NEW"
+ 	READY        string = "READY"
+ 	EXEC         string = "EXEC"
+ 	EXIT         string = "EXIT"
+ 	BLOCKED      string = "BLOCKED"
+ 	SUSP_READY   string = "SUSP READY"
+ 	SUSP_BLOCKED string = "SUSP BLOCKED"
+ )
+ var estado = []string{
+ 	NEW,
+ 	READY,
+ 	EXEC,
+ 	EXIT,
+ 	BLOCKED,
+ 	SUSP_READY,
+ 	SUSP_BLOCKED,
+ }
+ type PCB = global.PCB
+ type Proceso = global.Proceso
 
-const (
-	NEW          string = "NEW"
-	READY        string = "READY"
-	EXEC         string = "EXEC"
-	EXIT         string = "EXIT"
-	BLOCKED      string = "BLOCKED"
-	SUSP_READY   string = "SUSP READY"
-	SUSP_BLOCKED string = "SUSP BLOCKED"
-)
-
-var estado = []string{
-	NEW,
-	READY,
-	EXEC,
-	EXIT,
-	BLOCKED,
-	SUSP_READY,
-	SUSP_BLOCKED,
-}
-
-type PCB = global.PCB
-type Proceso = global.Proceso
-
-func CrearProceso(tamanio int, archivoPseudoCodigo string) Proceso {
+ func CrearProceso(tamanio int, archivoPseudoCodigo string) Proceso {
 	pcb := global.NuevoPCB()
 	ActualizarEstadoPCB(pcb, NEW)
 
@@ -46,12 +43,33 @@ func CrearProceso(tamanio int, archivoPseudoCodigo string) Proceso {
 		PCB:              *pcb,
 		MemoriaRequerida: tamanio,
 		ArchivoPseudo:    archivoPseudoCodigo,
-		EstimacionRafaga: float64(global.ConfigKernel.InitialEstimate), //? chequear
+		EstimacionRafaga: float64(global.ConfigKernel.InitialEstimate),
 	}
 
-	global.LoggerKernel.Log(fmt.Sprintf("## (%d) Se crea el proceso - Estado: NEW", pcb.PID), log.INFO) //! LOG OBLIGATORIO: Creacion de Proceso
+	global.LoggerKernel.Log(fmt.Sprintf("## (%d) Se crea el proceso - Estado: NEW", pcb.PID), log.INFO)
+	global.MutexColas.Lock()
 	global.ColaNew = append(global.ColaNew, &proceso)
+	global.MutexColas.Unlock()
 	return proceso
+}
+
+func ActualizarEstadoPCB(pcb *PCB, nuevoEstado string) {
+	ahora := time.Now()
+	// Si ya tenía un estado previo, calculamos tiempo en ese estado
+	if pcb.UltimoEstado != "" {
+		duracion := int(ahora.Sub(pcb.InicioEstado).Milliseconds())
+		pcb.MT[pcb.UltimoEstado] += duracion
+	}
+	// Log antes de actualizar el último estado
+	global.LoggerKernel.Log(
+		fmt.Sprintf("## (%d) Pasa del estado %s al estado %s", pcb.PID, pcb.UltimoEstado, nuevoEstado),
+		log.INFO,
+	)
+	// Aumenta contador de veces en el nuevo estado
+	pcb.ME[nuevoEstado] += 1
+	// Actualiza último estado y momento de entrada
+	pcb.UltimoEstado = nuevoEstado
+	pcb.InicioEstado = ahora
 }
 
 func IniciarPlanificadorLargoPlazo() {
@@ -60,60 +78,68 @@ func IniciarPlanificadorLargoPlazo() {
 		global.LoggerKernel.Log("Iniciando planificación de largo plazo...", log.INFO)
 
 		for {
-			// 1. Prioridad absoluta a procesos SUSP_READY
+			global.MutexColas.Lock()
 			if len(global.ColaSuspReady) > 0 {
+				global.MutexColas.Unlock()
 				if IntentarCargarDesdeSuspReady() {
 					continue
 				}
+			} else {
+				global.MutexColas.Unlock()
 			}
 
-			// 2. Finalización de procesos (liberación de recursos)
+			global.MutexColas.Lock()
 			if len(global.ColaExit) > 0 {
 				p := global.ColaExit[0]
-				FinalizarProceso(p)
 				global.ColaExit = global.ColaExit[1:]
-
-				// Al liberar recursos, intentar cargar SUSP_READY de nuevo
+				global.MutexColas.Unlock()
+				FinalizarProceso(p)
 				continue
 			}
+			global.MutexColas.Unlock()
 
-			// 3. Carga de nuevos procesos (solo si no hay SUSP_READY esperando)
-			if len(global.ColaNew) > 0 && len(global.ColaSuspReady) == 0 {
+			global.MutexColas.Lock()
+			colaNewLen := len(global.ColaNew)
+			colaSuspReadyLen := len(global.ColaSuspReady)
+			global.MutexColas.Unlock()
+
+			if colaNewLen > 0 && colaSuspReadyLen == 0 {
 				switch global.ConfigKernel.SchedulerAlgorithm {
 				case "FIFO":
+					global.MutexColas.Lock()
 					proceso := global.ColaNew[0]
+					global.MutexColas.Unlock()
 					if SolicitarMemoria(proceso.MemoriaRequerida) {
+						global.MutexColas.Lock()
 						global.ColaNew = global.ColaNew[1:]
 						ActualizarEstadoPCB(&proceso.PCB, READY)
 						global.ColaReady = append(global.ColaReady, proceso)
-						global.LoggerKernel.Log(fmt.Sprintf("## (%d) Pasa del estado NEW al estado READY", proceso.PCB.PID), log.INFO)
+						global.MutexColas.Unlock()
 						EvaluarDesalojo(*proceso)
 					}
 				case "CHICO":
-					// Create a slice of pointers to global.Proceso
-					ordenada := make([]*global.Proceso, len(global.ColaNew)) 
-					copy(ordenada, global.ColaNew)  // Copy the pointers from ColaNew to ordenada
+					global.MutexColas.Lock()
+					ordenada := make([]*global.Proceso, len(global.ColaNew))
+					copy(ordenada, global.ColaNew)
+					global.MutexColas.Unlock()
 
-					// Sort the slice based on MemoriaRequerida
 					sort.Slice(ordenada, func(i, j int) bool {
 						return ordenada[i].MemoriaRequerida < ordenada[j].MemoriaRequerida
 					})
 
-					// Try to load processes in order of smallest memory requirement
 					for _, proc := range ordenada {
 						if SolicitarMemoria(proc.MemoriaRequerida) {
-							// Remove the process from ColaNew
+							global.MutexColas.Lock()
 							for i, p := range global.ColaNew {
 								if p.PCB.PID == proc.PCB.PID {
 									global.ColaNew = append(global.ColaNew[:i], global.ColaNew[i+1:]...)
 									break
 								}
 							}
-							// Update the process state to READY
 							ActualizarEstadoPCB(&proc.PCB, READY)
-							global.ColaReady = append(global.ColaReady, proc)  // Dereference to add to ColaReady
-							global.LoggerKernel.Log(fmt.Sprintf("## (%d) Pasa del estado NEW al estado READY", proc.PCB.PID), log.INFO)
-							EvaluarDesalojo(*proc)  // Dereference when passing
+							global.ColaReady = append(global.ColaReady, proc)
+							global.MutexColas.Unlock()
+							EvaluarDesalojo(*proc)
 							break
 						}
 					}
@@ -127,20 +153,18 @@ func IniciarPlanificadorLargoPlazo() {
 
 
 func IntentarCargarDesdeSuspReady() bool {
+	global.MutexColas.Lock()
+	defer global.MutexColas.Unlock()
 	for i := 0; i < len(global.ColaSuspReady); i++ {
 		proceso := global.ColaSuspReady[i]
-
 		if SolicitarMemoria(proceso.MemoriaRequerida) {
 			if err := MoverAMemoria(proceso.PID); err != nil {
 				global.LoggerKernel.Log(fmt.Sprintf("Error moviendo proceso %d a memoria: %v", proceso.PID, err), log.ERROR)
 				continue
 			}
-
 			global.ColaReady = append(global.ColaReady, proceso)
 			ActualizarEstadoPCB(&proceso.PCB, READY)
 			global.ColaSuspReady = append(global.ColaSuspReady[:i], global.ColaSuspReady[i+1:]...)
-
-			global.LoggerKernel.Log(fmt.Sprintf("Proceso %d movido de SUSP_READY a READY", proceso.PID), log.INFO)
 			return true
 		}
 	}
@@ -148,6 +172,9 @@ func IntentarCargarDesdeSuspReady() bool {
 }
 
 func IntentarInicializarDesdeNew() bool {
+	global.MutexColas.Lock()
+	defer global.MutexColas.Unlock()
+
 	if len(global.ColaNew) == 0 {
 		return false
 	}
@@ -161,7 +188,6 @@ func IntentarInicializarDesdeNew() bool {
 			ActualizarEstadoPCB(&proceso.PCB, READY)
 			global.ColaReady = append(global.ColaReady, proceso)
 			global.ColaNew = global.ColaNew[1:]
-			global.LoggerKernel.Log(fmt.Sprintf("PID: %d movido de NEW a READY (FIFO)", proceso.PCB.PID), log.INFO)
 			moved = true
 		}
 
@@ -169,15 +195,14 @@ func IntentarInicializarDesdeNew() bool {
 		sort.Slice(global.ColaNew, func(i, j int) bool {
 			return global.ColaNew[i].MemoriaRequerida < global.ColaNew[j].MemoriaRequerida
 		})
-		nuevaCola := []Proceso{}
+		nuevaCola := []*Proceso{}
 		for _, proceso := range global.ColaNew {
 			if SolicitarMemoria(proceso.MemoriaRequerida) {
 				ActualizarEstadoPCB(&proceso.PCB, READY)
 				global.ColaReady = append(global.ColaReady, proceso)
-				global.LoggerKernel.Log(fmt.Sprintf("PID: %d movido de NEW a READY (CHICO)", proceso.PCB.PID), log.INFO)
 				moved = true
 			} else {
-				nuevaCola = append(nuevaCola, *proceso)
+				nuevaCola = append(nuevaCola, proceso)
 			}
 		}
 		global.ColaNew = nuevaCola
@@ -186,60 +211,34 @@ func IntentarInicializarDesdeNew() bool {
 	return moved
 }
 
-func SolicitarMemoria(tamanio int) bool {
-	cliente := &http.Client{}
-	endpoint := "verificarEspacioDisponible"
-	url := fmt.Sprintf("http://%s:%d/%s?tamanio=%d", global.ConfigKernel.IPMemory, global.ConfigKernel.Port_Memory, endpoint, tamanio)
+ func SolicitarMemoria(tamanio int) bool {
+ 	cliente := &http.Client{}
+ 	endpoint := "verificarEspacioDisponible"
+ 	url := fmt.Sprintf("http://%s:%d/%s?tamanio=%d", global.ConfigKernel.IPMemory, global.ConfigKernel.Port_Memory, endpoint, tamanio)
+ 	// Crear la solicitud GET
+ 	req, err := http.NewRequest("GET", url, nil)
+ 	if err != nil {
+ 		return false // Error al crear la solicitud
+ 	}
+ 	req.Header.Set("Content-Type", "application/json")
+ 	respuesta, err := cliente.Do(req)
+ 	if err != nil {
+ 		return false // Error al enviar la solicitud
+ 	}
+ 	defer respuesta.Body.Close()
+ 	return respuesta.StatusCode == http.StatusOK
+ }
 
-	// Crear la solicitud GET
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return false // Error al crear la solicitud
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	respuesta, err := cliente.Do(req)
-	if err != nil {
-		return false // Error al enviar la solicitud
-	}
-	defer respuesta.Body.Close()
-
-	if respuesta.StatusCode == http.StatusOK {
-		return true
-	}
-
-	return false
-}
-
-func ActualizarEstadoPCB(pcb *PCB, nuevoEstado string) {
-	ahora := time.Now()
-
-	// Si ya tenía un estado previo, calculamos tiempo en ese estado
-	if pcb.UltimoEstado != "" {
-		duracion := int(ahora.Sub(pcb.InicioEstado).Milliseconds())
-		pcb.MT[pcb.UltimoEstado] += duracion
-	}
-
-	// Aumenta contador de veces en el nuevo estado
-	pcb.ME[nuevoEstado] += 1
-
-	// Actualiza último estado y momento de entrada
-	pcb.UltimoEstado = nuevoEstado
-	pcb.InicioEstado = ahora
-}
-
+ 
 func InformarFinAMemoria(pid int) error {
 	url := "http://" + global.ConfigKernel.IPMemory + ":" + strconv.Itoa(global.ConfigKernel.Port_Memory) + "/finalizarProceso"
-
 	data := map[string]int{"pid": pid}
 	jsonData, _ := json.Marshal(data)
-
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
-
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("memoria devolvió error")
 	}
@@ -247,7 +246,6 @@ func InformarFinAMemoria(pid int) error {
 }
 
 func FinalizarProceso(p *Proceso) {
-
 	ActualizarEstadoPCB(&p.PCB, EXIT)
 
 	err := InformarFinAMemoria(p.PID)
@@ -256,82 +254,91 @@ func FinalizarProceso(p *Proceso) {
 		return
 	}
 
-	LoguearMetricas(p) // (log obligatorio)
+	LoguearMetricas(p)
+
+	global.MutexColas.Lock()
+	defer global.MutexColas.Unlock()
 	global.ColaExecuting = utilskernel.FiltrarCola(global.ColaExecuting, p)
 	global.ColaExit = append(global.ColaExit, p)
-
 }
 
 func LoguearMetricas(p *Proceso) {
 	global.LoggerKernel.Log(fmt.Sprintf("## (%d) - Finaliza el proceso", p.PID), log.INFO) //! LOG OBLIGATORIO: Fin de Proceso
-
 	msg := fmt.Sprintf("## (%d) - Métricas de estado:", p.PID)
-
 	for _, unEstado := range estado {
 		count := p.ME[unEstado]
 		tiempo := p.MT[unEstado]
 		msg += fmt.Sprintf(" %s (%d) (%d),", unEstado, count, tiempo)
 	}
-
 	// Eliminar la coma final
 	msg = msg[:len(msg)-1]
 
-	global.LoggerKernel.Log(msg, log.INFO) //! LOG OBLIGATORIO: Metricas de Estado
-}
-
-/*	func EnviarProcessDataAMemoria(proceso Proceso, archPseudo string){
-	pid := proceso.PCB.PID
-	pseudoCodigo := proceso
-	return
-} */
+ 	global.LoggerKernel.Log(msg, log.INFO) //! LOG OBLIGATORIO: Metricas de Estado
+ }
 
 func IniciarPlanificadorCortoPlazo() {
 	go func() {
 		for {
-			SeleccionarYDespacharProceso()
+			if !HayCPUDisponible() {
+				time.Sleep(100 * time.Millisecond)
+				continue
+			}
+
+			global.MutexColas.Lock()
+			readyLen := len(global.ColaReady)
+			suspReadyLen := len(global.ColaSuspReady)
+			global.MutexColas.Unlock()
+
+			if readyLen == 0 && suspReadyLen > 0 {
+				IntentarCargarDesdeSuspReady()
+
+				global.MutexColas.Lock()
+				readyLen = len(global.ColaReady)
+				global.MutexColas.Unlock()
+
+				if readyLen == 0 {
+					time.Sleep(100 * time.Millisecond)
+					continue
+				}
+			}
+
+			var proceso *global.Proceso
+
+			global.MutexColas.Lock()
+			switch global.ConfigKernel.SchedulerAlgorithm {
+			case "FIFO":
+				proceso = global.ColaReady[0]
+				global.ColaReady = global.ColaReady[1:]
+			case "SJF":
+				proceso = seleccionarProcesoSJF(false)
+			case "SRTF":
+				proceso = seleccionarProcesoSJF(true)
+			}
+
+			if proceso == nil {
+				global.MutexColas.Unlock()
+				time.Sleep(100 * time.Millisecond)
+				continue
+			}
+
+			ActualizarEstadoPCB(&proceso.PCB, EXEC)
+			global.ColaExecuting = append(global.ColaExecuting, proceso)
+			global.MutexColas.Unlock()
+
 			time.Sleep(100 * time.Millisecond)
 		}
 	}()
 }
 
-func SeleccionarYDespacharProceso() {
-	// 1. Verificar CPUs disponibles
-	if !HayCPUDisponible() {
-		return
-	}
+func seleccionarProcesoSJF(_ bool) *global.Proceso {
+	global.MutexColas.Lock()
+	defer global.MutexColas.Unlock()
 
-	// 2. Intentar cargar procesos SUSP_READY si no hay READY
-	if len(global.ColaReady) == 0 && len(global.ColaSuspReady) > 0 {
-		IntentarCargarDesdeSuspReady()
-		if len(global.ColaReady) == 0 {
-			return // No se pudo cargar ningún proceso
-		}
-	}
-
-	// 3. Selección de proceso según algoritmo
-	var proceso global.Proceso
-	switch global.ConfigKernel.SchedulerAlgorithm {
-	case "FIFO":
-		proceso = global.ColaReady[0]
-		global.ColaReady = global.ColaReady[1:]
-	case "SJF":
-		proceso = seleccionarProcesoSJF(false)
-	case "SRTF":
-		proceso = seleccionarProcesoSJF(true)
-	}
-
-	// 4. Despachar proceso
-	ActualizarEstadoPCB(&proceso.PCB, EXEC)
-	global.ColaExecuting = append(global.ColaExecuting, proceso)
-	global.LoggerKernel.Log(fmt.Sprintf("Proceso %d despachado a EXEC", proceso.PID), log.INFO)
-}
-
-func seleccionarProcesoSJF(desalojo bool) global.Proceso {
 	if len(global.ColaReady) == 0 {
-		return global.Proceso{}
+		return &global.Proceso{}
 	}
 
-	copiaReady := make([]global.Proceso, len(global.ColaReady))
+	copiaReady := make([]*global.Proceso, len(global.ColaReady))
 	copy(copiaReady, global.ColaReady)
 
 	sort.Slice(copiaReady, func(i, j int) bool {
@@ -340,7 +347,6 @@ func seleccionarProcesoSJF(desalojo bool) global.Proceso {
 
 	proceso := copiaReady[0]
 
-	// Remover de la cola original
 	for i, p := range global.ColaReady {
 		if p.PID == proceso.PID {
 			global.ColaReady = append(global.ColaReady[:i], global.ColaReady[i+1:]...)
@@ -355,33 +361,36 @@ func EvaluarDesalojo(nuevo Proceso) {
 	if global.ConfigKernel.SchedulerAlgorithm != "SRTF" {
 		return
 	}
-
+	global.MutexColas.Lock()
 	if len(global.ColaExecuting) == 0 {
 		return
 	}
+	global.MutexColas.Unlock()
 
-	// Buscar el proceso en ejecución con mayor estimación de ráfaga
+// 	// Buscar el proceso en ejecución con mayor estimación de ráfaga
+	global.MutexColas.Lock()
 	procesoADesalojar := global.ColaExecuting[0]
+
 	for _, proceso := range global.ColaExecuting {
 		if proceso.EstimacionRafaga > procesoADesalojar.EstimacionRafaga {
 			procesoADesalojar = proceso
 		}
 	}
-
-	// Comparar el mejor candidato a desalojar contra el nuevo
-	if nuevo.EstimacionRafaga < procesoADesalojar.EstimacionRafaga {
-		global.LoggerKernel.Log(fmt.Sprintf("Desalojando proceso %d por nuevo proceso %d", procesoADesalojar.PCB.PID, nuevo.PCB.PID), log.INFO)
-		//TODO EnviarInterrupcion(procesoADesalojar.PCB.PID) !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-	}
-}
+	global.MutexColas.Unlock()
+// 	// Comparar el mejor candidato a desalojar contra el nuevo
+ 	if nuevo.EstimacionRafaga < procesoADesalojar.EstimacionRafaga {
+ 		global.LoggerKernel.Log(fmt.Sprintf("Desalojando proceso %d por nuevo proceso %d", procesoADesalojar.PCB.PID, nuevo.PCB.PID), log.INFO)
+ 		//TODO EnviarInterrupcion(procesoADesalojar.PCB.PID) !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+ 	}
+ }
 
 func RecalcularRafaga(proceso *Proceso, rafagaReal float64) {
-	alpha := global.ConfigKernel.Alpha // [0,1]
+	alpha := global.ConfigKernel.Alpha 
 	proceso.EstimacionRafaga = alpha*rafagaReal + (1-alpha)*proceso.EstimacionRafaga
 }
 
 func HayCPUDisponible() bool {
-	return global.CantidadCPUsOcupadas < global.CantidadCPUsTotales
+ 	return global.CantidadCPUsOcupadas < global.CantidadCPUsTotales
 }
 
 func IniciarPlanificadorMedioPlazo() {
@@ -389,17 +398,23 @@ func IniciarPlanificadorMedioPlazo() {
 		for {
 			nuevaColaBlocked := make([]*global.Proceso, 0)
 
+			global.MutexColas.Lock()
 			for _, proceso := range global.ColaBlocked {
 				if time.Since(proceso.PCB.InicioEstado) > time.Duration(global.ConfigKernel.SuspensionTime)*time.Millisecond {
+					global.MutexColas.Unlock() // liberar antes de suspender
 					suspenderProceso(proceso)
+					global.MutexColas.Lock()   // volver a bloquear
 				} else {
 					nuevaColaBlocked = append(nuevaColaBlocked, proceso)
 				}
 			}
-
 			global.ColaBlocked = nuevaColaBlocked
+			global.MutexColas.Unlock()
 
-			if len(global.ColaSuspReady) > 0 {
+			global.MutexColas.Lock()
+			haySusp := len(global.ColaSuspReady) > 0
+			global.MutexColas.Unlock()
+			if haySusp {
 				IntentarCargarDesdeSuspReady()
 			}
 
@@ -407,7 +422,6 @@ func IniciarPlanificadorMedioPlazo() {
 		}
 	}()
 }
-
 
 func suspenderProceso(proceso *global.Proceso) {
 	ActualizarEstadoPCB(&proceso.PCB, SUSP_BLOCKED)
@@ -417,46 +431,42 @@ func suspenderProceso(proceso *global.Proceso) {
 		return
 	}
 
+	global.MutexColas.Lock()
 	global.ColaSuspBlocked = append(global.ColaSuspBlocked, proceso)
+	global.MutexColas.Unlock()
 
 	global.LoggerKernel.Log(fmt.Sprintf("Proceso %d movido a SUSP_BLOCKED", proceso.PID), log.INFO)
 }
 
 
-func MoverASwap(pid int) error {
-	url := fmt.Sprintf("http://%s:%d/moverASwap?pid=%d",
-		global.ConfigKernel.IPMemory,
-		global.ConfigKernel.Port_Memory,
-		pid)
-
-	resp, err := http.Post(url, "application/json", nil)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("error en la respuesta del servidor de memoria")
-	}
-
-	return nil
-}
+ func MoverASwap(pid int) error {
+ 	url := fmt.Sprintf("http://%s:%d/moverASwap?pid=%d",
+ 		global.ConfigKernel.IPMemory,
+ 		global.ConfigKernel.Port_Memory,
+ 		pid)
+ 	resp, err := http.Post(url, "application/json", nil)
+ 	if err != nil {
+ 		return err
+ 	}
+ 	defer resp.Body.Close()
+ 	if resp.StatusCode != http.StatusOK {
+ 		return fmt.Errorf("error en la respuesta del servidor de memoria")
+ 	}
+ 	return nil
+ }
 
 func MoverAMemoria(pid int) error {
 	url := fmt.Sprintf("http://%s:%d/moverAMemoria?pid=%d",
 		global.ConfigKernel.IPMemory,
 		global.ConfigKernel.Port_Memory,
 		pid)
-
 	resp, err := http.Post(url, "application/json", nil)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
-
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("error en la respuesta del servidor de memoria")
 	}
-
 	return nil
 }

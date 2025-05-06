@@ -19,7 +19,7 @@ import (
 type PaqueteHandshakeIO = estructuras.PaqueteHandshakeIO
 type IODevice = global.IODevice
 type PCB = planificacion.PCB
-type SyscallIO = estructuras.SyscallIO
+type SyscallIO = estructuras.Syscall_IO
 type FinDeIO = estructuras.FinDeIO
 
 type Respuesta struct {
@@ -70,22 +70,19 @@ func RecibirPaquete(w http.ResponseWriter, r *http.Request) {
 }
 
 func INIT_PROC(w http.ResponseWriter, r *http.Request) {
-    // archivo := r.URL.Query().Get("archivo") // futuro uso
-    tamanioStr := r.URL.Query().Get("tamanio")
+    archivo := r.URL.Query().Get("archivo") 
+    tamanioEnFormatoString := r.URL.Query().Get("tamanio")
 
-    tamanio, err := strconv.Atoi(tamanioStr)
+    tamanio, err := strconv.Atoi(tamanioEnFormatoString)
     if err != nil {
         http.Error(w, "Tamaño inválido", http.StatusBadRequest)
         return
     }
-
-    pcb := global.NuevoPCB()
-    // opcional: pcb.NombreArchivo = archivo
-
-    procesoCreado := global.Proceso{PCB: *pcb, MemoriaRequerida: tamanio}
+	procesoCreado := planificacion.CrearProceso(tamanio, archivo)
+	
     global.LoggerKernel.Log(fmt.Sprintf("Proceso creado: %+v", procesoCreado), log.DEBUG)
 
-	global.ColaNew = append(global.ColaNew, global.Proceso(procesoCreado)) // no estoy segura si esta bien la sintaxis
+	global.ColaNew = append(global.ColaNew, &procesoCreado)
 }
 
 
@@ -200,7 +197,6 @@ func manejarIOLibre(io *global.IODevice, proceso *global.Proceso, tiempoUso int,
 		TiempoUso: tiempoUso,
 	}
 
-	// Ejecutar operación IO en goroutine
 	go func() {
 		time.Sleep(time.Duration(tiempoUso) * time.Millisecond)
 
@@ -217,18 +213,20 @@ func manejarIOLibre(io *global.IODevice, proceso *global.Proceso, tiempoUso int,
 			io.ColaEspera = io.ColaEspera[1:]
 			proxProceso := siguiente.Proceso
 
+			global.MutexColas.Lock()
 			// Verificar si el proceso está suspendido
 			for i, p := range global.ColaSuspBlocked {
 				if p.PID == proxProceso.PID {
-					planificacion.ActualizarEstadoPCB(&p.PCB, planificacion.SUSP_READY)
+					planificacion.ActualizarEstadoPCB(p.PCB, planificacion.SUSP_READY)
 					global.ColaSuspReady = append(global.ColaSuspReady, p)
 					global.ColaSuspBlocked = append(global.ColaSuspBlocked[:i], global.ColaSuspBlocked[i+1:]...)
+					global.MutexColas.Unlock()
 					return
 				}
 			}
 
 			// Si no estaba suspendido, mover a READY
-			planificacion.ActualizarEstadoPCB(&proxProceso.PCB, planificacion.READY)
+			planificacion.ActualizarEstadoPCB(proxProceso.PCB, planificacion.READY)
 			global.ColaReady = append(global.ColaReady, proxProceso)
 
 			// Remover de BLOCKED si estaba allí
@@ -238,12 +236,14 @@ func manejarIOLibre(io *global.IODevice, proceso *global.Proceso, tiempoUso int,
 					break
 				}
 			}
+			global.MutexColas.Unlock()
 		}
 	}()
 
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprintf(w, "Proceso %d accediendo a %s por %d ms", proceso.PID, io.Nombre, tiempoUso)
 }
+
 
 func BuscarProcesoPorPID(cola []global.Proceso, pid int) (*global.Proceso) {
 	for i := range cola {

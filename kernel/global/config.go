@@ -77,6 +77,8 @@ var ColaBlocked []*Proceso
 var ColaSuspBlocked []*Proceso
 var ColaExit []*Proceso
 
+var MutexColas sync.Mutex
+
 //CPU
 var CantidadCPUsTotales int 
 var CantidadCPUsOcupadas int // *OBVIO Q ESTO no va a terminar así, es para q compile hayCpuDisponible

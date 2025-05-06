@@ -30,8 +30,7 @@ func main() {
 	}
 
 	planificacion.CrearProceso(tamMemoria, archivo) 
-	// 2. Crear y levantar servidor
-	
+
 	s := api.CrearServer()
 	go func() {
 		err_server := s.Iniciar()

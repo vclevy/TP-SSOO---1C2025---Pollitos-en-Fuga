@@ -47,7 +47,6 @@ type Syscall_IO struct {
 type Syscall_Init_Proc struct {
 	ArchivoInstrucciones	string `json:"archivoInstrucciones"`
 	Tamanio					int    `json:"tamanio"`
-	PIDproceso				int    `json:"PIDproceso"`
 }
 
 /*CONSIGNA PARA LAS SYSCALLS (kernel)
