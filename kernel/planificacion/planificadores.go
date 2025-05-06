@@ -35,7 +35,7 @@ import (
  type PCB = global.PCB
  type Proceso = global.Proceso
 
- func CrearProceso(tamanio int, archivoPseudoCodigo string) Proceso {
+ func CrearProceso(tamanio int, archivoPseudoCodigo string) *Proceso {
 	pcb := global.NuevoPCB()
 	ActualizarEstadoPCB(pcb, NEW)
 
@@ -50,7 +50,7 @@ import (
 	global.MutexColas.Lock()
 	global.ColaNew = append(global.ColaNew, &proceso)
 	global.MutexColas.Unlock()
-	return proceso
+	return &proceso
 }
 
 func ActualizarEstadoPCB(pcb *PCB, nuevoEstado string) {
