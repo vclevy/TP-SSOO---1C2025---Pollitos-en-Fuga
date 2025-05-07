@@ -47,9 +47,9 @@ import (
 	}
 
 	global.LoggerKernel.Log(fmt.Sprintf("## (%d) Se crea el proceso - Estado: NEW", pcb.PID), log.INFO)
-	global.MutexColas.Lock()
+	global.MutexNew.Lock()
 	global.ColaNew = append(global.ColaNew, &proceso)
-	global.MutexColas.Unlock()
+	global.MutexNew.Unlock()
 	return &proceso
 }
 
@@ -78,50 +78,56 @@ func IniciarPlanificadorLargoPlazo() {
 		global.LoggerKernel.Log("Iniciando planificación de largo plazo...", log.INFO)
 
 		for {
-			global.MutexColas.Lock()
+			global.MutexSuspReady.Lock()
 			if len(global.ColaSuspReady) > 0 {
-				global.MutexColas.Unlock()
+				global.MutexSuspReady.Unlock()
 				if IntentarCargarDesdeSuspReady() {
 					continue
 				}
 			} else {
-				global.MutexColas.Unlock()
+				global.MutexSuspReady.Unlock()
 			}
 
-			global.MutexColas.Lock()
+			global.MutexExit.Lock()
 			if len(global.ColaExit) > 0 {
 				p := global.ColaExit[0]
 				global.ColaExit = global.ColaExit[1:]
-				global.MutexColas.Unlock()
+				global.MutexExit.Unlock()
 				FinalizarProceso(p)
 				continue
 			}
-			global.MutexColas.Unlock()
+			global.MutexExit.Unlock()
 
-			global.MutexColas.Lock()
+			global.MutexNew.Lock()
 			colaNewLen := len(global.ColaNew)
+			global.MutexNew.Unlock()
+
+			global.MutexSuspReady.Lock()
 			colaSuspReadyLen := len(global.ColaSuspReady)
-			global.MutexColas.Unlock()
+			global.MutexSuspReady.Unlock()
 
 			if colaNewLen > 0 && colaSuspReadyLen == 0 {
 				switch global.ConfigKernel.SchedulerAlgorithm {
 				case "FIFO":
-					global.MutexColas.Lock()
+					global.MutexNew.Lock()
 					proceso := global.ColaNew[0]
-					global.MutexColas.Unlock()
+					global.MutexNew.Unlock()
 					if SolicitarMemoria(proceso.MemoriaRequerida) {
-						global.MutexColas.Lock()
+						global.MutexNew.Lock()
 						global.ColaNew = global.ColaNew[1:]
+						global.MutexNew.Unlock()
 						ActualizarEstadoPCB(&proceso.PCB, READY)
+
+						global.MutexReady.Lock()
 						global.ColaReady = append(global.ColaReady, proceso)
-						global.MutexColas.Unlock()
+						global.MutexReady.Unlock()
 						EvaluarDesalojo(*proceso)
 					}
 				case "CHICO":
-					global.MutexColas.Lock()
+					global.MutexNew.Lock()
 					ordenada := make([]*global.Proceso, len(global.ColaNew))
 					copy(ordenada, global.ColaNew)
-					global.MutexColas.Unlock()
+					global.MutexNew.Unlock()
 
 					sort.Slice(ordenada, func(i, j int) bool {
 						return ordenada[i].MemoriaRequerida < ordenada[j].MemoriaRequerida
@@ -129,16 +135,19 @@ func IniciarPlanificadorLargoPlazo() {
 
 					for _, proc := range ordenada {
 						if SolicitarMemoria(proc.MemoriaRequerida) {
-							global.MutexColas.Lock()
+							global.MutexNew.Lock()
 							for i, p := range global.ColaNew {
 								if p.PCB.PID == proc.PCB.PID {
 									global.ColaNew = append(global.ColaNew[:i], global.ColaNew[i+1:]...)
 									break
 								}
 							}
+							global.MutexNew.Unlock()
+
 							ActualizarEstadoPCB(&proc.PCB, READY)
+							global.MutexReady.Lock()
 							global.ColaReady = append(global.ColaReady, proc)
-							global.MutexColas.Unlock()
+							global.MutexReady.Unlock()
 							EvaluarDesalojo(*proc)
 							break
 						}
@@ -159,17 +168,19 @@ func IniciarPlanificadorCortoPlazo() {
 				continue
 			}
 
-			global.MutexColas.Lock()
+			global.MutexReady.Lock()
 			readyLen := len(global.ColaReady)
+			global.MutexReady.Unlock()
+			global.MutexSuspReady.Lock()
 			suspReadyLen := len(global.ColaSuspReady)
-			global.MutexColas.Unlock()
+			global.MutexSuspReady.Unlock()
 
 			if readyLen == 0 && suspReadyLen > 0 {
 				IntentarCargarDesdeSuspReady()
 
-				global.MutexColas.Lock()
+				global.MutexReady.Lock()
 				readyLen = len(global.ColaReady)
-				global.MutexColas.Unlock()
+				global.MutexReady.Unlock()
 
 				if readyLen == 0 {
 					time.Sleep(100 * time.Millisecond)
@@ -179,7 +190,7 @@ func IniciarPlanificadorCortoPlazo() {
 
 			var proceso *global.Proceso
 
-			global.MutexColas.Lock()
+			global.MutexReady.Lock()
 			switch global.ConfigKernel.SchedulerAlgorithm {
 			case "FIFO":
 				proceso = global.ColaReady[0]
@@ -189,16 +200,18 @@ func IniciarPlanificadorCortoPlazo() {
 			case "SRTF":
 				proceso = seleccionarProcesoSJF(true)
 			}
+			global.MutexReady.Unlock()
 
 			if proceso == nil {
-				global.MutexColas.Unlock()
 				time.Sleep(100 * time.Millisecond)
 				continue
 			}
 
+			
 			ActualizarEstadoPCB(&proceso.PCB, EXEC)
+			global.MutexExecuting.Lock()
 			global.ColaExecuting = append(global.ColaExecuting, proceso)
-			global.MutexColas.Unlock()
+			global.MutexExecuting.Unlock()
 
 			time.Sleep(100 * time.Millisecond)
 		}
@@ -210,22 +223,22 @@ func IniciarPlanificadorMedioPlazo() {
 		for {
 			nuevaColaBlocked := make([]*global.Proceso, 0)
 
-			global.MutexColas.Lock()
+			global.MutexBlocked.Lock()
 			for _, proceso := range global.ColaBlocked {
 				if time.Since(proceso.PCB.InicioEstado) > time.Duration(global.ConfigKernel.SuspensionTime)*time.Millisecond {
-					global.MutexColas.Unlock() // liberar antes de suspender
+					global.MutexBlocked.Unlock() // liberar antes de suspender
 					suspenderProceso(proceso)
-					global.MutexColas.Lock()   // volver a bloquear
+					global.MutexBlocked.Lock()   // volver a bloquear
 				} else {
 					nuevaColaBlocked = append(nuevaColaBlocked, proceso)
 				}
 			}
 			global.ColaBlocked = nuevaColaBlocked
-			global.MutexColas.Unlock()
+			global.MutexBlocked.Unlock()
 
-			global.MutexColas.Lock()
+			global.MutexSuspReady.Lock()
 			haySusp := len(global.ColaSuspReady) > 0
-			global.MutexColas.Unlock()
+			global.MutexSuspReady.Unlock()
 			if haySusp {
 				IntentarCargarDesdeSuspReady()
 			}
@@ -237,8 +250,8 @@ func IniciarPlanificadorMedioPlazo() {
 
 
 func IntentarCargarDesdeSuspReady() bool {
-	global.MutexColas.Lock()
-	defer global.MutexColas.Unlock()
+	global.MutexSuspReady.Lock()
+	defer global.MutexSuspReady.Unlock()
 	for i := 0; i < len(global.ColaSuspReady); i++ {
 		proceso := global.ColaSuspReady[i]
 		if SolicitarMemoria(proceso.MemoriaRequerida) {
@@ -246,7 +259,9 @@ func IntentarCargarDesdeSuspReady() bool {
 				global.LoggerKernel.Log(fmt.Sprintf("Error moviendo proceso %d a memoria: %v", proceso.PID, err), log.ERROR)
 				continue
 			}
+			global.MutexReady.Lock()
 			global.ColaReady = append(global.ColaReady, proceso)
+			global.MutexReady.Unlock()
 			ActualizarEstadoPCB(&proceso.PCB, READY)
 			global.ColaSuspReady = append(global.ColaSuspReady[:i], global.ColaSuspReady[i+1:]...)
 			return true
@@ -256,8 +271,8 @@ func IntentarCargarDesdeSuspReady() bool {
 }
 
 func IntentarInicializarDesdeNew() bool {
-	global.MutexColas.Lock()
-	defer global.MutexColas.Unlock()
+	global.MutexNew.Lock()
+	defer global.MutexNew.Unlock()
 
 	if len(global.ColaNew) == 0 {
 		return false
@@ -270,7 +285,9 @@ func IntentarInicializarDesdeNew() bool {
 		proceso := global.ColaNew[0]
 		if SolicitarMemoria(proceso.MemoriaRequerida) {
 			ActualizarEstadoPCB(&proceso.PCB, READY)
+			global.MutexReady.Lock()
 			global.ColaReady = append(global.ColaReady, proceso)
+			global.MutexReady.Unlock()
 			global.ColaNew = global.ColaNew[1:]
 			moved = true
 		}
@@ -283,7 +300,9 @@ func IntentarInicializarDesdeNew() bool {
 		for _, proceso := range global.ColaNew {
 			if SolicitarMemoria(proceso.MemoriaRequerida) {
 				ActualizarEstadoPCB(&proceso.PCB, READY)
+				global.MutexReady.Lock()
 				global.ColaReady = append(global.ColaReady, proceso)
+				global.MutexReady.Unlock()
 				moved = true
 			} else {
 				nuevaCola = append(nuevaCola, proceso)
@@ -340,8 +359,8 @@ func FinalizarProceso(p *Proceso) {
 
 	LoguearMetricas(p)
 
-	global.MutexColas.Lock()
-	defer global.MutexColas.Unlock()
+	global.MutexExecuting.Lock()
+	defer global.MutexExecuting.Unlock()
 	global.ColaExecuting = utilskernel.FiltrarCola(global.ColaExecuting, p)
 	global.ColaExit = append(global.ColaExit, p)
 }
@@ -362,8 +381,8 @@ func LoguearMetricas(p *Proceso) {
 
 
 func seleccionarProcesoSJF(_ bool) *global.Proceso {
-	global.MutexColas.Lock()
-	defer global.MutexColas.Unlock()
+	global.MutexReady.Lock()
+	defer global.MutexReady.Unlock()
 
 	if len(global.ColaReady) == 0 {
 		return &global.Proceso{}
@@ -392,14 +411,14 @@ func EvaluarDesalojo(nuevo Proceso) {
 	if global.ConfigKernel.SchedulerAlgorithm != "SRTF" {
 		return
 	}
-	global.MutexColas.Lock()
+	global.MutexExecuting.Lock()
 	if len(global.ColaExecuting) == 0 {
 		return
 	}
-	global.MutexColas.Unlock()
+	global.MutexExecuting.Unlock()
 
 // 	// Buscar el proceso en ejecución con mayor estimación de ráfaga
-	global.MutexColas.Lock()
+	global.MutexExecuting.Lock()
 	procesoADesalojar := global.ColaExecuting[0]
 
 	for _, proceso := range global.ColaExecuting {
@@ -407,7 +426,7 @@ func EvaluarDesalojo(nuevo Proceso) {
 			procesoADesalojar = proceso
 		}
 	}
-	global.MutexColas.Unlock()
+	global.MutexExecuting.Unlock()
 // 	// Comparar el mejor candidato a desalojar contra el nuevo
  	if nuevo.EstimacionRafaga < procesoADesalojar.EstimacionRafaga {
  		global.LoggerKernel.Log(fmt.Sprintf("Desalojando proceso %d por nuevo proceso %d", procesoADesalojar.PCB.PID, nuevo.PCB.PID), log.INFO)
@@ -432,9 +451,9 @@ func suspenderProceso(proceso *global.Proceso) {
 		return
 	}
 
-	global.MutexColas.Lock()
+	global.MutexSuspBlocked.Lock()
 	global.ColaSuspBlocked = append(global.ColaSuspBlocked, proceso)
-	global.MutexColas.Unlock()
+	global.MutexSuspBlocked.Unlock()
 
 	global.LoggerKernel.Log(fmt.Sprintf("Proceso %d movido a SUSP_BLOCKED", proceso.PID), log.INFO)
 }

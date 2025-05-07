@@ -77,7 +77,14 @@ var ColaBlocked []*Proceso
 var ColaSuspBlocked []*Proceso
 var ColaExit []*Proceso
 
-var MutexColas sync.Mutex
+var MutexNew sync.Mutex
+var MutexReady sync.Mutex
+var MutexSuspReady sync.Mutex
+var MutexExecuting sync.Mutex
+var MutexBlocked sync.Mutex
+var MutexSuspBlocked sync.Mutex
+var MutexExit sync.Mutex
+
 
 //CPU
 var CantidadCPUsTotales int 
