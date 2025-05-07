@@ -82,7 +82,7 @@ func INIT_PROC(w http.ResponseWriter, r *http.Request) {
 	
     global.LoggerKernel.Log(fmt.Sprintf("Proceso creado: %+v", procesoCreado), log.DEBUG)
 
-	global.ColaNew = append(global.ColaNew, &procesoCreado)
+	global.ColaNew = append(global.ColaNew, procesoCreado)
 }
 
 
@@ -174,7 +174,10 @@ func IO(w http.ResponseWriter, r *http.Request) {
 
 func manejarIOOcupado(io *global.IODevice, proceso *global.Proceso, tiempoUso int, w http.ResponseWriter) {
 	// Agregar a cola de espera
-	io.ColaEspera = append(io.ColaEspera, proceso)
+	io.ColaEspera = append(io.ColaEspera, &global.ProcesoIO{
+		Proceso:   proceso,
+		TiempoUso: tiempoUso,
+	})
 
 	// Cambiar estado según si está en memoria o swap
 	if proceso.PCB.UltimoEstado == planificacion.SUSP_READY || proceso.PCB.UltimoEstado == planificacion.SUSP_BLOCKED {
@@ -213,22 +216,28 @@ func manejarIOLibre(io *global.IODevice, proceso *global.Proceso, tiempoUso int,
 			io.ColaEspera = io.ColaEspera[1:]
 			proxProceso := siguiente.Proceso
 
-			global.MutexColas.Lock()
+			global.MutexSuspBlocked.Lock()
 			// Verificar si el proceso está suspendido
 			for i, p := range global.ColaSuspBlocked {
 				if p.PID == proxProceso.PID {
-					planificacion.ActualizarEstadoPCB(p.PCB, planificacion.SUSP_READY)
+					planificacion.ActualizarEstadoPCB(&p.PCB, planificacion.SUSP_READY)
+					global.MutexSuspReady.Lock()
 					global.ColaSuspReady = append(global.ColaSuspReady, p)
+					global.MutexSuspReady.Unlock()
 					global.ColaSuspBlocked = append(global.ColaSuspBlocked[:i], global.ColaSuspBlocked[i+1:]...)
-					global.MutexColas.Unlock()
 					return
 				}
 			}
+			global.MutexSuspBlocked.Unlock()
 
 			// Si no estaba suspendido, mover a READY
-			planificacion.ActualizarEstadoPCB(proxProceso.PCB, planificacion.READY)
+			planificacion.ActualizarEstadoPCB(&proxProceso.PCB, planificacion.READY)
+			global.MutexReady.Lock()
 			global.ColaReady = append(global.ColaReady, proxProceso)
+			global.MutexReady.Unlock()
 
+
+			global.MutexBlocked.Lock()
 			// Remover de BLOCKED si estaba allí
 			for i, p := range global.ColaBlocked {
 				if p.PID == proxProceso.PID {
@@ -236,7 +245,8 @@ func manejarIOLibre(io *global.IODevice, proceso *global.Proceso, tiempoUso int,
 					break
 				}
 			}
-			global.MutexColas.Unlock()
+			global.MutexBlocked.Unlock()
+			
 		}
 	}()
 
@@ -245,10 +255,10 @@ func manejarIOLibre(io *global.IODevice, proceso *global.Proceso, tiempoUso int,
 }
 
 
-func BuscarProcesoPorPID(cola []global.Proceso, pid int) (*global.Proceso) {
+func BuscarProcesoPorPID(cola []*global.Proceso, pid int) (*global.Proceso) {
 	for i := range cola {
 		if cola[i].PCB.PID == pid {
-			return &cola[i]
+			return cola[i]
 		}
 	}
 	return nil

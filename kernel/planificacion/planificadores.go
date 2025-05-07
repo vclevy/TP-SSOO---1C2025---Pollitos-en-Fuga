@@ -385,7 +385,7 @@ func seleccionarProcesoSJF(_ bool) *global.Proceso {
 	defer global.MutexReady.Unlock()
 
 	if len(global.ColaReady) == 0 {
-		return &global.Proceso{}
+		return nil
 	}
 
 	copiaReady := make([]*global.Proceso, len(global.ColaReady))
@@ -415,10 +415,7 @@ func EvaluarDesalojo(nuevo Proceso) {
 	if len(global.ColaExecuting) == 0 {
 		return
 	}
-	global.MutexExecuting.Unlock()
-
-// 	// Buscar el proceso en ejecución con mayor estimación de ráfaga
-	global.MutexExecuting.Lock()
+	
 	procesoADesalojar := global.ColaExecuting[0]
 
 	for _, proceso := range global.ColaExecuting {
