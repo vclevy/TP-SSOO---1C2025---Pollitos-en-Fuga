@@ -18,13 +18,6 @@ var instruccionesConMMU = map[string]bool{
 	"READ":       true,
 }
 
-/* var instruccionesSyscall = map[string]bool{
-	"IO": true,
-	"INIT_PROC": true,
-	"DUMP_MEMORY": true,
-	"EXIT": true,
-}
- */
 var pidActual int
 var pcActual int
 
@@ -116,7 +109,7 @@ func Execute(instruccion Instruccion){
 	if(instruccion.Opcode == "EXIT"){
 		Syscall_Exit()
 	}
-	//todo INSTRUCCIONES NORMALES
+	//todo OTRAS INSTRUCCIONES 
 	if(instruccion.Opcode == "NOOP"){}
 	
 	if(instruccion.Opcode == "GOTO"){	
