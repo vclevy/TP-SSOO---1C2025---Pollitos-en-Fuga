@@ -28,10 +28,9 @@ type Proceso struct {
 	EstimacionRafaga float64
 }
 
-
 func NuevoPCB() *PCB {
 	pid := UltimoPID
-	UltimoPID++ 
+	UltimoPID++
 
 	return &PCB{
 		PID: pid,
@@ -42,17 +41,17 @@ func NuevoPCB() *PCB {
 }
 
 type Config struct {
-    IPMemory          		string 		`json:"ip_memory"`
-    Port_Memory         	int    		`json:"port_memory"`
-    SchedulerAlgorithm 		string 		`json:"scheduler_algorithm"`
-	ReadyIngressALgorithm 	string		`json:"ready_ingress_algorithm"`
-	Alpha 					float64		`json:"alpha"`
-    SuspensionTime      	int    		`json:"suspension_time"`
-    LogLevel          		string 		`json:"log_level"`
-    Port_Kernel         	int    		`json:"port_kernel"`
-	Log_file          		string 		`json:"log_file"`
-	Ip_Kernel				string 		`json:"ip_kernel"`
-	InitialEstimate			int 		`json:"initial_estimate"`
+	IPMemory              string  `json:"ip_memory"`
+	Port_Memory           int     `json:"port_memory"`
+	SchedulerAlgorithm    string  `json:"scheduler_algorithm"`
+	ReadyIngressALgorithm string  `json:"ready_ingress_algorithm"`
+	Alpha                 float64 `json:"alpha"`
+	SuspensionTime        int     `json:"suspension_time"`
+	LogLevel              string  `json:"log_level"`
+	Port_Kernel           int     `json:"port_kernel"`
+	Log_file              string  `json:"log_file"`
+	Ip_Kernel             string  `json:"ip_kernel"`
+	InitialEstimate       int     `json:"initial_estimate"`
 }
 
 func InitGlobal() {
@@ -61,7 +60,7 @@ func InitGlobal() {
 
 	// 2. Inicializar logger con lo que vino en la config
 	LoggerKernel = logger.ConfigurarLogger(ConfigKernel.Log_file, ConfigKernel.LogLevel)
-    LoggerKernel.Log("Logger de Kernel inicializado", logger.DEBUG)
+	LoggerKernel.Log("Logger de Kernel inicializado", logger.DEBUG)
 
 	// 3. Inicializar canal de sincronización para planificación
 	InicioPlanificacionLargoPlazo = make(chan struct{})
@@ -85,33 +84,40 @@ var MutexBlocked sync.Mutex
 var MutexSuspBlocked sync.Mutex
 var MutexExit sync.Mutex
 
+// CPU
+var CantidadCPUsTotales int
+var CantidadCPUsOcupadas int // *OBVIO Q ESTO no va a terminar así, es para q compile hayCpuDisponible 
 
-//CPU
-var CantidadCPUsTotales int 
-var CantidadCPUsOcupadas int // *OBVIO Q ESTO no va a terminar así, es para q compile hayCpuDisponible
+type CPU struct {
+	ID                string
+	Puerto            int
+	IP                string
+	ProcesoEjecutando *Proceso
+}
 
+var CPUsConectadas []*CPU
 
 //IO
 
 var IOListMutex sync.RWMutex
 
 type IOData = estructuras.IOData
+
 var IOConectados []*IODevice
+
 type ProcesoIO struct {
-    Proceso     *Proceso
-    TiempoUso   int
+	Proceso   *Proceso
+	TiempoUso int
 }
 
 type IODevice struct {
-    Nombre        string
-    IP            string
-    Puerto        int
-    Ocupado       bool
-    ProcesoEnUso  *ProcesoIO
-    ColaEspera    []*ProcesoIO // mantiene el orden
-    Mutex         sync.Mutex
+	Nombre       string
+	IP           string
+	Puerto       int
+	Ocupado      bool
+	ProcesoEnUso *ProcesoIO
+	ColaEspera   []*ProcesoIO // mantiene el orden
+	Mutex        sync.Mutex
 }
 
 //!@valenchu lo de Proceso IO fijate si te gusta
-
-

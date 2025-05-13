@@ -32,9 +32,9 @@ type SolicitudInstruccion struct {
 }
 
 type ConfiguracionMMU struct {
-	Tamaño_página 			int 	`json:"tamaño_página"`
-	Cant_entradas_tabla  	int     `json:"cant_entradas_tabla"`
-	Cant_N_Niveles    		int     `json:"cant_N_Niveles"`
+	Tamaño_página       int `json:"tamaño_página"`
+	Cant_entradas_tabla int `json:"cant_entradas_tabla"`
+	Cant_N_Niveles      int `json:"cant_N_Niveles"`
 }
 
 // Syscalls
@@ -45,8 +45,8 @@ type Syscall_IO struct {
 }
 
 type Syscall_Init_Proc struct {
-	ArchivoInstrucciones	string `json:"archivoInstrucciones"`
-	Tamanio					int    `json:"tamanio"`
+	ArchivoInstrucciones string `json:"archivoInstrucciones"`
+	Tamanio              int    `json:"tamanio"`
 }
 
 /*CONSIGNA PARA LAS SYSCALLS (kernel)
@@ -59,10 +59,16 @@ Esta syscall bloqueará al proceso que la invocó hasta que el módulo memoria c
 
 */
 type TareaDeIo struct {
-	PID            int    `json:"pid"`
-	TiempoEstimado int    `json:"tiempo_estimado"`
+	PID            int `json:"pid"`
+	TiempoEstimado int `json:"tiempo_estimado"`
 }
 
 type FinDeIO struct {
-	Tipo    string `json:"tipo"` 
+	Tipo string `json:"tipo"`
+}
+
+type HandshakeConCPU struct {
+	ID     string
+	Puerto int
+	IP     string
 }

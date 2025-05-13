@@ -437,7 +437,12 @@ func RecalcularRafaga(proceso *Proceso, rafagaReal float64) {
 }
 
 func HayCPUDisponible() bool {
- 	return global.CantidadCPUsOcupadas < global.CantidadCPUsTotales
+	for _, cpu := range global.CPUsConectadas {
+		if cpu.ProcesoEjecutando == nil {
+			return true
+		}
+	}
+	return false
 }
 
 func suspenderProceso(proceso *global.Proceso) {

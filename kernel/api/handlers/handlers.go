@@ -21,6 +21,7 @@ type IODevice = global.IODevice
 type PCB = planificacion.PCB
 type SyscallIO = estructuras.Syscall_IO
 type FinDeIO = estructuras.FinDeIO
+type Syscall_Init_Proc = estructuras.Syscall_Init_Proc
 
 type Respuesta struct {
 	Status         string `json:"status"`
@@ -69,34 +70,50 @@ func RecibirPaquete(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+
+
 func INIT_PROC(w http.ResponseWriter, r *http.Request) {
-    archivo := r.URL.Query().Get("archivo") 
-    tamanioEnFormatoString := r.URL.Query().Get("tamanio")
+    var syscall estructuras.Syscall_Init_Proc
 
-    tamanio, err := strconv.Atoi(tamanioEnFormatoString)
-    if err != nil {
-        http.Error(w, "Tamaño inválido", http.StatusBadRequest)
-        return
-    }
-	procesoCreado := planificacion.CrearProceso(tamanio, archivo)
-	
+	if err := json.NewDecoder(r.Body).Decode(&syscall); err != nil {
+		http.Error(w, "Error al parsear el cuerpo de la solicitud", http.StatusBadRequest)
+		return
+	}
+
+	if syscall.ArchivoInstrucciones == "" || syscall.Tamanio <= 0 {
+		http.Error(w, "Parámetros inválidos", http.StatusBadRequest)
+		return
+	}
+
+	procesoCreado := planificacion.CrearProceso(syscall.Tamanio, syscall.ArchivoInstrucciones)
+
     global.LoggerKernel.Log(fmt.Sprintf("Proceso creado: %+v", procesoCreado), log.DEBUG)
-
+	global.MutexNew.Lock()
 	global.ColaNew = append(global.ColaNew, procesoCreado)
+	global.MutexNew.Unlock()
 }
 
 
 func HandshakeConCPU(w http.ResponseWriter, r *http.Request) {
+	var nuevoHandshake estructuras.HandshakeConCPU
 	if r.Method != http.MethodPost {
 		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
 		return
 	}
+	if err := json.NewDecoder(r.Body).Decode(&nuevoHandshake); err != nil {
+		http.Error(w, "Body inválido", http.StatusBadRequest)
+		return
+	}
 
-	id := r.URL.Query().Get("id") //* me gustaria usar body en vez de queryParam
-	ip := r.URL.Query().Get("ip")
-	puerto := r.URL.Query().Get("puerto")
+	nuevaCpu := global.CPU{
+		ID:               nuevoHandshake.ID,
+		IP:               nuevoHandshake.IP,
+		Puerto:           nuevoHandshake.Puerto,
+		ProcesoEjecutando: nil,
+	}
 
-	global.LoggerKernel.Log(fmt.Sprintf("Handshake recibido de CPU %s en %s:%s", id, ip, puerto), log.DEBUG)
+	global.CPUsConectadas = append(global.CPUsConectadas, &nuevaCpu)
+	global.LoggerKernel.Log(fmt.Sprintf("Handshake recibido de CPU %s en %s:%s", nuevoHandshake.ID, nuevoHandshake.IP, strconv.Itoa(nuevoHandshake.Puerto)), log.DEBUG)
 
 	w.WriteHeader(http.StatusOK)
 
@@ -335,5 +352,23 @@ func FinalizacionIO(w http.ResponseWriter, r *http.Request){
     default:
         http.Error(w, "Tipo de operación no válido", http.StatusBadRequest)
     }
+	
+}
+
+func EXIT(w http.ResponseWriter, r *http.Request){
+	pidStr := r.URL.Query().Get("pid")
+
+	PID,_ := strconv.Atoi(pidStr)
+	proceso := BuscarProcesoPorPID(global.ColaExecuting, PID)
+
+	if proceso == nil {
+		http.Error(w, "Proceso no encontrado", http.StatusNotFound)
+		return
+	}
+
+	planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.EXIT)
+	global.MutexExit.Lock()
+	global.ColaExit = append(global.ColaExit, proceso)
+	global.MutexExit.Unlock()
 	
 }
