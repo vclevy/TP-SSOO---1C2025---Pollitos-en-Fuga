@@ -203,7 +203,7 @@ func Syscall_Init_Proc(instruccion Instruccion){
 	syscall_Init_Proc := estructuras.Syscall_Init_Proc{
 		ArchivoInstrucciones : instruccion.Parametros[0],
 		Tamanio : tamanio,
-		// PIDproceso: pidActual,
+		PIDproceso: pidActual,
 	}
 
 	jsonData, err := json.Marshal(syscall_Init_Proc)
