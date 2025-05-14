@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-
 	"github.com/sisoputnfrba/tp-golang/cpu/global"
 	utilsIo "github.com/sisoputnfrba/tp-golang/cpu/utilsCpu"
 	"github.com/sisoputnfrba/tp-golang/utils/logger"
@@ -48,10 +47,4 @@ func HandshakeKernel(w http.ResponseWriter, r *http.Request) {
 	pc := datosRespuesta["pc"]
 	
 	utilsIo.Fetch(pid,pc)
-	/* global.LoggerCpu.Log(fmt.Sprintf(" Kernel respondió con PID: %d y PC: %d", pid, pc), log.INFO) */
 }
-
-/* 
-TODO:
-? Ver lineas pid := datosRespuesta["pid"] y pc := datosRespuesta["pc"]
-*/
