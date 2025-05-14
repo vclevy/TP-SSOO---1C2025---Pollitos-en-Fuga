@@ -369,6 +369,32 @@ func EXIT(w http.ResponseWriter, r *http.Request){
 	planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.EXIT)
 	global.MutexExit.Lock()
 	global.ColaExit = append(global.ColaExit, proceso)
-	global.MutexExit.Unlock()
-	
+	global.MutexExit.Unlock()	
+}
+
+func DUMP_MEMORY(w http.ResponseWriter, r *http.Request){
+	pidStr := r.URL.Query().Get("pid")
+	pid,_ := strconv.Atoi(pidStr)
+
+	proceso := BuscarProcesoPorPID(global.ColaExecuting,pid)
+
+	err := utilsKernel.SolicitarDumpAMemoria(pid)
+	if err != nil {
+		global.LoggerKernel.Log(fmt.Sprintf("Error en dump de memoria para PID %d: %s", pid, err.Error()), log.ERROR)
+		planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.EXIT)
+		global.MutexExit.Lock()
+		global.ColaExit = append(global.ColaExit, proceso)
+		global.MutexExit.Unlock()
+		http.Error(w, "Fallo en Dump, proceso finalizado", http.StatusInternalServerError)
+		return
+	}
+
+	// Si todo va bien, pasa a READY
+	planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.READY)
+	global.MutexReady.Lock()
+	global.ColaReady = append(global.ColaReady, proceso)
+	global.MutexReady.Unlock()
+
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, "Dump exitoso para PID %d", pid)
 }
