@@ -19,8 +19,9 @@ import (
 type PaqueteHandshakeIO = estructuras.PaqueteHandshakeIO
 type IODevice = global.IODevice
 type PCB = planificacion.PCB
-type SyscallIO = estructuras.SyscallIO
+type SyscallIO = estructuras.Syscall_IO
 type FinDeIO = estructuras.FinDeIO
+type Syscall_Init_Proc = estructuras.Syscall_Init_Proc
 
 type Respuesta struct {
 	Status         string `json:"status"`
@@ -69,37 +70,50 @@ func RecibirPaquete(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+
+
 func INIT_PROC(w http.ResponseWriter, r *http.Request) {
-    // archivo := r.URL.Query().Get("archivo") // futuro uso
-    tamanioStr := r.URL.Query().Get("tamanio")
+    var syscall estructuras.Syscall_Init_Proc
 
-    tamanio, err := strconv.Atoi(tamanioStr)
-    if err != nil {
-        http.Error(w, "Tamaño inválido", http.StatusBadRequest)
-        return
-    }
+	if err := json.NewDecoder(r.Body).Decode(&syscall); err != nil {
+		http.Error(w, "Error al parsear el cuerpo de la solicitud", http.StatusBadRequest)
+		return
+	}
 
-    pcb := global.NuevoPCB()
-    // opcional: pcb.NombreArchivo = archivo
+	if syscall.ArchivoInstrucciones == "" || syscall.Tamanio <= 0 {
+		http.Error(w, "Parámetros inválidos", http.StatusBadRequest)
+		return
+	}
 
-    procesoCreado := global.Proceso{PCB: *pcb, MemoriaRequerida: tamanio}
+	procesoCreado := planificacion.CrearProceso(syscall.Tamanio, syscall.ArchivoInstrucciones)
+
     global.LoggerKernel.Log(fmt.Sprintf("Proceso creado: %+v", procesoCreado), log.DEBUG)
-
-	global.ColaNew = append(global.ColaNew, global.Proceso(procesoCreado)) // no estoy segura si esta bien la sintaxis
+	global.MutexNew.Lock()
+	global.ColaNew = append(global.ColaNew, procesoCreado)
+	global.MutexNew.Unlock()
 }
 
 
 func HandshakeConCPU(w http.ResponseWriter, r *http.Request) {
+	var nuevoHandshake estructuras.HandshakeConCPU
 	if r.Method != http.MethodPost {
 		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
 		return
 	}
+	if err := json.NewDecoder(r.Body).Decode(&nuevoHandshake); err != nil {
+		http.Error(w, "Body inválido", http.StatusBadRequest)
+		return
+	}
 
-	id := r.URL.Query().Get("id") //* me gustaria usar body en vez de queryParam
-	ip := r.URL.Query().Get("ip")
-	puerto := r.URL.Query().Get("puerto")
+	nuevaCpu := global.CPU{
+		ID:               nuevoHandshake.ID,
+		IP:               nuevoHandshake.IP,
+		Puerto:           nuevoHandshake.Puerto,
+		ProcesoEjecutando: nil,
+	}
 
-	global.LoggerKernel.Log(fmt.Sprintf("Handshake recibido de CPU %s en %s:%s", id, ip, puerto), log.DEBUG)
+	global.CPUsConectadas = append(global.CPUsConectadas, &nuevaCpu)
+	global.LoggerKernel.Log(fmt.Sprintf("Handshake recibido de CPU %s en %s:%s", nuevoHandshake.ID, nuevoHandshake.IP, strconv.Itoa(nuevoHandshake.Puerto)), log.DEBUG)
 
 	w.WriteHeader(http.StatusOK)
 
@@ -177,7 +191,10 @@ func IO(w http.ResponseWriter, r *http.Request) {
 
 func manejarIOOcupado(io *global.IODevice, proceso *global.Proceso, tiempoUso int, w http.ResponseWriter) {
 	// Agregar a cola de espera
-	io.ColaEspera = append(io.ColaEspera, proceso)
+	io.ColaEspera = append(io.ColaEspera, &global.ProcesoIO{
+		Proceso:   proceso,
+		TiempoUso: tiempoUso,
+	})
 
 	// Cambiar estado según si está en memoria o swap
 	if proceso.PCB.UltimoEstado == planificacion.SUSP_READY || proceso.PCB.UltimoEstado == planificacion.SUSP_BLOCKED {
@@ -200,7 +217,6 @@ func manejarIOLibre(io *global.IODevice, proceso *global.Proceso, tiempoUso int,
 		TiempoUso: tiempoUso,
 	}
 
-	// Ejecutar operación IO en goroutine
 	go func() {
 		time.Sleep(time.Duration(tiempoUso) * time.Millisecond)
 
@@ -217,20 +233,28 @@ func manejarIOLibre(io *global.IODevice, proceso *global.Proceso, tiempoUso int,
 			io.ColaEspera = io.ColaEspera[1:]
 			proxProceso := siguiente.Proceso
 
+			global.MutexSuspBlocked.Lock()
 			// Verificar si el proceso está suspendido
 			for i, p := range global.ColaSuspBlocked {
 				if p.PID == proxProceso.PID {
 					planificacion.ActualizarEstadoPCB(&p.PCB, planificacion.SUSP_READY)
+					global.MutexSuspReady.Lock()
 					global.ColaSuspReady = append(global.ColaSuspReady, p)
+					global.MutexSuspReady.Unlock()
 					global.ColaSuspBlocked = append(global.ColaSuspBlocked[:i], global.ColaSuspBlocked[i+1:]...)
 					return
 				}
 			}
+			global.MutexSuspBlocked.Unlock()
 
 			// Si no estaba suspendido, mover a READY
 			planificacion.ActualizarEstadoPCB(&proxProceso.PCB, planificacion.READY)
+			global.MutexReady.Lock()
 			global.ColaReady = append(global.ColaReady, proxProceso)
+			global.MutexReady.Unlock()
 
+
+			global.MutexBlocked.Lock()
 			// Remover de BLOCKED si estaba allí
 			for i, p := range global.ColaBlocked {
 				if p.PID == proxProceso.PID {
@@ -238,6 +262,8 @@ func manejarIOLibre(io *global.IODevice, proceso *global.Proceso, tiempoUso int,
 					break
 				}
 			}
+			global.MutexBlocked.Unlock()
+			
 		}
 	}()
 
@@ -245,10 +271,11 @@ func manejarIOLibre(io *global.IODevice, proceso *global.Proceso, tiempoUso int,
 	fmt.Fprintf(w, "Proceso %d accediendo a %s por %d ms", proceso.PID, io.Nombre, tiempoUso)
 }
 
-func BuscarProcesoPorPID(cola []global.Proceso, pid int) (*global.Proceso) {
+
+func BuscarProcesoPorPID(cola []*global.Proceso, pid int) (*global.Proceso) {
 	for i := range cola {
 		if cola[i].PCB.PID == pid {
-			return &cola[i]
+			return cola[i]
 		}
 	}
 	return nil
@@ -325,5 +352,23 @@ func FinalizacionIO(w http.ResponseWriter, r *http.Request){
     default:
         http.Error(w, "Tipo de operación no válido", http.StatusBadRequest)
     }
+	
+}
+
+func EXIT(w http.ResponseWriter, r *http.Request){
+	pidStr := r.URL.Query().Get("pid")
+
+	PID,_ := strconv.Atoi(pidStr)
+	proceso := BuscarProcesoPorPID(global.ColaExecuting, PID)
+
+	if proceso == nil {
+		http.Error(w, "Proceso no encontrado", http.StatusNotFound)
+		return
+	}
+
+	planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.EXIT)
+	global.MutexExit.Lock()
+	global.ColaExit = append(global.ColaExit, proceso)
+	global.MutexExit.Unlock()
 	
 }

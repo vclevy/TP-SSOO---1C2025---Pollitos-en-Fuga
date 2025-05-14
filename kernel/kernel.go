@@ -24,14 +24,15 @@ func main() {
 	archivo := os.Args[1]
 	tamMemoriaString := os.Args[2]
 
+	
+
 	tamMemoria, err := strconv.Atoi(tamMemoriaString)
 	if err != nil {
 		panic(fmt.Sprintf("Tamaño de memoria inválido: %s", tamMemoriaString))
 	}
 
 	planificacion.CrearProceso(tamMemoria, archivo) 
-	// 2. Crear y levantar servidor
-	
+
 	s := api.CrearServer()
 	go func() {
 		err_server := s.Iniciar()
