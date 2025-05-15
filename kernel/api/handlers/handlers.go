@@ -372,11 +372,34 @@ func EXIT(w http.ResponseWriter, r *http.Request){
 	global.MutexExit.Unlock()	
 }
 
+// func FinalizarProceso(p *Proceso) {
+// 	ActualizarEstadoPCB(&p.PCB, EXIT)
+
+// 	err := InformarFinAMemoria(p.PID)
+// 	if err != nil {
+// 		global.LoggerKernel.Log(fmt.Sprintf("Error al informar finalización del proceso %d a Memoria: %s", p.PID, err.Error()), log.ERROR)
+// 		return
+// 	}
+
+// 	LoguearMetricas(p)
+
+// 	global.MutexExecuting.Lock()
+// 	defer global.MutexExecuting.Unlock()
+// 	global.ColaExecuting = utilskernel.FiltrarCola(global.ColaExecuting, p)
+// 	global.ColaExit = append(global.ColaExit, p)
+// }
+
 func DUMP_MEMORY(w http.ResponseWriter, r *http.Request){
 	pidStr := r.URL.Query().Get("pid")
 	pid,_ := strconv.Atoi(pidStr)
 
 	proceso := BuscarProcesoPorPID(global.ColaExecuting,pid)
+	
+	planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.BLOCKED)
+
+	global.MutexBlocked.Lock()
+	global.ColaBlocked = append(global.ColaBlocked, proceso)
+	global.MutexBlocked.Unlock()
 
 	err := utilsKernel.SolicitarDumpAMemoria(pid)
 	if err != nil {
@@ -385,6 +408,7 @@ func DUMP_MEMORY(w http.ResponseWriter, r *http.Request){
 		global.MutexExit.Lock()
 		global.ColaExit = append(global.ColaExit, proceso)
 		global.MutexExit.Unlock()
+		planificacion.FinalizarProceso(proceso)
 		http.Error(w, "Fallo en Dump, proceso finalizado", http.StatusInternalServerError)
 		return
 	}
