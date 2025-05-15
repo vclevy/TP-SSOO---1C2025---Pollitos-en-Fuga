@@ -32,12 +32,12 @@ func InitGlobal(idCPU string) {
 	// 1. Cargar configuración desde archivo
 	CpuConfig = utils.CargarConfig[Config]("config/config.json")
 
-	// 2. crear el archivo Log correspondiente a la CPU 
+	// 2. Crear el archivo Log correspondiente a la CPU 
 	logFileName := fmt.Sprintf("logs/%s.log", idCPU)
 
 	// 4. Inicializar archivo logger con ese nombre 
 	LoggerCpu = logger.ConfigurarLogger(logFileName, CpuConfig.LogLevel)
 
-	// 5. avisar que fue inicializado
+	// 5. Avisar que fue inicializado
     LoggerCpu.Log("Logger de CPU inicializado", logger.DEBUG)
 }
