@@ -72,3 +72,8 @@ type HandshakeConCPU struct {
 	Puerto int
 	IP     string
 }
+
+
+type SolicitudDump struct {
+	PID int `json:"pid"`
+}

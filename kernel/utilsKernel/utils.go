@@ -79,3 +79,22 @@ func FiltrarColaIO(cola []*ProcesoIO, target *ProcesoIO) []*ProcesoIO {
 	}
 	return resultado
 }
+
+func SolicitarDumpAMemoria(pid int) error {
+	url := fmt.Sprintf("http://%s:%d/dump", global.ConfigKernel.IPMemory, global.ConfigKernel.Port_Memory)
+
+	body := estructuras.SolicitudDump{PID: pid}
+	jsonBody, _ := json.Marshal(body)
+
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return fmt.Errorf("fallo conexión con Memoria: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("memoria devolvió error: código %d", resp.StatusCode)
+	}
+
+	return nil
+}
