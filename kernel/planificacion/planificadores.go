@@ -359,13 +359,50 @@ func FinalizarProceso(p *Proceso) {
 
 	LoguearMetricas(p)
 
-	//TODO Liberar el PCB e intentar inicializar el siguiente en susp o new
+	LiberarPcb(p.PCB)
+	iniciarProcesosEnEspera()
+	//TODO Liberar el PCB y chequear la de intentar inicializar el siguiente en susp o new
 
 	global.MutexExecuting.Lock()
 	defer global.MutexExecuting.Unlock()
 	global.ColaExecuting = utilskernel.FiltrarCola(global.ColaExecuting, p)
 	global.ColaExit = append(global.ColaExit, p)
 }
+
+func LiberarPcb(pCB global.PCB) {
+	panic("unimplemented")
+}
+
+func iniciarProcesosEnEspera() {
+	
+	global.MutexSuspReady.Lock() // No me gusta que este tanto tiempo locked
+	if len(global.ColaSuspReady) > 0 {
+		// Elegís uno o más procesos para pasar a READY
+		// según tu política de planificación
+		procesos := global.ColaSuspReady //los saca todos por fifo
+		for _, p := range procesos {
+			//? Estan bien los mutex ahi?
+			global.MutexReady.Lock()
+			global.ColaReady = append(global.ColaReady, p)
+			global.MutexReady.Unlock()
+		}
+		return
+	}
+	global.MutexSuspReady.Unlock()
+
+	// Prioridad 2: procesos en NEW
+	global.MutexNew.Lock()
+	if len(global.ColaNew) > 0 {
+		procesos := global.ColaNew
+		for _, p := range procesos {
+			global.MutexReady.Lock()
+			global.ColaReady = append(global.ColaReady, p)
+			global.MutexReady.Unlock()
+		}
+	}
+	global.MutexNew.Unlock()
+}
+
 
 func LoguearMetricas(p *Proceso) {
 	global.LoggerKernel.Log(fmt.Sprintf("## (%d) - Finaliza el proceso", p.PID), log.INFO) //! LOG OBLIGATORIO: Fin de Proceso

@@ -370,14 +370,10 @@ func EXIT(w http.ResponseWriter, r *http.Request){
 		http.Error(w, "Proceso no encontrado", http.StatusNotFound)
 		return
 	}
-
-	planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.EXIT)
 	planificacion.FinalizarProceso(proceso)
-	global.MutexExit.Lock()
-	global.ColaExit = append(global.ColaExit, proceso)
-	global.MutexExit.Unlock()
-
+	//* En finalizarProceso se actualiza el pcb y se mueve a la cola correspondiente
 }
+
 
 func DUMP_MEMORY(w http.ResponseWriter, r *http.Request){
 	pidStr := r.URL.Query().Get("pid")
