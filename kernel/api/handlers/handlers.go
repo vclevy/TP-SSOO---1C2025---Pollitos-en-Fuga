@@ -320,11 +320,11 @@ func FinalizacionIO(w http.ResponseWriter, r *http.Request){
         // Lógica para FIN_IO
         // 1. Verificar si hay más procesos en cola de I/O
 		fmt.Fprintf(w, "Proceso %d completó E/S. Verificando cola...", dispositivo.ProcesoEnUso.Proceso.PID)
-		//! @valenchu Aca va la parte del planificador de mediano plazo creom tiene que pasar a susp ready?
+		
 		dispositivo.ProcesoEnUso = nil //saco el proceso actual
 		if dispositivo.ColaEspera != nil{
 
-			nuevoProcesoEnIO := dispositivo.ColaEspera[0]
+			nuevoProcesoEnIO := dispositivo.ColaEspera[0] //!Faltan mutex para las colas de IO
 			dispositivo.ColaEspera = utilsKernel.FiltrarColaIO(dispositivo.ColaEspera,nuevoProcesoEnIO)
 			dispositivo.ProcesoEnUso = nuevoProcesoEnIO
 			pidNuevo := dispositivo.ProcesoEnUso.Proceso.PID
@@ -340,8 +340,13 @@ func FinalizacionIO(w http.ResponseWriter, r *http.Request){
     case "DESCONEXION_IO":
         // Lógica para DESCONEXION_IO
         // 1. Cambiar estado del proceso a EXIT
+		global.MutexBlocked.Lock()
 		global.ColaBlocked = utilsKernel.FiltrarCola(global.ColaBlocked, dispositivo.ProcesoEnUso.Proceso)
+		global.MutexBlocked.Unlock()
+		global.MutexExit.Lock()
 		global.ColaExit = append(global.ColaExit, dispositivo.ProcesoEnUso.Proceso)
+		global.MutexExit.Unlock()
+		planificacion.FinalizarProceso(dispositivo.ProcesoEnUso.Proceso)
 		planificacion.ActualizarEstadoPCB(&dispositivo.ProcesoEnUso.Proceso.PCB, planificacion.EXIT)
 		//! Chequeame esto @valenchu
 
@@ -365,29 +370,10 @@ func EXIT(w http.ResponseWriter, r *http.Request){
 		http.Error(w, "Proceso no encontrado", http.StatusNotFound)
 		return
 	}
-
-	planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.EXIT)
-	global.MutexExit.Lock()
-	global.ColaExit = append(global.ColaExit, proceso)
-	global.MutexExit.Unlock()	
+	planificacion.FinalizarProceso(proceso)
+	//* En finalizarProceso se actualiza el pcb y se mueve a la cola correspondiente
 }
 
-// func FinalizarProceso(p *Proceso) {
-// 	ActualizarEstadoPCB(&p.PCB, EXIT)
-
-// 	err := InformarFinAMemoria(p.PID)
-// 	if err != nil {
-// 		global.LoggerKernel.Log(fmt.Sprintf("Error al informar finalización del proceso %d a Memoria: %s", p.PID, err.Error()), log.ERROR)
-// 		return
-// 	}
-
-// 	LoguearMetricas(p)
-
-// 	global.MutexExecuting.Lock()
-// 	defer global.MutexExecuting.Unlock()
-// 	global.ColaExecuting = utilskernel.FiltrarCola(global.ColaExecuting, p)
-// 	global.ColaExit = append(global.ColaExit, p)
-// }
 
 func DUMP_MEMORY(w http.ResponseWriter, r *http.Request){
 	pidStr := r.URL.Query().Get("pid")
