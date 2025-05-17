@@ -359,6 +359,8 @@ func FinalizarProceso(p *Proceso) {
 
 	LoguearMetricas(p)
 
+	//TODO Liberar el PCB e intentar inicializar el siguiente en susp o new
+
 	global.MutexExecuting.Lock()
 	defer global.MutexExecuting.Unlock()
 	global.ColaExecuting = utilskernel.FiltrarCola(global.ColaExecuting, p)
