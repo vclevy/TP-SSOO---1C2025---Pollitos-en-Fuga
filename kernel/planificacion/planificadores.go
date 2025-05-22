@@ -463,7 +463,6 @@ func EvaluarDesalojo(nuevo Proceso) {
 		}
 	}
 	global.MutexExecuting.Unlock()
-// 	// Comparar el mejor candidato a desalojar contra el nuevo
  	if nuevo.EstimacionRafaga < procesoADesalojar.EstimacionRafaga {
  		global.LoggerKernel.Log(fmt.Sprintf("Desalojando proceso %d por nuevo proceso %d", procesoADesalojar.PCB.PID, nuevo.PCB.PID), log.INFO)
  		//TODO EnviarInterrupcion(procesoADesalojar.PCB.PID) !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -498,7 +497,6 @@ func suspenderProceso(proceso *global.Proceso) {
 
 	global.LoggerKernel.Log(fmt.Sprintf("Proceso %d movido a SUSP_BLOCKED", proceso.PID), log.INFO)
 }
-
 
  func MoverASwap(pid int) error {
  	url := fmt.Sprintf("http://%s:%d/moverASwap?pid=%d",

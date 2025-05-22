@@ -1,14 +1,11 @@
 package utilsIo
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/sisoputnfrba/tp-golang/io/global"
@@ -53,70 +50,35 @@ func IniciarIo(solicitud estructuras.TareaDeIo) {
 	InformarFinalizacionDeIO(solicitud.PID)
 }
 
-func InformarFinalizacionDeIO(pid int){
-	
-	tipo, err := strconv.Atoi(leerOpcionConsola())
-	if err != nil {
-		global.LoggerIo.Log(fmt.Sprintf("Error convirtiendo opción a entero: %v", err), log.ERROR)
-		return
-	}
-
-	var mensaje FinDeIO
-
-	if tipo==1{
-		mensaje.Tipo = "FIN_IO"
-	} else if tipo==2{
-		mensaje.Tipo = "DESCONEXION_IO"
+func InformarFinalizacionDeIO(pid int) {
+	mensaje := FinDeIO{
+		Tipo: "FIN_IO",
 	}
 
 	body, err := json.Marshal(mensaje)
-    if err != nil {
-        global.LoggerIo.Log(fmt.Sprintf("Error codificando mensaje: %v", err), log.ERROR)
-        return
-    }
-
-    url := fmt.Sprintf("http://%s:%d/finalizacionIO", global.IoConfig.IPKernel, global.IoConfig.Port_Kernel)
-    req, err := http.NewRequest("POST", url, bytes.NewBuffer(body))
-    if err != nil {
-        global.LoggerIo.Log(fmt.Sprintf("Error creando request: %v", err), log.ERROR)
-        return
-    }
-    req.Header.Set("Content-Type", "application/json")
-
-    client := &http.Client{}
-    resp, err := client.Do(req)
-    if err != nil {
-        global.LoggerIo.Log(fmt.Sprintf("Error enviando mensaje: %v", err), log.ERROR)
-        return
-    }
-    defer resp.Body.Close()
-
-    global.LoggerIo.Log(fmt.Sprintf("## PID: <%d> - Fin de IO notificado", pid), log.INFO)
-}
-
-
-func leerOpcionConsola() string {
-	reader := bufio.NewReader(os.Stdin)
-
-	for { // Bucle infinito hasta que se ingrese 1 o 2
-		fmt.Println("\nSeleccione el tipo de mensaje:")
-		fmt.Println("1 - FIN_IO")
-		fmt.Println("2 - DESCONEXION_IO")
-		fmt.Print("Ingrese opción (1/2): ")
-
-		opcion, _ := reader.ReadString('\n')
-		opcion = strings.TrimSpace(opcion) // Elimina espacios y saltos de línea
-
-		if opcion == "1" || opcion == "2" {
-			return opcion // Retorna la opción válida
-		}
-
-		// Mensaje de error y reintento
-		fmt.Printf("\n** ERROR: '%s' no es válido. Solo se permite 1 o 2 **\n", opcion)
+	if err != nil {
+		global.LoggerIo.Log(fmt.Sprintf("Error codificando mensaje de finalización IO: %v", err), log.ERROR)
+		return
 	}
+
+	url := fmt.Sprintf("http://%s:%d/finalizacionIO", global.IoConfig.IPKernel, global.IoConfig.Port_Kernel)
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(body))
+	if err != nil {
+		global.LoggerIo.Log(fmt.Sprintf("Error creando request de finalización IO: %v", err), log.ERROR)
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		global.LoggerIo.Log(fmt.Sprintf("Error enviando mensaje de finalización IO: %v", err), log.ERROR)
+		return
+	}
+	defer resp.Body.Close()
+
+	global.LoggerIo.Log(fmt.Sprintf("PID %d - Finalización de IO notificada al Kernel", pid), log.INFO)
 }
-
-
 func NotificarDesconexion(info PaqueteHandshakeIO) error {
 	url := fmt.Sprintf("http://%s:%d/finalizacionIO", global.IoConfig.IPKernel, global.IoConfig.Port_Kernel)
 
