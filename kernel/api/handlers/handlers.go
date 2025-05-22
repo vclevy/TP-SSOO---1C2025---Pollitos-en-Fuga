@@ -281,83 +281,57 @@ func BuscarProcesoPorPID(cola []*global.Proceso, pid int) (*global.Proceso) {
 	return nil
 }
 
-
-//! Falta esto creo @valenchu: Al momento que se conecte una nueva IO o se reciba el desbloqueo por medio de una de ellas, se deberá verificar si hay proceso encolados para dicha IO y enviarlo a la misma. 
-
-func FinalizacionIO(w http.ResponseWriter, r *http.Request){
-
-	// Extraer IP y puerto del remitente
-    host, portStr, err := net.SplitHostPort(r.RemoteAddr)
-    if err != nil {
-        http.Error(w, "Error al parsear dirección remota", http.StatusBadRequest)
-        return
-    }
-    
-    port, err := strconv.Atoi(portStr)
-    if err != nil {
-        http.Error(w, "Puerto inválido", http.StatusBadRequest)
-        return
-    }
-
-    //? Buscar dispositivo por puerto e ip
-    dispositivo, err := utilsKernel.BuscarDispositivo(host, port)
-    if err != nil {
-        http.Error(w, err.Error(), http.StatusNotFound)
-        return
-    }
-
-	var finDeIo FinDeIO
-	if err := json.NewDecoder(r.Body).Decode(&finDeIo); err != nil {
-		http.Error(w, "Error al parsear la syscall", http.StatusBadRequest)
+func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
+	host, portStr, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		http.Error(w, "Error al parsear dirección remota", http.StatusBadRequest)
+		return
+	}
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		http.Error(w, "Puerto inválido", http.StatusBadRequest)
 		return
 	}
 
-	tipo := finDeIo.Tipo
-	
+	dispositivo, err := utilsKernel.BuscarDispositivo(host, port)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
 
-	switch tipo {
-    case "FIN_IO":
-        // Lógica para FIN_IO
-        // 1. Verificar si hay más procesos en cola de I/O
-		fmt.Fprintf(w, "Proceso %d completó E/S. Verificando cola...", dispositivo.ProcesoEnUso.Proceso.PID)
-		
-		dispositivo.ProcesoEnUso = nil //saco el proceso actual
-		if dispositivo.ColaEspera != nil{
+	// Verificamos si hay body. Si NO hay, es desconexión
+	if r.ContentLength == 0 {
+		proc := dispositivo.ProcesoEnUso.Proceso
+		global.MutexBlocked.Lock()
+		global.ColaBlocked = utilsKernel.FiltrarCola(global.ColaBlocked, proc)
+		global.MutexBlocked.Unlock()
 
-			nuevoProcesoEnIO := dispositivo.ColaEspera[0] //!Faltan mutex para las colas de IO
-			dispositivo.ColaEspera = utilsKernel.FiltrarColaIO(dispositivo.ColaEspera,nuevoProcesoEnIO)
-			dispositivo.ProcesoEnUso = nuevoProcesoEnIO
-			pidNuevo := dispositivo.ProcesoEnUso.Proceso.PID
-			utilsKernel.EnviarAIO(dispositivo, pidNuevo, nuevoProcesoEnIO.TiempoUso)
-			//? que se hace si hay mas procesos deberian ejecutarse? esta bien esto q hice?
-			
-		} else{
+		planificacion.FinalizarProceso(proc)
+
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, "Proceso %d desconectado y marcado como EXIT.\n", proc.PID)
+		return
+	}
+
+	// Caso normal: Fin de IO
+	if dispositivo.ProcesoEnUso != nil {
+		fmt.Fprintf(w, "Proceso %d completó E/S. Verificando cola...\n", dispositivo.ProcesoEnUso.Proceso.PID)
+
+		// Liberamos proceso actual
+		dispositivo.ProcesoEnUso = nil
+
+		if len(dispositivo.ColaEspera) > 0 {
+			nuevo := dispositivo.ColaEspera[0]
+			dispositivo.ColaEspera = utilsKernel.FiltrarColaIO(dispositivo.ColaEspera, nuevo)
+			dispositivo.ProcesoEnUso = nuevo
+
+			utilsKernel.EnviarAIO(dispositivo, nuevo.Proceso.PID, nuevo.TiempoUso)
+		} else {
 			dispositivo.Ocupado = false
 		}
-    
-        w.WriteHeader(http.StatusOK)
+	}
 
-    case "DESCONEXION_IO":
-        // Lógica para DESCONEXION_IO
-        // 1. Cambiar estado del proceso a EXIT
-		global.MutexBlocked.Lock()
-		global.ColaBlocked = utilsKernel.FiltrarCola(global.ColaBlocked, dispositivo.ProcesoEnUso.Proceso)
-		global.MutexBlocked.Unlock()
-		global.MutexExit.Lock()
-		global.ColaExit = append(global.ColaExit, dispositivo.ProcesoEnUso.Proceso)
-		global.MutexExit.Unlock()
-		planificacion.FinalizarProceso(dispositivo.ProcesoEnUso.Proceso)
-		planificacion.ActualizarEstadoPCB(&dispositivo.ProcesoEnUso.Proceso.PCB, planificacion.EXIT)
-		//! Chequeame esto @valenchu
-
-        // Ejemplo:
-        w.WriteHeader(http.StatusOK)
-        fmt.Fprintf(w, "Proceso %d desconectado de E/S. Marcado como EXIT.", dispositivo.ProcesoEnUso.Proceso.PID)
-
-    default:
-        http.Error(w, "Tipo de operación no válido", http.StatusBadRequest)
-    }
-	
+	w.WriteHeader(http.StatusOK)
 }
 
 func EXIT(w http.ResponseWriter, r *http.Request){

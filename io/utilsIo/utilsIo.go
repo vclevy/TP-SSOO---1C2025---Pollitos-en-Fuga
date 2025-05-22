@@ -115,3 +115,30 @@ func leerOpcionConsola() string {
 		fmt.Printf("\n** ERROR: '%s' no es válido. Solo se permite 1 o 2 **\n", opcion)
 	}
 }
+
+
+func NotificarDesconexion(info PaqueteHandshakeIO) error {
+	url := fmt.Sprintf("http://%s:%d/finalizacionIO", global.IoConfig.IPKernel, global.IoConfig.Port_Kernel)
+
+	req, err := http.NewRequest("POST", url, nil) // sin body = desconexión
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("X-IO-Nombre", info.NombreIO)
+	req.Header.Set("X-IO-Puerto", strconv.Itoa(info.PuertoIO))
+	req.Header.Set("X-IO-IP", info.IPIO)
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("falló desconexión: %s", resp.Status)
+	}
+
+	return nil
+}
