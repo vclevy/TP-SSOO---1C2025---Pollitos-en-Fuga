@@ -6,16 +6,18 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+
 	"github.com/sisoputnfrba/tp-golang/cpu/global"
 	utilsIo "github.com/sisoputnfrba/tp-golang/cpu/utilsCpu"
+	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
 	"github.com/sisoputnfrba/tp-golang/utils/logger"
 )
 
 func HandshakeKernel(w http.ResponseWriter, r *http.Request) {
-	datosEnvio := map[string]interface{}{
-		"id":     global.CpuID,
-		"ip":     global.CpuConfig.Ip_Cpu,
-		"puerto": fmt.Sprintf("%d", global.CpuConfig.Port_Cpu),
+	datosEnvio := estructuras.HandshakeConCPU{
+		ID   : global.CpuID,
+		Puerto : global.CpuConfig.Port_Cpu,
+		IP : global.CpuConfig.Ip_Cpu,
 	}
 
 	jsonData, _ := json.Marshal(datosEnvio)

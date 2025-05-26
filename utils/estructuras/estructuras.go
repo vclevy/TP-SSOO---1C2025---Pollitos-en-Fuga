@@ -56,8 +56,8 @@ EXIT, esta syscall no recibirá parámetros y se encargará de finalizar el proc
 
 En este apartado solamente se tendrá la instrucción DUMP_MEMORY. Esta syscall le solicita a la memoria, junto al PID que lo solicitó, que haga un Dump del proceso.
 Esta syscall bloqueará al proceso que la invocó hasta que el módulo memoria confirme la finalización de la operación, en caso de error, el proceso se enviará a EXIT. Caso contrario, se desbloquea normalmente pasando a READY.
-
 */
+
 type TareaDeIo struct {
 	PID            int `json:"pid"`
 	TiempoEstimado int `json:"tiempo_estimado"`

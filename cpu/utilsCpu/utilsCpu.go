@@ -32,6 +32,7 @@ func Fetch(pid int, pc int) {
 		Pc:  pc,
 	}
 
+	//petición
 	jsonData, err := json.Marshal(solicitudInstruccion)
 	if err != nil {
 		global.LoggerCpu.Log("Error serializando solicitud: "+err.Error(), log.ERROR)
@@ -70,7 +71,7 @@ type Instruccion struct {
 }
 
 func Decode(instruccionAEjecutar string){
-	instruccionPartida := strings.Fields(instruccionAEjecutar) //ver
+	instruccionPartida := strings.Fields(instruccionAEjecutar) //!!ver
 
 	opcode := instruccionPartida[0]
 	parametros := instruccionPartida[1:]
@@ -87,6 +88,11 @@ func Execute(instruccion Instruccion){
 	global.LoggerCpu.Log(fmt.Sprintf("## PID: %d - Ejecutando: %s - %s", pidActual, instruccion.Opcode , instruccion.Parametros), log.INFO)
   	
 	//todo INSTRUCCIONES MMU
+	/* 
+	WRITE 0 EJEMPLO_DE_ENUNCIADO // WRITE (Dirección, Datos)
+	READ 0 20 // READ (Dirección, Tamaño)
+	*/
+
 	if _, requiereMMU := instruccionesConMMU[instruccion.Opcode]; requiereMMU {
 		direccionLogicaStr := instruccion.Parametros[0]
 		direccionLogica, err := strconv.Atoi(direccionLogicaStr)
@@ -96,6 +102,7 @@ func Execute(instruccion Instruccion){
 			MMU(direccionLogica)
 		}
 	}
+
   	//todo INSTRUCCIONES SYSCALLS
 	if(instruccion.Opcode == "IO"){
 		Syscall_IO(instruccion)
@@ -123,11 +130,68 @@ func Execute(instruccion Instruccion){
 }
 
 func MMU(direccionLogica int){
+	tlbHabilitada := global.CpuConfig.TlbEntries > 0
+	tlbDeshabilitada := global.CpuConfig.TlbEntries == 0
+	cacheHabilitada := global.CpuConfig.CacheEntries > 0
+	cacheDeshabilitada := global.CpuConfig.CacheEntries == 0
+	
+	ConfigMMU()
+	nroPagina := direccionLogica / configMMU.Tamaño_página
+	desplazamiento := direccionLogica % configMMU.Tamaño_página
+	var marco int
+	if(tlbHabilitada){ //TLB habilitada
+		marco = TLB()
+		
+	} else if (tlbDeshabilitada){
+		marco = ObtenerFrameDeMemoria()
+	} else{
+		global.LoggerCpu.Log("Error de entradas TLB", log.ERROR)
+		return
+	}
+	direccionFisica := marco * configMMU.Tamaño_página + desplazamiento
+
+	if(cacheHabilitada){ //caché habilitada
+		CacheDePaginas()
+	}else if(cacheDeshabilitada){
+		AccederMemoria()
+	} else{
+		global.LoggerCpu.Log("Error de entradas Cache", log.ERROR)
+		return
+	}
 }
 
 func CheckInterrupt(instruccion Instruccion){}
 
+func TLB(){
+	if(tlbHit){
+
+	}else if (tlbMiss){
+		/* marco := */ObtenerFrameDeMemoria()
+		ActualizarTLB()
+	}
+}
+func CacheDePaginas(){
+	if(cacheHit){
+				
+	} else if (cacheMiss){
+		AccederMemoria()
+		ActualizarCache()
+	}
+}
+func ObtenerFrameDeMemoria(){}
+func AccederMemoria(){}
+func ActualizarTLB(){}
+func ActualizarCache(){}
+
 var configMMU estructuras.ConfiguracionMMU
+
+/* 
+type ConfiguracionMMU struct {
+	Tamaño_página       int `json:"tamaño_página"`
+	Cant_entradas_tabla int `json:"cant_entradas_tabla"`
+	Cant_N_Niveles      int `json:"cant_N_Niveles"`
+}
+ */
 
 func ConfigMMU() error {
 	url := fmt.Sprintf("http://%s:%d/configuracionMMU", global.CpuConfig.Ip_Memoria, global.CpuConfig.Port_Memoria)
@@ -196,7 +260,7 @@ func Syscall_Init_Proc(instruccion Instruccion){
 	syscall_Init_Proc := estructuras.Syscall_Init_Proc{
 		ArchivoInstrucciones : instruccion.Parametros[0],
 		Tamanio : tamanio,
-		PIDproceso: pidActual,
+		/* PIDproceso: pidActual, */
 	}
 
 	jsonData, err := json.Marshal(syscall_Init_Proc)
