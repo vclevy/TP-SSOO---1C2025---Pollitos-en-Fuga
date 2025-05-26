@@ -32,7 +32,7 @@ type SolicitudInstruccion struct {
 }
 
 type ConfiguracionMMU struct {
-	Tamaño_página       int `json:"tamaño_página"`
+	Tamanio_pagina       int `json:"tamanio_pagina"`
 	Cant_entradas_tabla int `json:"cant_entradas_tabla"`
 	Cant_N_Niveles      int `json:"cant_N_Niveles"`
 }

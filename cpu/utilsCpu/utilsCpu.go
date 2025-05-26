@@ -129,48 +129,53 @@ func Execute(instruccion Instruccion){
 	}
 }
 
-func MMU(direccionLogica int){
+func MMU(direccionLogica int) (int, error){
 	tlbHabilitada := global.CpuConfig.TlbEntries > 0
 	tlbDeshabilitada := global.CpuConfig.TlbEntries == 0
-	cacheHabilitada := global.CpuConfig.CacheEntries > 0
-	cacheDeshabilitada := global.CpuConfig.CacheEntries == 0
-	
-	ConfigMMU()
-	nroPagina := direccionLogica / configMMU.Tamaño_página
-	desplazamiento := direccionLogica % configMMU.Tamaño_página
 	var marco int
-	if(tlbHabilitada){ //TLB habilitada
-		marco = TLB()
-		
-	} else if (tlbDeshabilitada){
-		marco = ObtenerFrameDeMemoria()
-	} else{
-		global.LoggerCpu.Log("Error de entradas TLB", log.ERROR)
-		return
-	}
-	direccionFisica := marco * configMMU.Tamaño_página + desplazamiento
+	var hit bool
 
-	if(cacheHabilitada){ //caché habilitada
-		CacheDePaginas()
-	}else if(cacheDeshabilitada){
-		AccederMemoria()
-	} else{
-		global.LoggerCpu.Log("Error de entradas Cache", log.ERROR)
-		return
+	ConfigMMU()
+	nroPagina := direccionLogica / configMMU.Tamanio_pagina
+	entrada_nivel_X := floor(nroPagina  / configMMU.Cant_entradas_tabla ^ (configMMU.Cant_N_Niveles - X)) % configMMU.Cant_entradas_tabla
+	desplazamiento := direccionLogica % configMMU.Tamanio_pagina
+	
+	//todo TLB
+	if tlbHabilitada{ //TLB habilitada
+		marco, hit = TLB(nroPagina)
+		if !hit {
+			marco = ObtenerFrameDeMemoria(nroPagina)
+			ActualizarTLB(nroPagina, marco)
+		}
+	} else if (tlbDeshabilitada){ //TLB deshabilitada
+		marco = ObtenerFrameDeMemoria(nroPagina)
+	} else{ //TLB valor incorrecto
+		global.LoggerCpu.Log("Error en configuración TLB: entradas inválidas", log.ERROR)
+        return 0, fmt.Errorf("configuración TLB inválida")
 	}
+
+	direccionFisica := marco * configMMU.Tamanio_pagina + desplazamiento
+
+    return direccionFisica, nil
 }
+
+func TLB(nroPagina int){
+ // conseguir el marco
+ // ver si está la página
+}
+
+func ObtenerFrameDeMemoria(nroPagina int){
+
+}
+
+func ActualizarTLB(nroPagina int, marco int){
+
+}
+	
 
 func CheckInterrupt(instruccion Instruccion){}
 
-func TLB(){
-	if(tlbHit){
-
-	}else if (tlbMiss){
-		/* marco := */ObtenerFrameDeMemoria()
-		ActualizarTLB()
-	}
-}
-func CacheDePaginas(){
+func CacheDePaginas(direccionFisica int){
 	if(cacheHit){
 				
 	} else if (cacheMiss){
@@ -178,9 +183,8 @@ func CacheDePaginas(){
 		ActualizarCache()
 	}
 }
-func ObtenerFrameDeMemoria(){}
+
 func AccederMemoria(){}
-func ActualizarTLB(){}
 func ActualizarCache(){}
 
 var configMMU estructuras.ConfiguracionMMU
