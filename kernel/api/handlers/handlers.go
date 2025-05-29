@@ -302,7 +302,9 @@ func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
 		global.MutexBlocked.Lock()
 		global.ColaBlocked = utilsKernel.FiltrarCola(global.ColaBlocked, proc)
 		global.MutexBlocked.Unlock()
-
+		global.IOListMutex.Lock()
+		global.IOConectados = utilsKernel.FiltrarIODevice(global.IOConectados, dispositivo)
+		global.IOListMutex.Unlock()
 		planificacion.FinalizarProceso(proc)
 
 		w.WriteHeader(http.StatusOK)
@@ -318,8 +320,10 @@ func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
 		dispositivo.ProcesoEnUso = nil
 
 		if len(dispositivo.ColaEspera) > 0 {
+			dispositivo.Mutex.Lock()
 			nuevo := dispositivo.ColaEspera[0]
 			dispositivo.ColaEspera = utilsKernel.FiltrarColaIO(dispositivo.ColaEspera, nuevo)
+			dispositivo.Mutex.Unlock()
 			dispositivo.ProcesoEnUso = nuevo
 
 			utilsKernel.EnviarAIO(dispositivo, nuevo.Proceso.PID, nuevo.TiempoUso)

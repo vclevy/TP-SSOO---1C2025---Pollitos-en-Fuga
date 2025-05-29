@@ -121,7 +121,7 @@ func IniciarPlanificadorLargoPlazo() {
 						global.MutexReady.Lock()
 						global.ColaReady = append(global.ColaReady, proceso)
 						global.MutexReady.Unlock()
-						EvaluarDesalojo(*proceso)
+						EvaluarDesalojo(proceso)
 					}
 				case "CHICO":
 					global.MutexNew.Lock()
@@ -148,7 +148,7 @@ func IniciarPlanificadorLargoPlazo() {
 							global.MutexReady.Lock()
 							global.ColaReady = append(global.ColaReady, proc)
 							global.MutexReady.Unlock()
-							EvaluarDesalojo(*proc)
+							EvaluarDesalojo(proc)
 							break
 						}
 					}
@@ -373,35 +373,22 @@ func LiberarPcb(pCB global.PCB) {
 	panic("unimplemented")
 }
 
+
 func iniciarProcesosEnEspera() {
-	
-	global.MutexSuspReady.Lock() // No me gusta que este tanto tiempo locked
-	if len(global.ColaSuspReady) > 0 {
-		// Elegís uno o más procesos para pasar a READY
-		// según tu política de planificación
-		procesos := global.ColaSuspReady //los saca todos por fifo
-		for _, p := range procesos {
-			//? Estan bien los mutex ahi?
-			global.MutexReady.Lock()
-			global.ColaReady = append(global.ColaReady, p)
-			global.MutexReady.Unlock()
-		}
+	global.MutexSuspReady.Lock()
+	if len(global.ColaSuspReady) == 0 {
+		global.MutexSuspReady.Unlock()
 		return
 	}
+	p := global.ColaSuspReady[0]
+	global.ColaSuspReady = global.ColaSuspReady[1:]
 	global.MutexSuspReady.Unlock()
 
-	// Prioridad 2: procesos en NEW
-	global.MutexNew.Lock()
-	if len(global.ColaNew) > 0 {
-		procesos := global.ColaNew
-		for _, p := range procesos {
-			global.MutexReady.Lock()
-			global.ColaReady = append(global.ColaReady, p)
-			global.MutexReady.Unlock()
-		}
-	}
-	global.MutexNew.Unlock()
+	global.MutexReady.Lock()
+	global.ColaReady = append(global.ColaReady, p)
+	global.MutexReady.Unlock()
 }
+
 
 
 func LoguearMetricas(p *Proceso) {
@@ -446,28 +433,58 @@ func seleccionarProcesoSJF(_ bool) *global.Proceso {
 	return proceso
 }
 
-func EvaluarDesalojo(nuevo Proceso) {
-	if global.ConfigKernel.SchedulerAlgorithm != "SRTF" {
-		return
-	}
+func EvaluarDesalojo(nuevo *Proceso) {
+	// Bloqueamos mutex si tenés para evitar condiciones de carrera
 	global.MutexExecuting.Lock()
+	defer global.MutexExecuting.Unlock()
+
 	if len(global.ColaExecuting) == 0 {
 		return
 	}
-	
-	procesoADesalojar := global.ColaExecuting[0]
 
-	for _, proceso := range global.ColaExecuting {
-		if proceso.EstimacionRafaga > procesoADesalojar.EstimacionRafaga {
-			procesoADesalojar = proceso
+	var procesoADesalojar *Proceso
+	maxRafaga := -1.0
+
+	for _, p := range global.ColaExecuting {
+		if p.EstimacionRafaga > maxRafaga {
+			maxRafaga = p.EstimacionRafaga
+			procesoADesalojar = p
 		}
 	}
-	global.MutexExecuting.Unlock()
- 	if nuevo.EstimacionRafaga < procesoADesalojar.EstimacionRafaga {
- 		global.LoggerKernel.Log(fmt.Sprintf("Desalojando proceso %d por nuevo proceso %d", procesoADesalojar.PCB.PID, nuevo.PCB.PID), log.INFO)
- 		//TODO EnviarInterrupcion(procesoADesalojar.PCB.PID) !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
- 	}
- }
+
+	if procesoADesalojar != nil && nuevo.EstimacionRafaga < maxRafaga {
+		global.LoggerKernel.Log(fmt.Sprintf("Desalojando proceso %d por nuevo proceso %d", procesoADesalojar.PCB.PID, nuevo.PCB.PID), log.INFO)
+		if err := EnviarInterrupcion(procesoADesalojar.PCB.PID); err != nil {
+			global.LoggerKernel.Log(fmt.Sprintf("Error enviando interrupción: %v", err), log.ERROR)
+		}
+	}
+}
+
+
+func EnviarInterrupcion(pid int) error {
+	for _, cpu := range global.CPUsConectadas {
+		if cpu.ProcesoEjecutando != nil && cpu.ProcesoEjecutando.PCB.PID == pid {
+			// Construimos URL del endpoint de interrupción, asumiendo puerto para interrupciones es cpu.Puerto
+			url := fmt.Sprintf("http://%s:%d/interrumpir?pid=%d", cpu.IP, cpu.Puerto, pid)
+
+			// Enviar POST sin cuerpo (o puede ser nil, si tu API lo permite)
+			resp, err := http.Post(url, "application/json", nil)
+			if err != nil {
+				return fmt.Errorf("error enviando interrupción a CPU %s: %v", cpu.ID, err)
+			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode != http.StatusOK {
+				return fmt.Errorf("CPU %s devolvió estado %d al intentar interrumpir proceso %d", cpu.ID, resp.StatusCode, pid)
+			}
+
+			return nil
+		}
+	}
+	return fmt.Errorf("no se encontró CPU ejecutando el proceso %d para interrumpir", pid)
+}
+
+
 
 func RecalcularRafaga(proceso *Proceso, rafagaReal float64) {
 	alpha := global.ConfigKernel.Alpha 

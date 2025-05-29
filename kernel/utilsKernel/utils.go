@@ -80,6 +80,16 @@ func FiltrarColaIO(cola []*ProcesoIO, target *ProcesoIO) []*ProcesoIO {
 	return resultado
 }
 
+func FiltrarIODevice(lista []*IODevice, excluir *IODevice) []*IODevice {
+	var resultado []*IODevice
+	for _, io := range lista {
+		if io != excluir {
+			resultado = append(resultado, io)
+		}
+	}
+	return resultado
+}
+
 func SolicitarDumpAMemoria(pid int) error {
 	url := fmt.Sprintf("http://%s:%d/dump", global.ConfigKernel.IPMemory, global.ConfigKernel.Port_Memory)
 
