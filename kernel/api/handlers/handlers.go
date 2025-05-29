@@ -282,8 +282,6 @@ func BuscarProcesoPorPID(cola []*global.Proceso, pid int) (*global.Proceso) {
 }
 
 
-//! Falta esto creo @valenchu: Al momento que se conecte una nueva IO o se reciba el desbloqueo por medio de una de ellas, se deberá verificar si hay proceso encolados para dicha IO y enviarlo a la misma. 
-
 func FinalizacionIO(w http.ResponseWriter, r *http.Request){
 
 	// Extraer IP y puerto del remitente
