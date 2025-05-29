@@ -85,8 +85,6 @@ var MutexSuspBlocked sync.Mutex
 var MutexExit sync.Mutex
 
 // CPU
-var CantidadCPUsTotales int
-var CantidadCPUsOcupadas int // *OBVIO Q ESTO no va a terminar así, es para q compile hayCpuDisponible 
 
 type CPU struct {
 	ID                string
@@ -116,7 +114,7 @@ type IODevice struct {
 	Puerto       int
 	Ocupado      bool
 	ProcesoEnUso *ProcesoIO
-	ColaEspera   []*ProcesoIO // mantiene el orden
+	ColaEspera   []*ProcesoIO 
 	Mutex        sync.Mutex
 }
 
