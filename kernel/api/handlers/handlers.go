@@ -117,9 +117,9 @@ func HandshakeConCPU(w http.ResponseWriter, r *http.Request) {
 
 	pcb := global.NuevoPCB()
 
-	respuesta := map[string]int{
-		"pid": pcb.PID,
-		"pc":  pcb.PC,
+	respuesta := RespuestaHandshake{
+		PID: pcb.PID,
+		PC:  pcb.PC,
 	}
 
 	w.Header().Set("Content-Type", "application/json")

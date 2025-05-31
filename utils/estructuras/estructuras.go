@@ -76,3 +76,8 @@ type HandshakeConCPU struct {
 type SolicitudDump struct {
 	PID int `json:"pid"`
 }
+
+type RespuestaHandshake struct {
+	PID int `json:"pid"`
+	PC  int `json:"pc"`
+}
