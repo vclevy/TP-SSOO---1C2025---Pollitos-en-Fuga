@@ -18,7 +18,8 @@ type PaqueteMemoria = estructuras.PaqueteMemoria
 type PaqueteSolicitudInstruccion = estructuras.SolicitudInstruccion
 type PaqueteConfigMMU = estructuras.ConfiguracionMMU
 
-func RecibirProceso(w http.ResponseWriter, r *http.Request) {
+//el KERNEL manda un proceso para inicializar con la estrcutura de PaqueteMemoria
+func InicializarProceso(w http.ResponseWriter, r *http.Request) {
     if r.Method != http.MethodPost {
         http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
         return
@@ -35,7 +36,10 @@ func RecibirProceso(w http.ResponseWriter, r *http.Request) {
     archivoPseudocodigo := paquete.ArchivoPseudocodigo
 	
 	pidString := strconv.Itoa(pid)
-	
+
+
+	utilsMemoria.CrearTablaPaginas(pid, tamanio)
+	utilsMemoria.ReservarMarcos(pid, tamanio)
 	utilsMemoria.CargarProceso(pid, archivoPseudocodigo)
 	global.LoggerMemoria.Log("## "+ pidString +": <"+ pidString +"> - Proceso Creado - Tamaño: <"+strconv.Itoa(tamanio)+">", log.DEBUG)
 
@@ -43,7 +47,7 @@ func RecibirProceso(w http.ResponseWriter, r *http.Request) {
     fmt.Fprintf(w, "Paquete recibido correctamente para PID %d", paquete.PID)
 }
 
-
+//e KERNEL comprueba que haya espacio disponible en memoria antes de inicializar
 func VerificarEspacioDisponible(w http.ResponseWriter, r *http.Request) {
 	tamanioStr := r.URL.Query().Get("verificarEspacioDisponible") 
 	
@@ -53,7 +57,6 @@ func VerificarEspacioDisponible(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Tamaño de proceso inválido", http.StatusBadRequest)
 		return
 	}
-//arreglar nombres de funciones
 	// Verificamos si hay suficiente espacio en la memoria
 	espacioDisponible := utilsMemoria.HayLugar(tamanio)
 	if espacioDisponible {
@@ -69,6 +72,7 @@ func VerificarEspacioDisponible(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]bool{"espacioDisponible": espacioDisponible})
 }
 
+//la CPU pide una instruccion
 func DevolverInstruccion(w http.ResponseWriter, r *http.Request) {
 	
 	var paquete PaqueteSolicitudInstruccion
@@ -99,6 +103,7 @@ func DevolverInstruccion(w http.ResponseWriter, r *http.Request) {
 	global.LoggerMemoria.Log("## "+ pidString +": <"+ pidString +"> - Obtener instrucción: <"+ pcString +"> - Instrucción: <"+ instruccion +"> <...ARGS>", log.DEBUG)
 }
 
+//CPU lo pide
 func ArmarPaqueteConfigMMU(w http.ResponseWriter, r *http.Request) {
 	paquete := PaqueteConfigMMU {
 			Tamaño_página :global.ConfigMemoria.Page_Size,
@@ -113,6 +118,23 @@ func ArmarPaqueteConfigMMU(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func AccederTablaPaginas(w http.ResponseWriter, r *http.Request) {
+	//llega un PID y direccion logica
+	//hace la traduccion
+	//devuelve la direccion fisica 
+	//++ metricas de Acceso a TP
+}
 
+func AccederEspacioUsuario(w http.ResponseWriter, r *http.Request){
+	//ante un pedido de lectura, devolver el valor de esa posicion
+	//ante pedido de escrita escribir lo pedido
+	// PENSAR si conviene hacer una para write y otra para read
+	//en ambos casos edita las metricas
+}
 
+//KERNEL notifica a memoria que finalizo
+func finalizarProceso(w http.ResponseWriter, r *http.Request){
+	//libera su espacio en memoria y marcar como libres sus entradas en SWAP
+	//genera log con las metricas
 
+}

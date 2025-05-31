@@ -11,6 +11,9 @@ import (
 //[KERNEL] ➜ Cliente (conectado a) [MEMORIA]
 //[CPU]    ➜ Cliente (conectado a) [MEMORIA]
 
+var memoriaUsuario []byte
+var marcosLibres []bool
+
 func main() {
 	// configurar logger e inicializar config
 	global.InitGlobal()
@@ -24,9 +27,8 @@ func main() {
 		}
 		}()
 
-	// paqueteNuevo := paquetes.LeerConsola()	
-	// paquetes.GenerarYEnviarPaquete(paqueteNuevo, "127.0.0.1")
-	
+
+
 	
 
 	select{}
