@@ -292,10 +292,12 @@ func DUMP_MEMORY(w http.ResponseWriter, r *http.Request){
 	fmt.Fprintf(w, "Dump exitoso para PID %d", pid)
 }
 
+//APIs para conexion con cada instancia de CPU
+
 func FinalizarProceso(w http.ResponseWriter, r *http.Request){
 	//TODO: Recibe notificación de que un proceso terminó
 }
 
 func DevolverPCB(w http.ResponseWriter, r *http.Request){
-	//TODO: si querés interrumpir y recuperar el estado del proceso
+	//TODO: si querés interrumpir y recuperar el estado del proceso 
 }
