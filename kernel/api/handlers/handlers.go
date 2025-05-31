@@ -92,7 +92,7 @@ func INIT_PROC(w http.ResponseWriter, r *http.Request) {
 }
 
 
-func HandshakeConCPU(w http.ResponseWriter, r *http.Request) {
+func HandshakeConCPU(w http.ResponseWriter, r *http.Request) { //Solo conexion inicial
 	var nuevoHandshake estructuras.HandshakeConCPU
 	if r.Method != http.MethodPost {
 		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
@@ -114,16 +114,6 @@ func HandshakeConCPU(w http.ResponseWriter, r *http.Request) {
 	global.LoggerKernel.Log(fmt.Sprintf("Handshake recibido de CPU %s en %s:%s", nuevoHandshake.ID, nuevoHandshake.IP, strconv.Itoa(nuevoHandshake.Puerto)), log.DEBUG)
 
 	w.WriteHeader(http.StatusOK)
-
-	pcb := global.NuevoPCB()
-
-	respuesta := map[string]int{
-		"pid": pcb.PID,
-		"pc":  pcb.PC,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(respuesta)
 }
 
 func IO(w http.ResponseWriter, r *http.Request) {
