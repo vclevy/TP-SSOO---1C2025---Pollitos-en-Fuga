@@ -505,7 +505,7 @@ func EvaluarDesalojo(nuevo *Proceso) {
 
 func EnviarInterrupcion(pid int) error {
 	for _, cpu := range global.CPUsConectadas {
-		if cpu.ProcesoEjecutando != nil && cpu.ProcesoEjecutando.PCB.PID == pid {
+		if cpu.ProcesoEjecutando != nil && cpu.ProcesoEjecutando.PID == pid {
 			// Construimos URL del endpoint de interrupción, asumiendo puerto para interrupciones es cpu.Puerto
 			url := fmt.Sprintf("http://%s:%d/interrumpir?pid=%d", cpu.IP, cpu.Puerto, pid)
 

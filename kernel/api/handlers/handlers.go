@@ -175,88 +175,6 @@ func IO(w http.ResponseWriter, r *http.Request) {
 	primero.Mutex.Unlock()
 }
 
-// func manejarIOOcupado(io *global.IODevice, proceso *global.Proceso, tiempoUso int, w http.ResponseWriter) {
-// 	// Agregar a cola de espera
-// 	io.ColaEspera = append(io.ColaEspera, &global.ProcesoIO{
-// 		Proceso:   proceso,
-// 		TiempoUso: tiempoUso,
-// 	})
-
-// 	// Cambiar estado según si está en memoria o swap
-// 	if proceso.PCB.UltimoEstado == planificacion.SUSP_READY || proceso.PCB.UltimoEstado == planificacion.SUSP_BLOCKED {
-// 		planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.SUSP_BLOCKED)
-// 	} else {
-// 		planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.BLOCKED)
-// 		global.ColaBlocked = append(global.ColaBlocked, proceso)
-// 	}
-
-// 	w.WriteHeader(http.StatusAccepted)
-// 	fmt.Fprintf(w, "Proceso %d en cola para %s", proceso.PID, io.Nombre)
-// }
-
-
-// func manejarIOLibre(io *global.IODevice, proceso *global.Proceso, tiempoUso int, w http.ResponseWriter) {
-// 	// Asignar dispositivo
-// 	io.Ocupado = true
-// 	io.ProcesoEnUso = &global.ProcesoIO{
-// 		Proceso:   proceso,
-// 		TiempoUso: tiempoUso,
-// 	}
-
-// 	go func() {
-// 		time.Sleep(time.Duration(tiempoUso) * time.Millisecond)
-
-// 		io.Mutex.Lock()
-// 		defer io.Mutex.Unlock()
-
-// 		// Liberar dispositivo
-// 		io.Ocupado = false
-// 		io.ProcesoEnUso = nil
-
-// 		// Manejar cola de espera
-// 		if len(io.ColaEspera) > 0 {
-// 			siguiente := io.ColaEspera[0]
-// 			io.ColaEspera = io.ColaEspera[1:]
-// 			proxProceso := siguiente.Proceso
-
-// 			global.MutexSuspBlocked.Lock()
-// 			// Verificar si el proceso está suspendido
-// 			for i, p := range global.ColaSuspBlocked {
-// 				if p.PID == proxProceso.PID {
-// 					planificacion.ActualizarEstadoPCB(&p.PCB, planificacion.SUSP_READY)
-// 					global.MutexSuspReady.Lock()
-// 					global.ColaSuspReady = append(global.ColaSuspReady, p)
-// 					global.MutexSuspReady.Unlock()
-// 					global.ColaSuspBlocked = append(global.ColaSuspBlocked[:i], global.ColaSuspBlocked[i+1:]...)
-// 					return
-// 				}
-// 			}
-// 			global.MutexSuspBlocked.Unlock()
-
-// 			// Si no estaba suspendido, mover a READY
-// 			planificacion.ActualizarEstadoPCB(&proxProceso.PCB, planificacion.READY)
-// 			global.MutexReady.Lock()
-// 			global.ColaReady = append(global.ColaReady, proxProceso)
-// 			global.MutexReady.Unlock()
-
-
-// 			global.MutexBlocked.Lock()
-// 			// Remover de BLOCKED si estaba allí
-// 			for i, p := range global.ColaBlocked {
-// 				if p.PID == proxProceso.PID {
-// 					global.ColaBlocked = append(global.ColaBlocked[:i], global.ColaBlocked[i+1:]...)
-// 					break
-// 				}
-// 			}
-// 			global.MutexBlocked.Unlock()
-			
-// 		}
-// 	}()
-
-// 	w.WriteHeader(http.StatusOK)
-// 	fmt.Fprintf(w, "Proceso %d accediendo a %s por %d ms", proceso.PID, io.Nombre, tiempoUso)
-// }
-
 
 func BuscarProcesoPorPID(cola []*global.Proceso, pid int) (*global.Proceso) {
 	for i := range cola {
@@ -372,4 +290,12 @@ func DUMP_MEMORY(w http.ResponseWriter, r *http.Request){
 
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprintf(w, "Dump exitoso para PID %d", pid)
+}
+
+func FinalizarProceso(w http.ResponseWriter, r *http.Request){
+	//TODO: Recibe notificación de que un proceso terminó
+}
+
+func DevolverPCB(w http.ResponseWriter, r *http.Request){
+	//TODO: si querés interrumpir y recuperar el estado del proceso
 }

@@ -90,7 +90,7 @@ type CPU struct {
 	ID                string
 	Puerto            int
 	IP                string
-	ProcesoEjecutando *Proceso
+	ProcesoEjecutando *PCB
 }
 
 var CPUsConectadas []*CPU
