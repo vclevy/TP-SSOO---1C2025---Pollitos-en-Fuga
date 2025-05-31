@@ -1,4 +1,4 @@
-package handlers
+/* package handlers
 
 import (
 	"bytes"
@@ -11,4 +11,4 @@ import (
 	utilsIo "github.com/sisoputnfrba/tp-golang/cpu/utilsCpu"
 	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
 	"github.com/sisoputnfrba/tp-golang/utils/logger"
-)
+) */

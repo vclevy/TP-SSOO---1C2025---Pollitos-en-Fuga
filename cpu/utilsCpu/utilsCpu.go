@@ -17,9 +17,9 @@ var instruccionesConMMU = map[string]bool{
 	"WRITE":      true,
 	"READ":       true,
 }
-
+/* 
 var pidActual int
-var pcActual int
+var pcActual int */
 
 type Instruccion struct {
 	Opcode  string	`json:"opcode"`  // El tipo de operación (e.g. WRITE, READ, GOTO, etc.)
@@ -60,9 +60,15 @@ func HandshakeKernel() (*RespuestaHandshake, error) {
 	return &datosRespuesta, nil
 }
 
-func CicloDeInstruccion(){
-	string instruccion = Fetch(pid, pc)
-	Instruccion estructuraInstruccion = Decode(instruccion)
+func CicloDeInstruccion(pid int, pc int){
+	instruccion := Fetch(pid, pc)
+	if(instruccion == "FIN"){
+		//SOLICITAR NUEVA INSTRUCCIÓN KERNEL
+	}else{
+		estructuraInstruccion := Decode(instruccion)
+		Execute(estructuraInstruccion)
+		CheckInterrupt()
+	}
 	
 }
 
@@ -81,7 +87,7 @@ func Fetch(pid int, pc int) (string) {
 	jsonData, err := json.Marshal(solicitudInstruccion)
 	if err != nil {
 		global.LoggerCpu.Log("Error serializando solicitud: "+err.Error(), log.ERROR)
-		return
+		return ""
 	}
 
 	url := fmt.Sprintf("http://%s:%d/solicitudInstruccion", global.CpuConfig.Ip_Memoria, global.CpuConfig.Port_Memoria) //url a la que se va a conectar
@@ -89,7 +95,7 @@ func Fetch(pid int, pc int) (string) {
 	
 	if err != nil {
 		global.LoggerCpu.Log("Error enviando solicitud de instrucción a memoria: " + err.Error(), log.ERROR)
-		return
+		return ""
 	}
 	defer resp.Body.Close() //se cierra la conexión
 
@@ -102,23 +108,29 @@ func Fetch(pid int, pc int) (string) {
 	err = json.Unmarshal(body, &instruccionAEjecutar)
 	if err != nil {
 		global.LoggerCpu.Log("Error parseando instruccion de Memoria: "+err.Error(), log.ERROR)
-		return
+		return ""
+	}
+	if instruccionAEjecutar == "FIN"{
+		global.LoggerCpu.Log(fmt.Sprintf("PID %d: no hay más instrucciones, proceso finalizado.", pid), log.INFO)
+		return "FIN"
 	}
 
-	global.LoggeCpu.Log(fmt.Sprintf("Memoria respondió con la instrucción: %s", instruccionAEjecutar), log.INFO)
+	global.LoggerCpu.Log(fmt.Sprintf("Memoria respondió con la instrucción: %s", instruccionAEjecutar), log.INFO)
 
 	return instruccionAEjecutar
 }
 
-func Decode(instruccionAEjecutar string) (Instruccion){
+func Decode(instruccionAEjecutar string) Instruccion{
+	if len(instruccionPartida) == 0 {
+		global.LoggerCpu.Log("Instrucción vacía o malformada", log.ERROR)
+		return Instruccion{Opcode: "INVALIDA"}
+	}
+
 	instruccionPartida := strings.Fields(instruccionAEjecutar) //!!ver
 
-	opcode := instruccionPartida[0]
-	parametros := instruccionPartida[1:]
-
-	instruccion := Instruccion{
-		Opcode: opcode,
-		Parametros:  parametros,
+	return Instruccion{
+		Opcode: instruccionPartida[0],
+		Parametros:  instruccionPartida[1:],
 	}
 }
 
@@ -202,17 +214,11 @@ func TLB(nroPagina int){
  // ver si está la página
 }
 
-func ObtenerFrameDeMemoria(nroPagina int){
+func ObtenerFrameDeMemoria(nroPagina int){}
 
-}
+func ActualizarTLB(nroPagina int, marco int){}
 
-func ActualizarTLB(nroPagina int, marco int){
-
-}
-
-func CheckInterrupt(){
-	
-}
+func CheckInterrupt(){}
 
 func CacheDePaginas(direccionFisica int){
 	if(cacheHit){
