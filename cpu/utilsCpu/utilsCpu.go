@@ -21,6 +21,64 @@ var instruccionesConMMU = map[string]bool{
 var pidActual int
 var pcActual int
 
+func HandshakeKernel() (*RespuestaHandshake, error) {
+	datosEnvio := estructuras.HandshakeConCPU{
+		ID   : global.CpuID,
+		Puerto : global.CpuConfig.Port_Cpu,
+		IP : global.CpuConfig.Ip_Cpu,
+	}
+
+	jsonData, _ := json.Marshal(datosEnvio)
+	if err != nil {
+        return nil, fmt.Errorf("error codificando handshake: %w", err)
+    }
+	url := fmt.Sprintf("http://%s:%d/handshakeCPU", global.CpuConfig.Ip_Kernel, global.CpuConfig.Port_Kernel)
+
+	// opcion1 	
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(body))
+    if err != nil {
+        return nil, fmt.Errorf("error creando request HTTP: %w", err)
+    }
+    req.Header.Set("Content-Type", "application/json")
+	//
+
+	if resp.StatusCode != http.StatusOK {
+        return nil, fmt.Errorf("handshake fallido con status %d", resp.StatusCode)
+    }
+	global.LoggerCpu.Log("✅ Handshake enviado al Kernel con éxito", log.INFO)
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		global.LoggerCpu.Log("Error leyendo respuesta del Kernel: " + err.Error(), log.ERROR)
+		return
+	}
+
+
+	//opcion 1
+	var datosRespuesta map[string]int
+	err = json.Unmarshal(body, &datosRespuesta)
+	if err != nil {
+		global.LoggerCpu.Log("Error parseando respuesta del Kernel: " + err.Error(), log.ERROR)
+		return
+	}
+	//
+
+	//opcion 2
+/*     var respuesta RespuestaHandshake
+    if err := json.NewDecoder(resp.Body).Decode(&respuesta); err != nil {
+        return nil, fmt.Errorf("error decodificando respuesta: %w", err)
+    }
+
+    global.LoggerCpu.Log(fmt.Sprintf("Handshake exitoso. PID: %d - PC: %d", respuesta.PID, respuesta.PC), log.INFO)
+    return &respuesta, nil
+	 */
+	
+	pid := datosRespuesta["pid"]
+	pc := datosRespuesta["pc"]
+	
+	utilsIo.Fetch(pid,pc)
+}
+
 func Fetch(pid int, pc int) {
 	pidActual = pid
 	pcActual = pc
@@ -171,9 +229,10 @@ func ObtenerFrameDeMemoria(nroPagina int){
 func ActualizarTLB(nroPagina int, marco int){
 
 }
-	
 
-func CheckInterrupt(instruccion Instruccion){}
+func CheckInterrupt(){
+	
+}
 
 func CacheDePaginas(direccionFisica int){
 	if(cacheHit){
@@ -312,4 +371,6 @@ func Syscall_Exit(){
 TODO:
 ? implementar que las funciones reciban errores(?) func Decode(instruccion string) (string, error) 
 ? que es lo que hace arrancar el fetch? Por ahora es el handshake con kernel
+
+
 */

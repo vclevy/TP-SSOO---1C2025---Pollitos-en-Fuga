@@ -73,7 +73,6 @@ type HandshakeConCPU struct {
 	IP     string
 }
 
-
 type SolicitudDump struct {
 	PID int `json:"pid"`
 }
