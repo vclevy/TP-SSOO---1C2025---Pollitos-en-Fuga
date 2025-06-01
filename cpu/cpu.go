@@ -3,13 +3,15 @@ package main
 import (
 	"fmt"
 	"os"
-
 	"github.com/sisoputnfrba/tp-golang/cpu/api"
 	"github.com/sisoputnfrba/tp-golang/cpu/api/handlers"
 	"github.com/sisoputnfrba/tp-golang/cpu/global"
 	utilsIo "github.com/sisoputnfrba/tp-golang/cpu/utilsCpu"
 	log "github.com/sisoputnfrba/tp-golang/utils/logger"
 )
+
+var pidActual int
+var pcActual int
 
 func main() {
 	if len(os.Args) < 2 {
@@ -31,8 +33,30 @@ func main() {
 		}
 	}()
 
-	handlers.HandshakeKernel(nil, nil) 
+	PCB, err := utilsIo.HandshakeKernel()
+	if err != nil {
+		fmt.Println("Error en handshake con el Kernel:", err)
+		return
+	}
+
+	pidActual = PCB.Pid
+	pcActual = PCB.Pc
+	
 	utilsIo.ConfigMMU()
 	
+	instruccion := Fetch(pidActual, pcActual)
+	if(instruccion == "FIN"){
+		//SOLICITAR NUEVA INSTRUCCIÓN KERNEL
+	}else{
+		estructuraInstruccion := Decode(instruccion)
+		var opcode := Execute(estructuraInstruccion)
+		CheckInterrupt()
+		if(opcode != "GOTO"){
+			pcActual += 1
+		}
+	}
+	
 	select {}
+
+	
 }

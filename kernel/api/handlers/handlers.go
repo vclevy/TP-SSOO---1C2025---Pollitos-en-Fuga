@@ -112,6 +112,16 @@ func HandshakeConCPU(w http.ResponseWriter, r *http.Request) { //Solo conexion i
 	global.LoggerKernel.Log(fmt.Sprintf("Handshake recibido de CPU %s en %s:%s", nuevoHandshake.ID, nuevoHandshake.IP, strconv.Itoa(nuevoHandshake.Puerto)), log.DEBUG)
 
 	w.WriteHeader(http.StatusOK)
+
+	pcb := global.NuevoPCB()
+
+	respuesta := RespuestaHandshake{
+		PID: pcb.PID,
+		PC:  pcb.PC,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(respuesta)
 }
 
 func IO(w http.ResponseWriter, r *http.Request) {
@@ -182,17 +192,22 @@ func BuscarProcesoPorPID(cola []*global.Proceso, pid int) (*global.Proceso) {
 }
 
 
-func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
-	host, portStr, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		http.Error(w, "Error al parsear dirección remota", http.StatusBadRequest)
-		return
-	}
-	port, err := strconv.Atoi(portStr)
-	if err != nil {
-		http.Error(w, "Puerto inválido", http.StatusBadRequest)
-		return
-	}
+//! Falta esto creo @valenchu: Al momento que se conecte una nueva IO o se reciba el desbloqueo por medio de una de ellas, se deberá verificar si hay proceso encolados para dicha IO y enviarlo a la misma. 
+
+func FinalizacionIO(w http.ResponseWriter, r *http.Request){
+
+	// Extraer IP y puerto del remitente
+    host, portStr, err := net.SplitHostPort(r.RemoteAddr)
+    if err != nil {
+        http.Error(w, "Error al parsear dirección remota", http.StatusBadRequest)
+        return
+    }
+    
+    port, err := strconv.Atoi(portStr)
+    if err != nil {
+        http.Error(w, "Puerto inválido", http.StatusBadRequest)
+        return
+    }
 
 	dispositivo, err := utilsKernel.BuscarDispositivo(host, port)
 	if err != nil {
