@@ -41,7 +41,7 @@ func HandshakeConKernel(paquete PaqueteHandshakeIO) error {
 }
 
 func IniciarIo(solicitud estructuras.TareaDeIo) {
-	// Log de inicio de E/S
+
 	global.LoggerIo.Log(fmt.Sprintf("## PID: %d - Inicio de IO - Tiempo: %dms", solicitud.PID, solicitud.TiempoEstimado), log.INFO)
 
 	// Simulación del proceso de E/S con sleep
@@ -79,6 +79,7 @@ func InformarFinalizacionDeIO(pid int) {
 
 	global.LoggerIo.Log(fmt.Sprintf("PID %d - Finalización de IO notificada al Kernel", pid), log.INFO)
 }
+
 func NotificarDesconexion(info PaqueteHandshakeIO) error {
 	url := fmt.Sprintf("http://%s:%d/finalizacionIO", global.IoConfig.IPKernel, global.IoConfig.Port_Kernel)
 

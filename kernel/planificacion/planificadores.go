@@ -170,7 +170,6 @@ func IniciarPlanificadorLargoPlazo() {
 					p := global.ColaExit[0]
 					global.ColaExit = global.ColaExit[1:]
 					global.MutexExit.Unlock()
-
 					FinalizarProceso(p)
 				} else {
 					global.MutexExit.Unlock()
@@ -336,21 +335,15 @@ func ManejarDevolucionDeCPU(pid int, nuevoPC int, motivo string, rafagaReal floa
 func IniciarPlanificadorMedioPlazo() {
 	go func() {
 		for {
-			// Revisar procesos en BLOCKED para suspender
+			// Recolectar procesos a suspender
 			global.MutexBlocked.Lock()
 			var nuevaColaBlocked []*global.Proceso
+			var procesosASuspender []*global.Proceso
 
 			for _, proceso := range global.ColaBlocked {
 				tiempoBloqueado := time.Since(proceso.PCB.InicioEstado)
 				if tiempoBloqueado > time.Duration(global.ConfigKernel.SuspensionTime)*time.Millisecond {
-					global.MutexBlocked.Unlock()
-					suspenderProceso(proceso) // este mueve a SUSP.BLOCKED y notifica a memoria
-					global.MutexBlocked.Lock()
-					select {
-					case global.NotifySuspReady <- struct{}{}:
-					default:
-					}
-
+					procesosASuspender = append(procesosASuspender, proceso)
 				} else {
 					nuevaColaBlocked = append(nuevaColaBlocked, proceso)
 				}
@@ -358,19 +351,15 @@ func IniciarPlanificadorMedioPlazo() {
 			global.ColaBlocked = nuevaColaBlocked
 			global.MutexBlocked.Unlock()
 
-			// Intentar cargar procesos desde SUSP. READY (con prioridad sobre NEW)
-			global.MutexSuspReady.Lock()
-			haySusp := len(global.ColaSuspReady) > 0
-			global.MutexSuspReady.Unlock()
+			// Suspender fuera del lock
+			for _, p := range procesosASuspender {
+				suspenderProceso(p)
 
-			if haySusp {
-				IntentarCargarDesdeSuspReady()
-			} else {
+				// Notificar al planificador largo plazo para intentar cargar desde SuspReady
 				select {
-				case global.NotifyNew <- struct{}{}:
+				case global.NotifySuspReady <- struct{}{}:
 				default:
 				}
-
 			}
 
 			time.Sleep(100 * time.Millisecond)
@@ -397,6 +386,7 @@ func IntentarCargarDesdeSuspReady() bool {
 				nuevaCola = append(nuevaCola, proceso)
 				continue
 			}
+
 			global.AgregarAReady(proceso)
 			ActualizarEstadoPCB(&proceso.PCB, READY)
 			cambio = true
@@ -416,9 +406,6 @@ func FinalizarProceso(p *Proceso) {
 		global.LoggerKernel.Log(fmt.Sprintf("Error al informar finalización del proceso %d a Memoria: %s", p.PID, err.Error()), log.ERROR)
 	}
 
-	LoguearMetricas(p)
-	liberarPCB(p)
-
 	global.MutexExecuting.Lock()
 	global.EliminarProcesoDeCola(&global.ColaExecuting, p.PID)
 	global.MutexExecuting.Unlock()
@@ -427,10 +414,16 @@ func FinalizarProceso(p *Proceso) {
 	global.AgregarAExit(p)
 	global.MutexExit.Unlock()
 
-	// Notificar al planificador que puede intentar cargar más procesos
-	select {
-	case global.NotifyNew <- struct{}{}:
-	default:
+	liberarPCB(p)
+	LoguearMetricas(p)
+
+	// Intentar cargar desde SuspReady primero
+	if !IntentarCargarDesdeSuspReady() {
+		// Si no había ninguno para mover desde SuspReady, notificar NEW
+		select {
+		case global.NotifyNew <- struct{}{}:
+		default:
+		}
 	}
 }
 
@@ -525,16 +518,13 @@ func RecalcularRafaga(proceso *Proceso, rafagaReal float64) {
 }
 
 func suspenderProceso(proceso *global.Proceso) {
-	ActualizarEstadoPCB(&proceso.PCB, SUSP_BLOCKED)
-
 	if err := utilskernel.MoverASwap(proceso.PID); err != nil {
 		global.LoggerKernel.Log(fmt.Sprintf("Error moviendo proceso %d a swap: %v", proceso.PID, err), log.ERROR)
 		return
 	}
 
+	ActualizarEstadoPCB(&proceso.PCB, SUSP_BLOCKED)
 	global.AgregarASuspBlocked(proceso)
-
-	global.LoggerKernel.Log(fmt.Sprintf("Proceso %d movido a SUSP_BLOCKED", proceso.PID), log.INFO)
 }
 
 func EstimacionRestante(p *Proceso) float64 {
