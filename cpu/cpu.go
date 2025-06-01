@@ -43,7 +43,18 @@ func main() {
 	pcActual = PCB.Pc
 	
 	utilsIo.ConfigMMU()
-	utilsIo.CicloDeInstruccion(pidActual,pcActual)
+	
+	instruccion := Fetch(pidActual, pcActual)
+	if(instruccion == "FIN"){
+		//SOLICITAR NUEVA INSTRUCCIÓN KERNEL
+	}else{
+		estructuraInstruccion := Decode(instruccion)
+		var opcode := Execute(estructuraInstruccion)
+		CheckInterrupt()
+		if(opcode != "GOTO"){
+			pcActual += 1
+		}
+	}
 	
 	select {}
 
