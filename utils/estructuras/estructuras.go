@@ -77,7 +77,7 @@ type SolicitudDump struct {
 	PID int `json:"pid"`
 }
 
-type RespuestaHandshake struct {
+type PCB struct {
 	PID int `json:"pid"`
 	PC  int `json:"pc"`
 }

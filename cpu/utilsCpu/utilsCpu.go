@@ -26,7 +26,7 @@ type Instruccion struct {
 	Parametros []string `json:"parametros"` // Los parámetros de la instrucción, de tipo variable
 }
 
-func HandshakeKernel() (*RespuestaHandshake, error) {
+func HandshakeKernel() error {
 	datosEnvio := estructuras.HandshakeConCPU{
 		ID   : global.CpuID,
 		Puerto : global.CpuConfig.Port_Cpu,
@@ -35,55 +35,57 @@ func HandshakeKernel() (*RespuestaHandshake, error) {
 
 	jsonData, err := json.Marshal(datosEnvio)
 	if err != nil {
-        return nil, fmt.Errorf("error codificando handshake: %w", err)
+        return fmt.Errorf("error codificando handshake: %w", err)
     }
 	url := fmt.Sprintf("http://%s:%d/handshakeCPU", global.CpuConfig.Ip_Kernel, global.CpuConfig.Port_Kernel)
 
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
 		global.LoggerCpu.Log("Error enviando handshake al Kernel: "+err.Error(), log.ERROR)
-		return nil, err
+		return err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("handshake fallido con status %d", resp.StatusCode)
+		return fmt.Errorf("handshake fallido con status %d", resp.StatusCode)
 	}
 	global.LoggerCpu.Log("✅ Handshake enviado al Kernel con éxito", log.INFO)
- 
-	var datosRespuesta estructuras.RespuestaHandshake
-	if err := json.NewDecoder(resp.Body).Decode(&datosRespuesta); err != nil {
-		global.LoggerCpu.Log("Error parseando respuesta del Kernel: "+err.Error(), log.ERROR)
-		return nil, err
-	}
 
-	return &datosRespuesta, nil
+	return nil
 }
 
-func CicloDeInstruccion(pid int, pc int){
-	instruccion := Fetch(pid, pc)
-	if(instruccion == "FIN"){
-		//SOLICITAR NUEVA INSTRUCCIÓN KERNEL
-	}else{
-		estructuraInstruccion := Decode(instruccion)
-		Execute(estructuraInstruccion)
-		CheckInterrupt()
+func proximoPCB() (estructuras.PCB){
+	jsonData, err := json.Marshal(solicitudPCB)
+	if err != nil {
+		global.LoggerCpu.Log("Error serializando solicitud: "+err.Error(), log.ERROR)
+		return ""
 	}
+
+	url := fmt.Sprintf("http://%s:%d/solicitudInstruccion", global.CpuConfig.Ip_Kernel, global.CpuConfig.Port_Kernel) //url a la que se va a conectar
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData)) //se abre la conexión
 	
+	if err != nil {
+		global.LoggerCpu.Log("Error enviando solicitud de PCB a Kernel: " + err.Error(), log.ERROR)
+		return ""
+	}
+	defer resp.Body.Close() //se cierra la conexión
+
+	global.LoggerCpu.Log("✅ Solicitud enviada a Kernel de forma exitosa", log.INFO)
+
+	//respuesta
+	body, _ := io.ReadAll(resp.Body)
+
+	var PCB estructuras.PCB
+	err = json.Unmarshal(body, &PCB)
+	if err != nil {
+		global.LoggerCpu.Log("Error parseando PCB de Kernel: "+err.Error(), log.ERROR)
+		return ""
+	}
+
+	return PCB
 }
 
-func Fetch(pid int, pc int) (string) {
-	pidActual = pid
-	pcActual = pc
-		
-	global.LoggerCpu.Log(fmt.Sprintf(" ## PID: %d - FETCH - Program Counter: %d", pidActual, pcActual), log.INFO)
-	
-	solicitudInstruccion := estructuras.SolicitudInstruccion{
-		Pid: pid,
-		Pc:  pc,
-	}
-
-	//petición
+func proximaInstruccion() string{
 	jsonData, err := json.Marshal(solicitudInstruccion)
 	if err != nil {
 		global.LoggerCpu.Log("Error serializando solicitud: "+err.Error(), log.ERROR)
@@ -114,27 +116,51 @@ func Fetch(pid int, pc int) (string) {
 		global.LoggerCpu.Log(fmt.Sprintf("PID %d: no hay más instrucciones, proceso finalizado.", pid), log.INFO)
 		return "FIN"
 	}
+	return instruccionAEjecutar
+}
+
+func Fetch() string {
+	var PCB := proximoPCB()
+
+	pidActual = PCB.pid
+	pcActual = PCB.pc
+		
+	global.LoggerCpu.Log(fmt.Sprintf(" ## PID: %d - FETCH - Program Counter: %d", pidActual, pcActual), log.INFO)
+	
+	solicitudInstruccion := estructuras.SolicitudInstruccion{
+		Pid: pidActual,
+		Pc:  pcActual,
+	}
+
+	//petición
+	var instruccionAEjecutar := proximaInstruccion()
 
 	global.LoggerCpu.Log(fmt.Sprintf("Memoria respondió con la instrucción: %s", instruccionAEjecutar), log.INFO)
 
 	return instruccionAEjecutar
 }
 
-func Decode(instruccionAEjecutar string) Instruccion{
+func Decode(instruccionAEjecutar string) (Instruccion, bool){
 	if len(instruccionPartida) == 0 {
 		global.LoggerCpu.Log("Instrucción vacía o malformada", log.ERROR)
-		return Instruccion{Opcode: "INVALIDA"}
+		
+		var instruccion Instruccion {Opcode: "INVALIDA"}
+		return instruccion, FALSE
 	}
 
 	instruccionPartida := strings.Fields(instruccionAEjecutar) //!!ver
 
-	return Instruccion{
+	var instruccion Instruccion{
 		Opcode: instruccionPartida[0],
 		Parametros:  instruccionPartida[1:],
 	}
+
+	_, requiereMMU := instruccionesConMMU[instruccion.Opcode]
+
+	return instruccion, requiereMMU
 }
 
-func Execute(instruccion Instruccion){
+func Execute(instruccion Instruccion, requiereMMU bool)(string){
 	global.LoggerCpu.Log(fmt.Sprintf("## PID: %d - Ejecutando: %s - %s", pidActual, instruccion.Opcode , instruccion.Parametros), log.INFO)
   	
 	//todo INSTRUCCIONES MMU
@@ -143,7 +169,7 @@ func Execute(instruccion Instruccion){
 	READ 0 20 // READ (Dirección, Tamaño)
 	*/
 
-	if _, requiereMMU := instruccionesConMMU[instruccion.Opcode]; requiereMMU {
+	if requiereMMU {
 		direccionLogicaStr := instruccion.Parametros[0]
 		direccionLogica, err := strconv.Atoi(direccionLogicaStr)
 		if err != nil {
@@ -357,6 +383,6 @@ func Syscall_Exit(){
 TODO:
 ? implementar que las funciones reciban errores(?) func Decode(instruccion string) (string, error) 
 ? que es lo que hace arrancar el fetch? Por ahora es el handshake con kernel
-
+solicitar a memoria utilizando solo el PC, query params
 
 */
