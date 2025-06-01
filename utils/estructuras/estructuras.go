@@ -48,32 +48,27 @@ type Syscall_Init_Proc struct {
 	ArchivoInstrucciones string `json:"archivoInstrucciones"`
 	Tamanio              int    `json:"tamanio"`
 }
-
 type TareaDeIo struct {
 	PID            int `json:"pid"`
 	TiempoEstimado int `json:"tiempo_estimado"`
 }
-
 type FinDeIO struct {
 	Tipo string `json:"tipo"`
 }
-
 type HandshakeConCPU struct {
 	ID     string
 	Puerto int
 	IP     string
 }
-
 type SolicitudDump struct {
 	PID int `json:"pid"`
 }
-
 type RespuestaCPU struct {
 	PID        int     `json:"pid"`
 	PC         int     `json:"pc"`
 	Motivo     string  `json:"motivo"`
 	RafagaReal float64 `json:"rafagaReal"`
- 
+}
 type PCB struct {
 	PID int `json:"pid"`
 	PC  int `json:"pc"`

@@ -7,7 +7,6 @@ import (
 	"net"
 	"net/http"
 	"strconv"
-	//"time"
 
 	"github.com/sisoputnfrba/tp-golang/kernel/global"
 	planificacion "github.com/sisoputnfrba/tp-golang/kernel/planificacion"
@@ -23,12 +22,6 @@ type SyscallIO = estructuras.Syscall_IO
 type FinDeIO = estructuras.FinDeIO
 type Syscall_Init_Proc = estructuras.Syscall_Init_Proc
 
-type Respuesta struct {
-	Status         string `json:"status"`
-	Detalle        string `json:"detalle"`
-	PID            int    `json:"pid"`
-	TiempoEstimado int    `json:"tiempo_estimado"`
-}
 
 func RecibirPaquete(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -86,7 +79,7 @@ func INIT_PROC(w http.ResponseWriter, r *http.Request) {
 	procesoCreado := planificacion.CrearProceso(syscall.Tamanio, syscall.ArchivoInstrucciones)
 
     global.LoggerKernel.Log(fmt.Sprintf("Proceso creado: %+v", procesoCreado), log.DEBUG)
-	global.AgregarANew(procesoCreado)
+	//el log ya lo hace crearProceso
 }
 
 
@@ -115,7 +108,7 @@ func HandshakeConCPU(w http.ResponseWriter, r *http.Request) { //Solo conexion i
 
 	pcb := global.NuevoPCB()
 
-	respuesta := RespuestaHandshake{
+	respuesta := global.PCB{
 		PID: pcb.PID,
 		PC:  pcb.PC,
 	}
@@ -138,7 +131,7 @@ func IO(w http.ResponseWriter, r *http.Request) {
 	dispositivos := utilsKernel.ObtenerDispositivoIO(nombre)
 	global.IOListMutex.RUnlock()
 
-	proceso := BuscarProcesoPorPID(global.ColaExecuting, pid)
+	proceso := utilsKernel.BuscarProcesoPorPID(global.ColaExecuting, pid)
 	if proceso == nil {
 		http.Error(w, "No se pudo obtener el proceso actual", http.StatusInternalServerError)
 		return
@@ -180,17 +173,6 @@ func IO(w http.ResponseWriter, r *http.Request) {
 	primero.ColaEspera = append(primero.ColaEspera, procesoEncolado)
 	primero.Mutex.Unlock()
 }
-
-
-func BuscarProcesoPorPID(cola []*global.Proceso, pid int) (*global.Proceso) {
-	for i := range cola {
-		if cola[i].PCB.PID == pid {
-			return cola[i]
-		}
-	}
-	return nil
-}
-
 
 //! Falta esto creo @valenchu: Al momento que se conecte una nueva IO o se reciba el desbloqueo por medio de una de ellas, se deberá verificar si hay proceso encolados para dicha IO y enviarlo a la misma. 
 
@@ -258,38 +240,39 @@ func EXIT(w http.ResponseWriter, r *http.Request){
 	pidStr := r.URL.Query().Get("pid")
 
 	PID,_ := strconv.Atoi(pidStr)
-	proceso := BuscarProcesoPorPID(global.ColaExecuting, PID)
+	proceso := utilsKernel.BuscarProcesoPorPID(global.ColaExecuting, PID) //! está en exec necesariamente??
 
 	if proceso == nil {
 		http.Error(w, "Proceso no encontrado", http.StatusNotFound)
 		return
 	}
 	planificacion.FinalizarProceso(proceso)
-	//* En finalizarProceso se actualiza el pcb y se mueve a la cola correspondiente
 }
 
-
-func DUMP_MEMORY(w http.ResponseWriter, r *http.Request){
+func DUMP_MEMORY(w http.ResponseWriter, r *http.Request) {
 	pidStr := r.URL.Query().Get("pid")
-	pid,_ := strconv.Atoi(pidStr)
+	pid, _ := strconv.Atoi(pidStr)
 
-	proceso := BuscarProcesoPorPID(global.ColaExecuting,pid)
-	
+	proceso := utilsKernel.BuscarProcesoPorPID(global.ColaExecuting, pid)
+
 	planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.BLOCKED)
-
 	global.AgregarABlocked(proceso)
 
+	// 2. Enviar solicitud a memoria
 	err := utilsKernel.SolicitarDumpAMemoria(pid)
 	if err != nil {
 		global.LoggerKernel.Log(fmt.Sprintf("Error en dump de memoria para PID %d: %s", pid, err.Error()), log.ERROR)
-		global.AgregarAExit(proceso)
-		planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.EXIT)
+
+		// Eliminar de BLOCKED (ya que no saldrá por vía normal)
+		global.EliminarProcesoDeCola(&global.ColaBlocked, pid)
 		planificacion.FinalizarProceso(proceso)
+
 		http.Error(w, "Fallo en Dump, proceso finalizado", http.StatusInternalServerError)
 		return
 	}
 
-	// Si todo va bien, pasa a READY
+	// 3. Si el dump fue exitoso, desbloquear
+	global.EliminarProcesoDeCola(&global.ColaBlocked, pid)
 	planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.READY)
 	global.AgregarAReady(proceso)
 
@@ -297,7 +280,8 @@ func DUMP_MEMORY(w http.ResponseWriter, r *http.Request){
 	fmt.Fprintf(w, "Dump exitoso para PID %d", pid)
 }
 
-//APIs para conexion con cada instancia de CPU
+//APIs para conexion con cada instancia de CPU 
+// *@DELFI para q son estas??
 
 func FinalizarProceso(w http.ResponseWriter, r *http.Request){
 	//TODO: Recibe notificación de que un proceso terminó

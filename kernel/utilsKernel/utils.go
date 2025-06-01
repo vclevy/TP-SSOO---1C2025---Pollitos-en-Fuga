@@ -247,3 +247,12 @@ func InformarFinAMemoria(pid int) error {
 	}
 	return nil
 }
+
+func BuscarProcesoPorPID(cola []*global.Proceso, pid int) (*global.Proceso) {
+	for i := range cola {
+		if cola[i].PCB.PID == pid {
+			return cola[i]
+		}
+	}
+	return nil
+}
