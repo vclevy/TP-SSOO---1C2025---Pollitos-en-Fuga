@@ -30,7 +30,6 @@ type Proceso struct {
     TiempoEjecutado   float64  // nuevo: cuánto tiempo corrió en CPU
 }
 
-
 func NuevoPCB() *PCB {
 	pid := UltimoPID
 	UltimoPID++
@@ -42,7 +41,6 @@ func NuevoPCB() *PCB {
 		MT:  make(map[string]int),
 	}
 }
-
 type Config struct {
 	IPMemory              string  `json:"ip_memory"`
 	Port_Memory           int     `json:"port_memory"`
@@ -86,15 +84,6 @@ var MutexExecuting sync.Mutex
 var MutexBlocked sync.Mutex
 var MutexSuspBlocked sync.Mutex
 var MutexExit sync.Mutex
-
-func EliminarProcesoDeCola(cola *[]*Proceso, pid int) {
-	for i, p := range *cola {
-		if p.PID == pid {
-			*cola = append((*cola)[:i], (*cola)[i+1:]...)
-			return
-		}
-	}
-}
 
 var (
     NotifySuspReady = make(chan struct{}, 1)
@@ -162,9 +151,7 @@ func AgregarAExit(p *Proceso) {
 	MutexExit.Unlock()
 }
 
-
 // CPU
-
 type CPU struct {
 	ID                string
 	Puerto            int
@@ -173,20 +160,17 @@ type CPU struct {
 }
 
 var CPUsConectadas []*CPU
+var MutexCPUs sync.Mutex
 
 //IO
 
 var IOListMutex sync.RWMutex
-
 type IOData = estructuras.IOData
-
 var IOConectados []*IODevice
-
 type ProcesoIO struct {
 	Proceso   *Proceso
 	TiempoUso int
 }
-
 type IODevice struct {
 	Nombre       string
 	IP           string
@@ -197,3 +181,11 @@ type IODevice struct {
 	Mutex        sync.Mutex
 }
 
+func EliminarProcesoDeCola(cola *[]*Proceso, pid int) {
+	for i, p := range *cola {
+		if p.PID == pid {
+			*cola = append((*cola)[:i], (*cola)[i+1:]...)
+			return
+		}
+	}
+}
