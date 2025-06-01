@@ -21,12 +21,15 @@ type PCB struct {
 	UltimoEstado string
 	InicioEstado time.Time
 }
+
 type Proceso struct {
-	PCB
-	MemoriaRequerida int
-	ArchivoPseudo    string
-	EstimacionRafaga float64
+    PCB
+    MemoriaRequerida  int
+    ArchivoPseudo     string
+    EstimacionRafaga  float64
+    TiempoEjecutado   float64  // nuevo: cuánto tiempo corrió en CPU
 }
+
 
 func NuevoPCB() *PCB {
 	pid := UltimoPID
@@ -84,6 +87,82 @@ var MutexBlocked sync.Mutex
 var MutexSuspBlocked sync.Mutex
 var MutexExit sync.Mutex
 
+func EliminarProcesoDeCola(cola *[]*Proceso, pid int) {
+	for i, p := range *cola {
+		if p.PID == pid {
+			*cola = append((*cola)[:i], (*cola)[i+1:]...)
+			return
+		}
+	}
+}
+
+var (
+    NotifySuspReady = make(chan struct{}, 1)
+    NotifyNew       = make(chan struct{}, 1)
+)
+
+func AgregarASuspReady(p *Proceso) {
+    MutexSuspReady.Lock()
+    ColaSuspReady = append(ColaSuspReady, p)
+    MutexSuspReady.Unlock()
+
+    // Avisar al planificador que hay un proceso en SuspReady
+    select {
+    case NotifySuspReady <- struct{}{}:
+    default: // si ya había señal pendiente, no bloquear
+    }
+}
+
+func AgregarANew(p *Proceso) {
+	MutexNew.Lock()
+	ColaNew = append(ColaNew, p)
+	MutexNew.Unlock()
+
+	// Avisar al planificador que hay un proceso en New
+	select {
+	case NotifyNew <- struct{}{}:
+	default: // si ya había señal pendiente, no bloquear
+	}
+}
+
+var NotifyReady = make(chan struct{}, 1)
+
+func AgregarAReady(p *Proceso) {
+	MutexReady.Lock()
+	ColaReady = append(ColaReady, p)
+	MutexReady.Unlock()
+
+	// Avisar al planificador que hay un proceso en Ready
+	select {
+	case NotifyReady <- struct{}{}:
+	default: // si ya había señal pendiente, no bloquear
+	}
+}
+
+func AgregarAExecuting(p *Proceso) {
+	MutexExecuting.Lock()
+	ColaExecuting = append(ColaExecuting, p)
+	MutexExecuting.Unlock()
+}
+func AgregarABlocked(p *Proceso) {
+	MutexBlocked.Lock()
+	ColaBlocked = append(ColaBlocked, p)
+	MutexBlocked.Unlock()
+}
+
+func AgregarASuspBlocked(p *Proceso) {
+	MutexSuspBlocked.Lock()
+	ColaSuspBlocked = append(ColaSuspBlocked, p)
+	MutexSuspBlocked.Unlock()
+}
+
+func AgregarAExit(p *Proceso) {
+	MutexExit.Lock()
+	ColaExit = append(ColaExit, p)
+	MutexExit.Unlock()
+}
+
+
 // CPU
 
 type CPU struct {
@@ -117,5 +196,4 @@ type IODevice struct {
 	ColaEspera   []*ProcesoIO 
 	Mutex        sync.Mutex
 }
-
 
