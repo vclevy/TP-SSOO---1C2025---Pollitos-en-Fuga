@@ -49,15 +49,6 @@ type Syscall_Init_Proc struct {
 	Tamanio              int    `json:"tamanio"`
 }
 
-/*CONSIGNA PARA LAS SYSCALLS (kernel)
-	Dentro de las syscalls que se pueden atender referidas a procesos, tendremos las instrucciones INIT_PROC y EXIT.
-INIT_PROC, esta syscall recibirá 2 parámetros de la CPU, el primero será el nombre del archivo de pseudocódigo que deberá ejecutar el proceso y el segundo parámetro es el tamaño del proceso en Memoria. El Kernel creará un nuevo PCB y lo dejará en estado NEW, esta syscall no implica cambio de estado, por lo que el proceso que llamó a esta syscall, inmediatamente volverá a ejecutar en la CPU.
-EXIT, esta syscall no recibirá parámetros y se encargará de finalizar el proceso que la invocó, siguiendo lo descrito anteriormente para Finalización de procesos.
-
-En este apartado solamente se tendrá la instrucción DUMP_MEMORY. Esta syscall le solicita a la memoria, junto al PID que lo solicitó, que haga un Dump del proceso.
-Esta syscall bloqueará al proceso que la invocó hasta que el módulo memoria confirme la finalización de la operación, en caso de error, el proceso se enviará a EXIT. Caso contrario, se desbloquea normalmente pasando a READY.
-*/
-
 type TareaDeIo struct {
 	PID            int `json:"pid"`
 	TiempoEstimado int `json:"tiempo_estimado"`
@@ -77,6 +68,12 @@ type SolicitudDump struct {
 	PID int `json:"pid"`
 }
 
+type RespuestaCPU struct {
+	PID        int     `json:"pid"`
+	PC         int     `json:"pc"`
+	Motivo     string  `json:"motivo"`
+	RafagaReal float64 `json:"rafagaReal"`
+ 
 type PCB struct {
 	PID int `json:"pid"`
 	PC  int `json:"pc"`

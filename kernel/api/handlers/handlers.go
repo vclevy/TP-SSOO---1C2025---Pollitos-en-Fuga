@@ -86,13 +86,11 @@ func INIT_PROC(w http.ResponseWriter, r *http.Request) {
 	procesoCreado := planificacion.CrearProceso(syscall.Tamanio, syscall.ArchivoInstrucciones)
 
     global.LoggerKernel.Log(fmt.Sprintf("Proceso creado: %+v", procesoCreado), log.DEBUG)
-	global.MutexNew.Lock()
-	global.ColaNew = append(global.ColaNew, procesoCreado)
-	global.MutexNew.Unlock()
+	global.AgregarANew(procesoCreado)
 }
 
 
-func HandshakeConCPU(w http.ResponseWriter, r *http.Request) {
+func HandshakeConCPU(w http.ResponseWriter, r *http.Request) { //Solo conexion inicial
 	var nuevoHandshake estructuras.HandshakeConCPU
 	if r.Method != http.MethodPost {
 		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
@@ -147,9 +145,7 @@ func IO(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(dispositivos) == 0 {
 		planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.EXIT)
-		global.MutexExit.Lock()
-		global.ColaExit = append(global.ColaExit, proceso)
-		global.MutexExit.Unlock()
+		global.AgregarAExit(proceso)
 		w.WriteHeader(http.StatusNotFound)
 		fmt.Fprintf(w, "Dispositivo %s no existe", nombre)
 		return
@@ -184,88 +180,6 @@ func IO(w http.ResponseWriter, r *http.Request) {
 	primero.ColaEspera = append(primero.ColaEspera, procesoEncolado)
 	primero.Mutex.Unlock()
 }
-
-// func manejarIOOcupado(io *global.IODevice, proceso *global.Proceso, tiempoUso int, w http.ResponseWriter) {
-// 	// Agregar a cola de espera
-// 	io.ColaEspera = append(io.ColaEspera, &global.ProcesoIO{
-// 		Proceso:   proceso,
-// 		TiempoUso: tiempoUso,
-// 	})
-
-// 	// Cambiar estado según si está en memoria o swap
-// 	if proceso.PCB.UltimoEstado == planificacion.SUSP_READY || proceso.PCB.UltimoEstado == planificacion.SUSP_BLOCKED {
-// 		planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.SUSP_BLOCKED)
-// 	} else {
-// 		planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.BLOCKED)
-// 		global.ColaBlocked = append(global.ColaBlocked, proceso)
-// 	}
-
-// 	w.WriteHeader(http.StatusAccepted)
-// 	fmt.Fprintf(w, "Proceso %d en cola para %s", proceso.PID, io.Nombre)
-// }
-
-
-// func manejarIOLibre(io *global.IODevice, proceso *global.Proceso, tiempoUso int, w http.ResponseWriter) {
-// 	// Asignar dispositivo
-// 	io.Ocupado = true
-// 	io.ProcesoEnUso = &global.ProcesoIO{
-// 		Proceso:   proceso,
-// 		TiempoUso: tiempoUso,
-// 	}
-
-// 	go func() {
-// 		time.Sleep(time.Duration(tiempoUso) * time.Millisecond)
-
-// 		io.Mutex.Lock()
-// 		defer io.Mutex.Unlock()
-
-// 		// Liberar dispositivo
-// 		io.Ocupado = false
-// 		io.ProcesoEnUso = nil
-
-// 		// Manejar cola de espera
-// 		if len(io.ColaEspera) > 0 {
-// 			siguiente := io.ColaEspera[0]
-// 			io.ColaEspera = io.ColaEspera[1:]
-// 			proxProceso := siguiente.Proceso
-
-// 			global.MutexSuspBlocked.Lock()
-// 			// Verificar si el proceso está suspendido
-// 			for i, p := range global.ColaSuspBlocked {
-// 				if p.PID == proxProceso.PID {
-// 					planificacion.ActualizarEstadoPCB(&p.PCB, planificacion.SUSP_READY)
-// 					global.MutexSuspReady.Lock()
-// 					global.ColaSuspReady = append(global.ColaSuspReady, p)
-// 					global.MutexSuspReady.Unlock()
-// 					global.ColaSuspBlocked = append(global.ColaSuspBlocked[:i], global.ColaSuspBlocked[i+1:]...)
-// 					return
-// 				}
-// 			}
-// 			global.MutexSuspBlocked.Unlock()
-
-// 			// Si no estaba suspendido, mover a READY
-// 			planificacion.ActualizarEstadoPCB(&proxProceso.PCB, planificacion.READY)
-// 			global.MutexReady.Lock()
-// 			global.ColaReady = append(global.ColaReady, proxProceso)
-// 			global.MutexReady.Unlock()
-
-
-// 			global.MutexBlocked.Lock()
-// 			// Remover de BLOCKED si estaba allí
-// 			for i, p := range global.ColaBlocked {
-// 				if p.PID == proxProceso.PID {
-// 					global.ColaBlocked = append(global.ColaBlocked[:i], global.ColaBlocked[i+1:]...)
-// 					break
-// 				}
-// 			}
-// 			global.MutexBlocked.Unlock()
-			
-// 		}
-// 	}()
-
-// 	w.WriteHeader(http.StatusOK)
-// 	fmt.Fprintf(w, "Proceso %d accediendo a %s por %d ms", proceso.PID, io.Nombre, tiempoUso)
-// }
 
 
 func BuscarProcesoPorPID(cola []*global.Proceso, pid int) (*global.Proceso) {
@@ -305,7 +219,7 @@ func FinalizacionIO(w http.ResponseWriter, r *http.Request){
 	if r.ContentLength == 0 {
 		proc := dispositivo.ProcesoEnUso.Proceso
 		global.MutexBlocked.Lock()
-		global.ColaBlocked = utilsKernel.FiltrarCola(global.ColaBlocked, proc)
+		global.EliminarProcesoDeCola(&global.ColaBlocked, proc.PID)
 		global.MutexBlocked.Unlock()
 		global.IOListMutex.Lock()
 		global.IOConectados = utilsKernel.FiltrarIODevice(global.IOConectados, dispositivo)
@@ -363,17 +277,13 @@ func DUMP_MEMORY(w http.ResponseWriter, r *http.Request){
 	
 	planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.BLOCKED)
 
-	global.MutexBlocked.Lock()
-	global.ColaBlocked = append(global.ColaBlocked, proceso)
-	global.MutexBlocked.Unlock()
+	global.AgregarABlocked(proceso)
 
 	err := utilsKernel.SolicitarDumpAMemoria(pid)
 	if err != nil {
 		global.LoggerKernel.Log(fmt.Sprintf("Error en dump de memoria para PID %d: %s", pid, err.Error()), log.ERROR)
+		global.AgregarAExit(proceso)
 		planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.EXIT)
-		global.MutexExit.Lock()
-		global.ColaExit = append(global.ColaExit, proceso)
-		global.MutexExit.Unlock()
 		planificacion.FinalizarProceso(proceso)
 		http.Error(w, "Fallo en Dump, proceso finalizado", http.StatusInternalServerError)
 		return
@@ -381,10 +291,18 @@ func DUMP_MEMORY(w http.ResponseWriter, r *http.Request){
 
 	// Si todo va bien, pasa a READY
 	planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.READY)
-	global.MutexReady.Lock()
-	global.ColaReady = append(global.ColaReady, proceso)
-	global.MutexReady.Unlock()
+	global.AgregarAReady(proceso)
 
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprintf(w, "Dump exitoso para PID %d", pid)
+}
+
+//APIs para conexion con cada instancia de CPU
+
+func FinalizarProceso(w http.ResponseWriter, r *http.Request){
+	//TODO: Recibe notificación de que un proceso terminó
+}
+
+func DevolverPCB(w http.ResponseWriter, r *http.Request){
+	//TODO: si querés interrumpir y recuperar el estado del proceso 
 }

@@ -24,8 +24,6 @@ func main() {
 	archivo := os.Args[1]
 	tamMemoriaString := os.Args[2]
 
-	
-
 	tamMemoria, err := strconv.Atoi(tamMemoriaString)
 	if err != nil {
 		panic(fmt.Sprintf("Tamaño de memoria inválido: %s", tamMemoriaString))
@@ -40,7 +38,6 @@ func main() {
 			global.LoggerKernel.Log("Error al iniciar el servidor: "+err_server.Error(), logger.ERROR)
 		}
 	}()
-
 
 	// 3. Iniciar la planificación de largo plazo (esperando que se libere)
 	planificacion.IniciarPlanificadorLargoPlazo()
