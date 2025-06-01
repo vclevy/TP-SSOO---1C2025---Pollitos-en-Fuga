@@ -86,9 +86,7 @@ func INIT_PROC(w http.ResponseWriter, r *http.Request) {
 	procesoCreado := planificacion.CrearProceso(syscall.Tamanio, syscall.ArchivoInstrucciones)
 
     global.LoggerKernel.Log(fmt.Sprintf("Proceso creado: %+v", procesoCreado), log.DEBUG)
-	global.MutexNew.Lock()
-	global.ColaNew = append(global.ColaNew, procesoCreado)
-	global.MutexNew.Unlock()
+	global.AgregarANew(procesoCreado)
 }
 
 
@@ -137,9 +135,7 @@ func IO(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(dispositivos) == 0 {
 		planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.EXIT)
-		global.MutexExit.Lock()
-		global.ColaExit = append(global.ColaExit, proceso)
-		global.MutexExit.Unlock()
+		global.AgregarAExit(proceso)
 		w.WriteHeader(http.StatusNotFound)
 		fmt.Fprintf(w, "Dispositivo %s no existe", nombre)
 		return
@@ -208,7 +204,7 @@ func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
 	if r.ContentLength == 0 {
 		proc := dispositivo.ProcesoEnUso.Proceso
 		global.MutexBlocked.Lock()
-		global.ColaBlocked = utilsKernel.FiltrarCola(global.ColaBlocked, proc)
+		global.EliminarProcesoDeCola(&global.ColaBlocked, proc.PID)
 		global.MutexBlocked.Unlock()
 		global.IOListMutex.Lock()
 		global.IOConectados = utilsKernel.FiltrarIODevice(global.IOConectados, dispositivo)
@@ -266,17 +262,13 @@ func DUMP_MEMORY(w http.ResponseWriter, r *http.Request){
 	
 	planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.BLOCKED)
 
-	global.MutexBlocked.Lock()
-	global.ColaBlocked = append(global.ColaBlocked, proceso)
-	global.MutexBlocked.Unlock()
+	global.AgregarABlocked(proceso)
 
 	err := utilsKernel.SolicitarDumpAMemoria(pid)
 	if err != nil {
 		global.LoggerKernel.Log(fmt.Sprintf("Error en dump de memoria para PID %d: %s", pid, err.Error()), log.ERROR)
+		global.AgregarAExit(proceso)
 		planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.EXIT)
-		global.MutexExit.Lock()
-		global.ColaExit = append(global.ColaExit, proceso)
-		global.MutexExit.Unlock()
 		planificacion.FinalizarProceso(proceso)
 		http.Error(w, "Fallo en Dump, proceso finalizado", http.StatusInternalServerError)
 		return
@@ -284,9 +276,7 @@ func DUMP_MEMORY(w http.ResponseWriter, r *http.Request){
 
 	// Si todo va bien, pasa a READY
 	planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.READY)
-	global.MutexReady.Lock()
-	global.ColaReady = append(global.ColaReady, proceso)
-	global.MutexReady.Unlock()
+	global.AgregarAReady(proceso)
 
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprintf(w, "Dump exitoso para PID %d", pid)

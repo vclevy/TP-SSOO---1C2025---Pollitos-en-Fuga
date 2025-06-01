@@ -2,11 +2,11 @@ package planificacion
 
 import (
 	"fmt"
-	"sort"
-	"time"
 	"github.com/sisoputnfrba/tp-golang/kernel/global"
 	utilskernel "github.com/sisoputnfrba/tp-golang/kernel/utilsKernel"
 	log "github.com/sisoputnfrba/tp-golang/utils/logger"
+	"sort"
+	"time"
 	//estructuras "github.com/sisoputnfrba/tp-golang/utils/estructuras"
 )
 
@@ -171,7 +171,7 @@ func IniciarPlanificadorLargoPlazo() {
 					global.ColaExit = global.ColaExit[1:]
 					global.MutexExit.Unlock()
 
-					FinalizarProceso(p) 
+					FinalizarProceso(p)
 				} else {
 					global.MutexExit.Unlock()
 				}
@@ -183,7 +183,7 @@ func IniciarPlanificadorLargoPlazo() {
 func IniciarPlanificadorCortoPlazo() {
 	go func() {
 		for {
-			<-global.NotifyReady 
+			<-global.NotifyReady
 
 			for {
 				if !utilskernel.HayCPUDisponible() && global.ConfigKernel.SchedulerAlgorithm != "SRTF" {
@@ -306,7 +306,7 @@ func ManejarDevolucionDeCPU(pid int, nuevoPC int, motivo string, rafagaReal floa
 	global.MutexExecuting.Unlock()
 
 	if proceso == nil {
-		return 
+		return
 	}
 
 	proceso.PCB.PC = nuevoPC
@@ -336,14 +336,21 @@ func ManejarDevolucionDeCPU(pid int, nuevoPC int, motivo string, rafagaReal floa
 func IniciarPlanificadorMedioPlazo() {
 	go func() {
 		for {
-			nuevaColaBlocked := make([]*global.Proceso, 0)
-
+			// Revisar procesos en BLOCKED para suspender
 			global.MutexBlocked.Lock()
+			var nuevaColaBlocked []*global.Proceso
+
 			for _, proceso := range global.ColaBlocked {
-				if time.Since(proceso.PCB.InicioEstado) > time.Duration(global.ConfigKernel.SuspensionTime)*time.Millisecond {
+				tiempoBloqueado := time.Since(proceso.PCB.InicioEstado)
+				if tiempoBloqueado > time.Duration(global.ConfigKernel.SuspensionTime)*time.Millisecond {
 					global.MutexBlocked.Unlock()
-					suspenderProceso(proceso)
+					suspenderProceso(proceso) // este mueve a SUSP.BLOCKED y notifica a memoria
 					global.MutexBlocked.Lock()
+					select {
+					case global.NotifySuspReady <- struct{}{}:
+					default:
+					}
+
 				} else {
 					nuevaColaBlocked = append(nuevaColaBlocked, proceso)
 				}
@@ -351,11 +358,19 @@ func IniciarPlanificadorMedioPlazo() {
 			global.ColaBlocked = nuevaColaBlocked
 			global.MutexBlocked.Unlock()
 
+			// Intentar cargar procesos desde SUSP. READY (con prioridad sobre NEW)
 			global.MutexSuspReady.Lock()
 			haySusp := len(global.ColaSuspReady) > 0
 			global.MutexSuspReady.Unlock()
+
 			if haySusp {
 				IntentarCargarDesdeSuspReady()
+			} else {
+				select {
+				case global.NotifyNew <- struct{}{}:
+				default:
+				}
+
 			}
 
 			time.Sleep(100 * time.Millisecond)
@@ -366,22 +381,32 @@ func IniciarPlanificadorMedioPlazo() {
 func IntentarCargarDesdeSuspReady() bool {
 	global.MutexSuspReady.Lock()
 	defer global.MutexSuspReady.Unlock()
-	for i := 0; i < len(global.ColaSuspReady); i++ {
-		proceso := global.ColaSuspReady[i]
+
+	nuevaCola := make([]*global.Proceso, 0, len(global.ColaSuspReady))
+	cambio := false
+
+	for _, proceso := range global.ColaSuspReady {
+		if cambio {
+			nuevaCola = append(nuevaCola, proceso)
+			continue
+		}
+
 		if utilskernel.SolicitarMemoria(proceso.MemoriaRequerida) {
 			if err := utilskernel.MoverAMemoria(proceso.PID); err != nil {
 				global.LoggerKernel.Log(fmt.Sprintf("Error moviendo proceso %d a memoria: %v", proceso.PID, err), log.ERROR)
+				nuevaCola = append(nuevaCola, proceso)
 				continue
 			}
-			global.MutexReady.Lock()
-			global.ColaReady = append(global.ColaReady, proceso)
-			global.MutexReady.Unlock()
+			global.AgregarAReady(proceso)
 			ActualizarEstadoPCB(&proceso.PCB, READY)
-			global.ColaSuspReady = append(global.ColaSuspReady[:i], global.ColaSuspReady[i+1:]...)
-			return true
+			cambio = true
+		} else {
+			nuevaCola = append(nuevaCola, proceso)
 		}
 	}
-	return false
+
+	global.ColaSuspReady = nuevaCola
+	return cambio
 }
 
 func FinalizarProceso(p *Proceso) {
@@ -445,7 +470,7 @@ func LoguearMetricas(p *Proceso) {
 	global.LoggerKernel.Log(msg, log.INFO) //! LOG OBLIGATORIO: Metricas de Estado
 }
 
-func seleccionarProcesoSJF(_ bool) *global.Proceso { 
+func seleccionarProcesoSJF(_ bool) *global.Proceso {
 	global.MutexReady.Lock()
 	defer global.MutexReady.Unlock()
 
@@ -507,9 +532,7 @@ func suspenderProceso(proceso *global.Proceso) {
 		return
 	}
 
-	global.MutexSuspBlocked.Lock()
-	global.ColaSuspBlocked = append(global.ColaSuspBlocked, proceso)
-	global.MutexSuspBlocked.Unlock()
+	global.AgregarASuspBlocked(proceso)
 
 	global.LoggerKernel.Log(fmt.Sprintf("Proceso %d movido a SUSP_BLOCKED", proceso.PID), log.INFO)
 }
