@@ -45,9 +45,7 @@ func CrearProceso(tamanio int, archivoPseudoCodigo string) *Proceso {
 	}
 
 	global.LoggerKernel.Log(fmt.Sprintf("## (%d) Se crea el proceso - Estado: NEW", pcb.PID), log.INFO)
-	global.MutexNew.Lock()
 	global.AgregarANew(&proceso)
-	global.MutexNew.Unlock()
 	return &proceso
 }
 
