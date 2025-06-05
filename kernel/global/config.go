@@ -27,7 +27,7 @@ type Proceso struct {
     MemoriaRequerida  int
     ArchivoPseudo     string
     EstimacionRafaga  float64
-    TiempoEjecutado   float64  // nuevo: cuánto tiempo corrió en CPU
+    TiempoEjecutado   float64 
 }
 
 func NuevoPCB() *PCB {
