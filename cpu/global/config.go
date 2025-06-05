@@ -26,6 +26,7 @@ type Config struct {
 }
 
 var CpuID string
+var Interrupcion bool
 
 func InitGlobal(idCPU string) {	
 	CpuID = idCPU

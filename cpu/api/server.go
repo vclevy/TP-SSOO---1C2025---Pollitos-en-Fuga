@@ -1,6 +1,5 @@
 package api
 import (
-	"github.com/sisoputnfrba/tp-golang/cpu/api/handlers"
 	"github.com/sisoputnfrba/tp-golang/utils/server"
 	"github.com/sisoputnfrba/tp-golang/cpu/global"
 	"net/http"

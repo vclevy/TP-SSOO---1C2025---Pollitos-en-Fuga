@@ -141,7 +141,7 @@ func EnviarADispatch(cpu *global.CPU, pid int, pc int) (*estructuras.RespuestaCP
 }
 
 
-func EnviarInterrupcionCPU(cpu *global.CPU, pid int) error {
+func EnviarInterrupcionCPU(cpu *global.CPU, pid int) (error) {
 	url := fmt.Sprintf("http://%s:%d/interrupt", cpu.IP, cpu.Puerto)
 
 	payload := map[string]interface{}{
@@ -162,8 +162,19 @@ func EnviarInterrupcionCPU(cpu *global.CPU, pid int) error {
 		return fmt.Errorf("respuesta no OK del interrupt: %d", resp.StatusCode)
 	}
 
+	// Leer respuesta
+	var response struct {
+		PID int `json:"pid"`
+		PC  int `json:"pc"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return  fmt.Errorf("error decodificando respuesta: %w", err)
+	}
+
 	return nil
 }
+
+
 
 func HayCPUDisponible() bool {
 	for _, cpu := range global.CPUsConectadas {
