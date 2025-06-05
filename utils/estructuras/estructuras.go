@@ -73,7 +73,6 @@ type RespuestaCPU struct {
 type PCB struct {
 	PID int `json:"pid"`
 	PC  int `json:"pc"`
-	TiempoEstimado int    `json:"tiempo_estimado"`
 }
 
 type AccesoTP struct {

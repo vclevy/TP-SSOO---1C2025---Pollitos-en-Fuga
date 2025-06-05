@@ -107,7 +107,7 @@ func DevolverInstruccion(w http.ResponseWriter, r *http.Request) {
 //CPU lo pide
 func ArmarPaqueteConfigMMU(w http.ResponseWriter, r *http.Request) {
 	paquete := PaqueteConfigMMU {
-			Tamaño_página :global.ConfigMemoria.Page_Size,
+			Tamanio_pagina :global.ConfigMemoria.Page_Size,
 			Cant_entradas_tabla : global.ConfigMemoria.Entries_per_page,
 			Cant_N_Niveles: global.ConfigMemoria.Number_of_levels,	
 	} 
