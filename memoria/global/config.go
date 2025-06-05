@@ -17,9 +17,10 @@ type Config struct {
 	Memory_delay     int      `json:"memory_delay"`
 	Swapfile_path    string   `json:"swapfile_path"`
 	Swap_delay 		 int      `json:"swap_delay"`
-	LogLevel        string   `json:"log_level"`
+	Log_Level        string   `json:"log_level"`
 	Dump_path		 string   `json:"dump_path"`
 	Log_file         string   `json:"log_file"`
+	Scripts_Path	 string	  `json:"scripts_path`
 }
 
 func InitGlobal() {
@@ -27,6 +28,6 @@ func InitGlobal() {
 	ConfigMemoria = utils.CargarConfig[Config]("config/config.json")
 
 	// 2. Inicializar logger con lo que vino en la config
-	LoggerMemoria = logger.ConfigurarLogger(ConfigMemoria.Log_file, ConfigMemoria.LogLevel)
+	LoggerMemoria = logger.ConfigurarLogger(ConfigMemoria.Log_file, ConfigMemoria.Log_Level)
     LoggerMemoria.Log("Logger de Memoria inicializado", logger.DEBUG)
 }
