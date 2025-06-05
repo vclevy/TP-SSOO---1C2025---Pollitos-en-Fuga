@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/sisoputnfrba/tp-golang/memoria/api"
 	"github.com/sisoputnfrba/tp-golang/memoria/global"
+	"github.com/sisoputnfrba/tp-golang/memoria/utilsMemoria"
 	"github.com/sisoputnfrba/tp-golang/utils/logger"
 	//"github.com/sisoputnfrba/tp-golang/utils/paquetes"
 )
@@ -10,6 +11,9 @@ import (
 //CONEXIÓN;
 //[KERNEL] ➜ Cliente (conectado a) [MEMORIA]
 //[CPU]    ➜ Cliente (conectado a) [MEMORIA]
+
+var memoriaUsuario []byte
+var marcosLibres []bool
 
 func main() {
 	// configurar logger e inicializar config
@@ -24,9 +28,8 @@ func main() {
 		}
 		}()
 
-	// paqueteNuevo := paquetes.LeerConsola()	
-	// paquetes.GenerarYEnviarPaquete(paqueteNuevo, "127.0.0.1")
-	
+utilsMemoria.InicializarMemoria()
+
 	
 
 	select{}

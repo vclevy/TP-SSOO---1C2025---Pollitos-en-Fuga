@@ -12,7 +12,7 @@ func CrearServer() *server.Server {
 	configServer := server.Config{
 		Port: global.ConfigMemoria.Port_Memory,
 		Handlers: map[string]http.HandlerFunc{
-			"POST /procesoAMemoria": handlers.RecibirProceso,
+			"POST /procesoAMemoria": handlers.InicializarProceso,
 			"POST /verificarEspacioDisponible": handlers.VerificarEspacioDisponible,
 			"POST /solicitudInstruccion": handlers.DevolverInstruccion,
 			"POST /configuracionMMU": handlers.ArmarPaqueteConfigMMU,

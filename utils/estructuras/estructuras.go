@@ -1,5 +1,6 @@
 package estructuras
 
+//esto se lo manda el kernel a memoria cuando quiere inicializar un proceso
 type PaqueteMemoria struct {
 	PID                 int    `json:"pid"`
 	ArchivoPseudocodigo string `json:"archivo_codigo"`
@@ -72,4 +73,16 @@ type RespuestaCPU struct {
 type PCB struct {
 	PID int `json:"pid"`
 	PC  int `json:"pc"`
+	TiempoEstimado int    `json:"tiempo_estimado"`
+}
+
+type AccesoTP struct {
+	PID            int    `json:"pid"`
+	DireccionLogica int    `json:"direccion_logica"`
+}
+
+type PedidoREAD struct {
+	PID            int    `json:"pid"`
+	DireccionFisica int    `json:"direccion_fisica"`
+	Tamanio int    `json:"tamanio"`
 }
