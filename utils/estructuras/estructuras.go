@@ -61,3 +61,14 @@ type TareaDeIo struct {
 	PID            int    `json:"pid"`
 	TiempoEstimado int    `json:"tiempo_estimado"`
 }
+
+type AccesoTP struct {
+	PID            int    `json:"pid"`
+	DireccionLogica int    `json:"direccion_logica"`
+}
+
+type PedidoREAD struct {
+	PID            int    `json:"pid"`
+	DireccionFisica int    `json:"direccion_fisica"`
+	Tamanio int    `json:"tamanio"`
+}

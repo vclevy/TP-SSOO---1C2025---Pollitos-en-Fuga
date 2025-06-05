@@ -17,6 +17,8 @@ import (
 type PaqueteMemoria = estructuras.PaqueteMemoria
 type PaqueteSolicitudInstruccion = estructuras.SolicitudInstruccion
 type PaqueteConfigMMU = estructuras.ConfiguracionMMU
+type AccesoTP = estructuras.AccesoTP
+type PedidoREAD = estructuras.PedidoREAD
 
 //el KERNEL manda un proceso para inicializar con la estrcutura de PaqueteMemoria
 func InicializarProceso(w http.ResponseWriter, r *http.Request) {
@@ -36,7 +38,6 @@ func InicializarProceso(w http.ResponseWriter, r *http.Request) {
     archivoPseudocodigo := paquete.ArchivoPseudocodigo
 	
 	pidString := strconv.Itoa(pid)
-
 
 	utilsMemoria.CrearTablaPaginas(pid, tamanio)
 	utilsMemoria.ReservarMarcos(pid, tamanio)
@@ -123,6 +124,54 @@ func AccederTablaPaginas(w http.ResponseWriter, r *http.Request) {
 	//hace la traduccion
 	//devuelve la direccion fisica 
 	//++ metricas de Acceso a TP
+	if r.Method != http.MethodPost {
+        http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+        return
+    }
+
+    var paquete AccesoTP
+    if err := json.NewDecoder(r.Body).Decode(&paquete); err != nil {
+        http.Error(w, "Error al decodificar JSON", http.StatusBadRequest)
+        return
+    }
+
+	pid := paquete.PID
+	direccionLogica := paquete.DireccionLogica
+
+	utilsMemoria.TraducirLogicaAFisica(pid, direccionLogica)
+
+}
+
+//ACESSO A ESPACIO DE USUARIO
+func LeerMemoria(w http.ResponseWriter, r *http.Request) {
+    // input: pid, direccion_fisica, tamaño
+    // output: contenido
+	if r.Method != http.MethodPost {
+        http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+        return
+    }
+
+    var paquete PedidoREAD
+    if err := json.NewDecoder(r.Body).Decode(&paquete); err != nil {
+        http.Error(w, "Error al decodificar JSON", http.StatusBadRequest)
+        return
+    }
+	pid := paquete.PID
+	direccionFisica := paquete.DireccionFisica
+	tamanio := paquete.Tamanio
+
+	//faltaria validar q el tamanio sea valido
+	datos := utilsMemoria.DevolverLecturaMemoria(pid, direccionFisica, tamanio)
+	
+	if err := json.NewEncoder(w).Encode(datos); err != nil {
+		http.Error(w, "Error al enviar la instrucción", http.StatusInternalServerError)
+		return
+	}
+}
+
+func EscribirMemoria(w http.ResponseWriter, r *http.Request) {
+    // input: pid, direccion_fisica, datos
+    // output: OK o error
 }
 
 func AccederEspacioUsuario(w http.ResponseWriter, r *http.Request){
@@ -133,7 +182,7 @@ func AccederEspacioUsuario(w http.ResponseWriter, r *http.Request){
 }
 
 //KERNEL notifica a memoria que finalizo
-func finalizarProceso(w http.ResponseWriter, r *http.Request){
+func FinalizarProceso(w http.ResponseWriter, r *http.Request){
 	//libera su espacio en memoria y marcar como libres sus entradas en SWAP
 	//genera log con las metricas
 

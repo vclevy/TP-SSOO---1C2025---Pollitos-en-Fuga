@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/sisoputnfrba/tp-golang/memoria/api"
 	"github.com/sisoputnfrba/tp-golang/memoria/global"
+	"github.com/sisoputnfrba/tp-golang/memoria/utilsMemoria"
 	"github.com/sisoputnfrba/tp-golang/utils/logger"
 	//"github.com/sisoputnfrba/tp-golang/utils/paquetes"
 )
@@ -27,7 +28,7 @@ func main() {
 		}
 		}()
 
-
+utilsMemoria.InicializarMemoria()
 
 	
 
