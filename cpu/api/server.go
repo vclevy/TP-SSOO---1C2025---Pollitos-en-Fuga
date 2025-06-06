@@ -1,5 +1,6 @@
 package api
 import (
+	"github.com/sisoputnfrba/tp-golang/cpu/api/handlers"
 	"github.com/sisoputnfrba/tp-golang/utils/server"
 	"github.com/sisoputnfrba/tp-golang/cpu/global"
 	"net/http"
@@ -10,7 +11,8 @@ func CrearServer() *server.Server {
 	configServer := server.Config{
 		Port: global.CpuConfig.Port_Cpu,
 		Handlers: map[string]http.HandlerFunc{
-/* 			"POST /handshake": handlers.HandshakeKernel,*/
+			"POST /interrupcion": handlers.Interrupcion,
+			"POST /asignacion": handlers.NuevoPCB,
  		},
 	}
 	fmt.Printf("🟢 CPU prendido en http://localhost:%d\n", global.CpuConfig.Port_Cpu)

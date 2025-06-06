@@ -1,9 +1,11 @@
 package global
 
 import (
-	utils "github.com/sisoputnfrba/tp-golang/utils/config"
-	logger "github.com/sisoputnfrba/tp-golang/utils/logger"
 	"fmt"
+
+	utils "github.com/sisoputnfrba/tp-golang/utils/config"
+	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
+	logger "github.com/sisoputnfrba/tp-golang/utils/logger"
 )
 
 var CpuConfig *Config
@@ -27,6 +29,9 @@ type Config struct {
 
 var CpuID string
 var Interrupcion bool
+var PCB_Actual estructuras.PCB
+var Motivo string
+var Rafaga float64
 
 func InitGlobal(idCPU string) {	
 	CpuID = idCPU

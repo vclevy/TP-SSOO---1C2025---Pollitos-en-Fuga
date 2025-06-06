@@ -17,9 +17,6 @@ var instruccionesConMMU = map[string]bool{
 	"WRITE":      true,
 	"READ":       true,
 }
-/* 
-var pidActual int
-var pcActual int */
 
 type Instruccion struct {
 	Opcode  string	`json:"opcode"`  // El tipo de operación (e.g. WRITE, READ, GOTO, etc.)
