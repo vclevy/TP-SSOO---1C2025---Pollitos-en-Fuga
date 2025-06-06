@@ -11,7 +11,7 @@ func CrearServer() *server.Server {
 	configServer := server.Config{
 		Port: global.CpuConfig.Port_Cpu,
 		Handlers: map[string]http.HandlerFunc{
-			"POST /interrupcion": handlers.Interrupcion,
+			"POST /interrupt": handlers.Interrupcion,
 			"POST /asignacion": handlers.NuevoPCB,
  		},
 	}

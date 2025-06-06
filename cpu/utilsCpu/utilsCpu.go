@@ -51,38 +51,9 @@ func HandshakeKernel() error {
 	return nil
 }
 
-func proximoPCB() (estructuras.PCB){
-	jsonData, err := json.Marshal(solicitudPCB)
-	if err != nil {
-		global.LoggerCpu.Log("Error serializando solicitud: "+err.Error(), log.ERROR)
-		return ""
-	}
-
-	url := fmt.Sprintf("http://%s:%d/solicitudInstruccion", global.CpuConfig.Ip_Kernel, global.CpuConfig.Port_Kernel) //url a la que se va a conectar
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData)) //se abre la conexión
+func instruccionAEjecutar(estructuras.PCB) string{
+	var solicitudInstruccion estructuras.PCB
 	
-	if err != nil {
-		global.LoggerCpu.Log("Error enviando solicitud de PCB a Kernel: " + err.Error(), log.ERROR)
-		return ""
-	}
-	defer resp.Body.Close() //se cierra la conexión
-
-	global.LoggerCpu.Log("✅ Solicitud enviada a Kernel de forma exitosa", log.INFO)
-
-	//respuesta
-	body, _ := io.ReadAll(resp.Body)
-
-	var PCB estructuras.PCB
-	err = json.Unmarshal(body, &PCB)
-	if err != nil {
-		global.LoggerCpu.Log("Error parseando PCB de Kernel: "+err.Error(), log.ERROR)
-		return ""
-	}
-
-	return PCB
-}
-
-func proximaInstruccion() string{
 	jsonData, err := json.Marshal(solicitudInstruccion)
 	if err != nil {
 		global.LoggerCpu.Log("Error serializando solicitud: "+err.Error(), log.ERROR)
@@ -109,28 +80,33 @@ func proximaInstruccion() string{
 		global.LoggerCpu.Log("Error parseando instruccion de Memoria: "+err.Error(), log.ERROR)
 		return ""
 	}
-	if instruccionAEjecutar == "FIN"{
-		global.LoggerCpu.Log(fmt.Sprintf("PID %d: no hay más instrucciones, proceso finalizado.", pid), log.INFO)
-		return "FIN"
-	}
 	return instruccionAEjecutar
 }
 
-func Fetch() string {
-	var PCB := proximoPCB()
+func CicloDeInstruccion(){
+	var instruccionAEjecutar = Fetch()
+	if(instruccionAEjecutar == "FIN"){
+		global.Motivo = "EXIT"
+		return
+	}
+	instruccion, requiereMMU := Decode(instruccionAEjecutar)
+	
+	Execute(instruccion, requiereMMU)
 
-	pidActual = PCB.pid
-	pcActual = PCB.pc
-		
+}
+
+func Fetch() string {
+	pidActual := global.PCB_Actual.PID
+	pcActual := global.PCB_Actual.PC
+
 	global.LoggerCpu.Log(fmt.Sprintf(" ## PID: %d - FETCH - Program Counter: %d", pidActual, pcActual), log.INFO)
 	
-	solicitudInstruccion := estructuras.SolicitudInstruccion{
-		Pid: pidActual,
-		Pc:  pcActual,
+	solicitudInstruccion := estructuras.PCB{
+		PID: pidActual,
+		PC:  pcActual,
 	}
 
-	//petición
-	var instruccionAEjecutar := proximaInstruccion()
+	var instruccionAEjecutar = instruccionAEjecutar(solicitudInstruccion)
 
 	global.LoggerCpu.Log(fmt.Sprintf("Memoria respondió con la instrucción: %s", instruccionAEjecutar), log.INFO)
 
@@ -138,16 +114,20 @@ func Fetch() string {
 }
 
 func Decode(instruccionAEjecutar string) (Instruccion, bool){
-	if len(instruccionPartida) == 0 {
+	/* if len(instruccionPartida) == 0 {
 		global.LoggerCpu.Log("Instrucción vacía o malformada", log.ERROR)
 		
-		var instruccion Instruccion {Opcode: "INVALIDA"}
+		instruccion := Instruccion{
+			Opcode: "INVALIDA",
+			Parametros:  instruccionPartida[1:],
+		}
+		
 		return instruccion, FALSE
-	}
+	} */
 
-	instruccionPartida := strings.Fields(instruccionAEjecutar) //!!ver
+	instruccionPartida := strings.Fields(instruccionAEjecutar) //?  "MOV AX BX" --> []string{"MOV", "AX", "BX"}
 
-	var instruccion Instruccion{
+	instruccion := Instruccion{
 		Opcode: instruccionPartida[0],
 		Parametros:  instruccionPartida[1:],
 	}
@@ -157,8 +137,8 @@ func Decode(instruccionAEjecutar string) (Instruccion, bool){
 	return instruccion, requiereMMU
 }
 
-func Execute(instruccion Instruccion, requiereMMU bool)(string){
-	global.LoggerCpu.Log(fmt.Sprintf("## PID: %d - Ejecutando: %s - %s", pidActual, instruccion.Opcode , instruccion.Parametros), log.INFO)
+func Execute(instruccion Instruccion, requiereMMU bool){
+	global.LoggerCpu.Log(fmt.Sprintf("## PID: %d - Ejecutando: %s - %s", global.PCB_Actual.PID, instruccion.Opcode , instruccion.Parametros), log.INFO)
   	
 	//todo INSTRUCCIONES MMU
 	/* 
@@ -198,12 +178,12 @@ func Execute(instruccion Instruccion, requiereMMU bool)(string){
 			global.LoggerCpu.Log("Error al convertir tiempo estimado: %v", log.ERROR)
 			return
 		}
-		pcActual = pcNuevo
+		global.PCB_Actual.PC = pcNuevo
 	}
 }
 
-func MMU(direccionLogica int) (int, error){
-	tlbHabilitada := global.CpuConfig.TlbEntries > 0
+func MMU(direccionLogica int)/*  (int, error) */{
+	/* tlbHabilitada := global.CpuConfig.TlbEntries > 0
 	tlbDeshabilitada := global.CpuConfig.TlbEntries == 0
 	var marco int
 	var hit bool
@@ -229,7 +209,7 @@ func MMU(direccionLogica int) (int, error){
 
 	direccionFisica := marco * configMMU.Tamanio_pagina + desplazamiento
 
-    return direccionFisica, nil
+    return direccionFisica, nil */
 }
 
 func TLB(nroPagina int){
@@ -244,12 +224,12 @@ func ActualizarTLB(nroPagina int, marco int){}
 func CheckInterrupt(){}
 
 func CacheDePaginas(direccionFisica int){
-	if(cacheHit){
+	/* if(cacheHit){
 				
 	} else if (cacheMiss){
 		AccederMemoria()
 		ActualizarCache()
-	}
+	} */
 }
 
 func AccederMemoria(){}
@@ -302,7 +282,7 @@ func Syscall_IO(instruccion Instruccion){
 	syscall_IO := estructuras.Syscall_IO{
 		IoSolicitada : instruccion.Parametros[0],
 		TiempoEstimado : tiempo,
-		PIDproceso: pidActual,
+		PIDproceso: global.PCB_Actual.PID,
 	}
 
 	jsonData, err := json.Marshal(syscall_IO)
@@ -353,7 +333,7 @@ func Syscall_Init_Proc(instruccion Instruccion){
 }
 
 func Syscall_Dump_Memory(){
-	url := fmt.Sprintf("http://%s:%d/Dump_Memory?pid=%d", global.CpuConfig.Ip_Kernel, global.CpuConfig.Port_Kernel,pidActual) //url a la que se va a conectar
+	url := fmt.Sprintf("http://%s:%d/Dump_Memory?pid=%d", global.CpuConfig.Ip_Kernel, global.CpuConfig.Port_Kernel,global.PCB_Actual.PID) //url a la que se va a conectar
 	resp, err := http.Post(url, "application/json", nil) //se abre la conexión
 	
 	if err != nil {
@@ -365,7 +345,7 @@ func Syscall_Dump_Memory(){
 }
 
 func Syscall_Exit(){
-	url := fmt.Sprintf("http://%s:%d/Exit?pid=%d", global.CpuConfig.Ip_Kernel, global.CpuConfig.Port_Kernel,pidActual) //url a la que se va a conectar
+	url := fmt.Sprintf("http://%s:%d/Exit?pid=%d", global.CpuConfig.Ip_Kernel, global.CpuConfig.Port_Kernel,global.PCB_Actual.PID) //url a la que se va a conectar
 	resp, err := http.Post(url, "application/json", nil) //se abre la conexión
 	
 	if err != nil {

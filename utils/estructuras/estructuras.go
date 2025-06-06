@@ -70,6 +70,7 @@ type RespuestaCPU struct {
 	Motivo     string  `json:"motivo"`
 	RafagaReal float64 `json:"rafagaReal"`
 }
+
 type PCB struct {
 	PID int `json:"pid"`
 	PC  int `json:"pc"`
