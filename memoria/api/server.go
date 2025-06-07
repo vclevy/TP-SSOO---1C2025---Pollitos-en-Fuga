@@ -1,21 +1,26 @@
 package api
 
 import (
-	"github.com/sisoputnfrba/tp-golang/memoria/api/handlers"
-	"github.com/sisoputnfrba/tp-golang/utils/server"
-	"github.com/sisoputnfrba/tp-golang/memoria/global"
-	"net/http"
 	"fmt"
+	"net/http"
+
+	"github.com/sisoputnfrba/tp-golang/memoria/api/handlers"
+	"github.com/sisoputnfrba/tp-golang/memoria/global"
+	"github.com/sisoputnfrba/tp-golang/utils/server"
 )
 
 func CrearServer() *server.Server {
 	configServer := server.Config{
 		Port: global.ConfigMemoria.Port_Memory,
 		Handlers: map[string]http.HandlerFunc{
-			"POST /procesoAMemoria": handlers.InicializarProceso,
+			//usadas por el KERNEL
+			"POST /inicializarProceso": handlers.InicializarProceso,
 			"POST /verificarEspacioDisponible": handlers.VerificarEspacioDisponible,
+			"POST /finalizarProceso": handlers.FinalizarProceso,
 			"POST /solicitudInstruccion": handlers.DevolverInstruccion,
 			"POST /configuracionMMU": handlers.ArmarPaqueteConfigMMU,
+			"POST /leerMemoria": handlers.LeerMemoria,
+			"POST /escribirMemoria": handlers.EscribirMemoria,
 			
 		},
 	}

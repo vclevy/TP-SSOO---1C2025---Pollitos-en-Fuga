@@ -8,6 +8,7 @@ import (
 	"math"
 )
 
+//ESTRUCTURAS
 //Memoria de usuario
 var MemoriaUsuario []byte
 var MarcosLibres []bool
@@ -25,11 +26,8 @@ var tablasPorProceso = make(map[int]*EntradaTP)
 //Diccionario de procesos
 var diccionarioProcesosMemoria map[int]*[]string
 
-func ListaDeInstrucciones(pid int) ([]string) {
-    return *diccionarioProcesosMemoria[pid]
-}
-
-var tamMemoria = global.ConfigMemoria.Memory_size
+//Datos del config
+var TamMemoria = global.ConfigMemoria.Memory_size
 var tamPagina = global.ConfigMemoria.Page_Size
 var cantNiveles = global.ConfigMemoria.Number_of_levels
 var cantEntradas = global.ConfigMemoria.Entries_per_page
@@ -39,9 +37,9 @@ func InicializarMemoria() {
 	//la direccion fisica es un indice dentro del siguiente array
 	diccionarioProcesosMemoria = make(map[int]*[]string)
 
-    MemoriaUsuario = make([]byte, tamMemoria)
+    MemoriaUsuario = make([]byte, TamMemoria)
 
-    totalMarcos := tamMemoria / tamPagina
+    totalMarcos := TamMemoria / tamPagina
     MarcosLibres = make([]bool, totalMarcos)
 
     for i := range MarcosLibres {
@@ -63,8 +61,7 @@ type MetricasProceso struct { //son todas cantidades
 	EscriturasMemo int
 }
 
-//FUNCIONES UTILES
-//carga las instrucciones de un proceso en el diccionario
+//DICCIONARIO DE PROCESOS
 func CargarProceso(pid int, ruta string) error { 
 	contenidoArchivo, err := os.ReadFile(ruta)
 	if err != nil {
@@ -88,40 +85,40 @@ func ObtenerInstruccion(pid int, pc int) (string, error) { //ESTO SIRVE PARA CPU
 	return instrucciones[pc], nil
 }
 
-//verifica que haya espacio disponible en MP o en SWAP??
-func espacioDisponible()(int){ //MOCKUP
-	return 2048
+func ListaDeInstrucciones(pid int) ([]string) {
+    return *diccionarioProcesosMemoria[pid]
 }
 
+//VERIFICAR ESPACIO DISPONIBLE
 func HayLugar(tamanio int)(bool){
-	return tamanio<=espacioDisponible()
+	var cantMarcosLibres int
+	for i := 0; i < TamMemoria; i++ {
+		if MarcosLibres[i] {
+			cantMarcosLibres++
+		}		
+	}
+	
+	cantMarcosNecesitados:= int(math.Ceil(float64(tamanio) / float64(tamPagina)))
+	return cantMarcosNecesitados <= cantMarcosLibres
 }
 
-
-func TraducirLogicaAFisica(pid int,direcionLogica int){
-//sumar 1 a la metrica de acceso a memoria pr cada tabla recorrida
-//considerar delay
-}
-
-func TraducirFiscaALogica(pid int, direcionLogica int){
-
-}
-
-func ReservarMarcos(pid int, tamanio int){
-	cantMarcos := int(math.Ceil(float64(tamanio) / float64(tamPagina)))
+//RESERVANDO MARCOS DEL PROCESO
+func ReservarMarcos(pid int, cantMarcos int) []int{
 
 		var asignados []int
 		for i := 0; i < len(MarcosLibres) && len(asignados) < cantMarcos; i++ {
 			if MarcosLibres[i] {
 				MarcosLibres[i] = false
+
 				asignados = append(asignados, i)
 			}
 		}
+		return asignados
 }
 
+//CREACION DE TABLA DE PAGINAS DEL PROCESO
 func CrearTablaPaginas(pid int, tamanio int){
-	cantPaginas := int(math.Ceil(float64(tamanio) / float64(tamPagina)))
-	paginas := cantPaginas
+	paginas := int(math.Ceil(float64(tamanio) / float64(tamPagina)))
 	raiz := &EntradaTP{
 	SiguienteNivel: CrearTablaNiveles(1, cantNiveles, cantEntradas, &paginas),
 }
@@ -129,6 +126,11 @@ tablasPorProceso[pid] = raiz
 
 }
 
+func AsignarMarcosATablas(pid int, tamanio int){
+	//cantMarcos := int(math.Ceil(float64(tamanio) / float64(tamPagina)))
+	// := ReservarMarcos(pid, cantMarcos)
+	
+}
 
 func CrearTablaNiveles(nivelActual int, maxNiveles int, cantEntradas int, paginasRestantes *int) []*EntradaTP {
 	tabla := make([]*EntradaTP, cantEntradas)
@@ -155,9 +157,25 @@ func CrearTablaNiveles(nivelActual int, maxNiveles int, cantEntradas int, pagina
 	return tabla
 }
 
+//ACCESO A TABLA DE PAGINAS
+func EncontrarMarco(pid int,direcionLogica int){
+	//la cpu nos pasa una direccion logica con las entradas multinivel
+	// y nosotros recorremos la tabla de paginas devolviendo el marco correspondient
+	//sumar 1 a la metrica de acceso a memoria pr cada tabla recorrida
+	//considerar delay
+	}
+
+//ACCESO A ESPACIO DE USUARIO
 func DevolverLecturaMemoria(pid int, direccionFisica int, tamanio int) []byte{
-	datos := MemoriaUsuario[direccionFisica : direccionFisica+tamanio]
+	datos := MemoriaUsuario[direccionFisica : direccionFisica+tamanio] 
+	//Lee desde dirFisica hasta dirfisica+tamanio
 	metricas[pid].LecturasMemo++
 
 	return datos
+}
+
+func EscribirDatos(pid int, direccionFisica int, datos string) {
+	//se para en la posicion pedida y escribe de ahi en adelante
+	copy(MemoriaUsuario[direccionFisica:], []byte(datos))
+	metricas[pid].EscriturasMemo++
 }

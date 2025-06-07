@@ -10,5 +10,6 @@
     "swap_delay": 15000,
     "log_level": "DEBUG",
     "dump_path": "/home/utnso/dump_files/",
-    "log_file": "memoria.log"
+    "log_file": "memoria.log",
+    "scripts_file": "/home/utnso/scripts/"
 }

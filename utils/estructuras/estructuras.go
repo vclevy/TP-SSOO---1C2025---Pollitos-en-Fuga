@@ -86,3 +86,9 @@ type PedidoREAD struct {
 	DireccionFisica int    `json:"direccion_fisica"`
 	Tamanio int    `json:"tamanio"`
 }
+
+type PedidoWRITE struct {
+	PID            int    `json:"pid"`
+	DireccionFisica int    `json:"direccion_fisica"`
+	Datos string    `json:"datos"`
+}
