@@ -69,6 +69,6 @@ type AccesoTP struct {
 
 type PedidoREAD struct {
 	PID            int    `json:"pid"`
-	DireccionFisica int    `json:"direccion_fisica"`
+	DireccionLogica int    `json:"direccion_logica"`
 	Tamanio int    `json:"tamanio"`
 }

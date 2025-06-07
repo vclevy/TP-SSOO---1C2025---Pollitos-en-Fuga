@@ -16,6 +16,8 @@ func CrearServer() *server.Server {
 			"POST /verificarEspacioDisponible": handlers.VerificarEspacioDisponible,
 			"POST /solicitudInstruccion": handlers.DevolverInstruccion,
 			"POST /configuracionMMU": handlers.ArmarPaqueteConfigMMU,
+			"POST /leerMemoria": handlers.LeerMemoria,
+			"POST /escribirMemoria": handlers.EscribirMemoria,
 			
 		},
 	}

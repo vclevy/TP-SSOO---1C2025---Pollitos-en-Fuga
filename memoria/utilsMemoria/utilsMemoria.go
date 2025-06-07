@@ -29,7 +29,7 @@ func ListaDeInstrucciones(pid int) ([]string) {
     return *diccionarioProcesosMemoria[pid]
 }
 
-var tamMemoria = global.ConfigMemoria.Memory_size
+var TamMemoria = global.ConfigMemoria.Memory_size
 var tamPagina = global.ConfigMemoria.Page_Size
 var cantNiveles = global.ConfigMemoria.Number_of_levels
 var cantEntradas = global.ConfigMemoria.Entries_per_page
@@ -39,9 +39,9 @@ func InicializarMemoria() {
 	//la direccion fisica es un indice dentro del siguiente array
 	diccionarioProcesosMemoria = make(map[int]*[]string)
 
-    MemoriaUsuario = make([]byte, tamMemoria)
+    MemoriaUsuario = make([]byte, TamMemoria)
 
-    totalMarcos := tamMemoria / tamPagina
+    totalMarcos := TamMemoria / tamPagina
     MarcosLibres = make([]bool, totalMarcos)
 
     for i := range MarcosLibres {
@@ -88,13 +88,17 @@ func ObtenerInstruccion(pid int, pc int) (string, error) { //ESTO SIRVE PARA CPU
 	return instrucciones[pc], nil
 }
 
-//verifica que haya espacio disponible en MP o en SWAP??
-func espacioDisponible()(int){ //MOCKUP
-	return 2048
-}
-
+//PENSAR EN SWAP
 func HayLugar(tamanio int)(bool){
-	return tamanio<=espacioDisponible()
+	var cantMarcosLibres int
+	for i := 0; i < TamMemoria; i++ {
+		if MarcosLibres[i] {
+			cantMarcosLibres++
+		}		
+	}
+	
+	cantMarcosNecesitados:= int(math.Ceil(float64(tamanio) / float64(tamPagina)))
+	return cantMarcosNecesitados <= cantMarcosLibres
 }
 
 
@@ -107,21 +111,21 @@ func TraducirFiscaALogica(pid int, direcionLogica int){
 
 }
 
-func ReservarMarcos(pid int, tamanio int){
-	cantMarcos := int(math.Ceil(float64(tamanio) / float64(tamPagina)))
+func ReservarMarcos(pid int, cantMarcos int) []int{
 
 		var asignados []int
 		for i := 0; i < len(MarcosLibres) && len(asignados) < cantMarcos; i++ {
 			if MarcosLibres[i] {
 				MarcosLibres[i] = false
+
 				asignados = append(asignados, i)
 			}
 		}
+		return asignados
 }
 
 func CrearTablaPaginas(pid int, tamanio int){
-	cantPaginas := int(math.Ceil(float64(tamanio) / float64(tamPagina)))
-	paginas := cantPaginas
+	paginas := int(math.Ceil(float64(tamanio) / float64(tamPagina)))
 	raiz := &EntradaTP{
 	SiguienteNivel: CrearTablaNiveles(1, cantNiveles, cantEntradas, &paginas),
 }
@@ -129,6 +133,11 @@ tablasPorProceso[pid] = raiz
 
 }
 
+func AsignarMarcosATablas(pid int, tamanio int){
+	cantMarcos := int(math.Ceil(float64(tamanio) / float64(tamPagina)))
+	marcosAsignados := ReservarMarcos(pid, cantMarcos)
+	
+}
 
 func CrearTablaNiveles(nivelActual int, maxNiveles int, cantEntradas int, paginasRestantes *int) []*EntradaTP {
 	tabla := make([]*EntradaTP, cantEntradas)
@@ -156,7 +165,8 @@ func CrearTablaNiveles(nivelActual int, maxNiveles int, cantEntradas int, pagina
 }
 
 func DevolverLecturaMemoria(pid int, direccionFisica int, tamanio int) []byte{
-	datos := MemoriaUsuario[direccionFisica : direccionFisica+tamanio]
+	//falta traduccion 
+	datos := MemoriaUsuario[direccionFisica : direccionFisica+tamanio] //Lee desde dirFisica hasta dirfisica+tamanio
 	metricas[pid].LecturasMemo++
 
 	return datos

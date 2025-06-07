@@ -22,6 +22,7 @@ type PedidoREAD = estructuras.PedidoREAD
 
 //el KERNEL manda un proceso para inicializar con la estrcutura de PaqueteMemoria
 func InicializarProceso(w http.ResponseWriter, r *http.Request) {
+	
     if r.Method != http.MethodPost {
         http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
         return
@@ -37,6 +38,11 @@ func InicializarProceso(w http.ResponseWriter, r *http.Request) {
 	tamanio := paquete.TamanioProceso
     archivoPseudocodigo := paquete.ArchivoPseudocodigo
 	
+	if !utilsMemoria.HayLugar(paquete.TamanioProceso){ //Restricción x las dudas
+		http.Error(w, "No hay lugar disponible", http.StatusBadRequest)
+		return
+	}
+
 	pidString := strconv.Itoa(pid)
 
 	utilsMemoria.CrearTablaPaginas(pid, tamanio)
@@ -144,7 +150,7 @@ func AccederTablaPaginas(w http.ResponseWriter, r *http.Request) {
 
 //ACESSO A ESPACIO DE USUARIO
 func LeerMemoria(w http.ResponseWriter, r *http.Request) {
-    // input: pid, direccion_fisica, tamaño
+    // input: pid, direcciom_logica, tamaño
     // output: contenido
 	if r.Method != http.MethodPost {
         http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
@@ -157,11 +163,14 @@ func LeerMemoria(w http.ResponseWriter, r *http.Request) {
         return
     }
 	pid := paquete.PID
-	direccionFisica := paquete.DireccionFisica
+	direccionLogica := paquete.DireccionLogica
 	tamanio := paquete.Tamanio
 
-	//faltaria validar q el tamanio sea valido
-	datos := utilsMemoria.DevolverLecturaMemoria(pid, direccionFisica, tamanio)
+	if direccionLogica+tamanio > utilsMemoria.TamMemoria{
+		http.Error(w, "Dirección física invalida", http.StatusBadRequest)
+		return
+	}
+	datos := utilsMemoria.DevolverLecturaMemoria(pid, direccionLogica, tamanio)
 	
 	if err := json.NewEncoder(w).Encode(datos); err != nil {
 		http.Error(w, "Error al enviar la instrucción", http.StatusInternalServerError)
@@ -170,7 +179,7 @@ func LeerMemoria(w http.ResponseWriter, r *http.Request) {
 }
 
 func EscribirMemoria(w http.ResponseWriter, r *http.Request) {
-    // input: pid, direccion_fisica, datos
+    // input: pid, direccion_logica, datos
     // output: OK o error
 }
 
