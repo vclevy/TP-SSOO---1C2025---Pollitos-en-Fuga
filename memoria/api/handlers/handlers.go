@@ -19,6 +19,7 @@ type PaqueteSolicitudInstruccion = estructuras.SolicitudInstruccion
 type PaqueteConfigMMU = estructuras.ConfiguracionMMU
 type AccesoTP = estructuras.AccesoTP
 type PedidoREAD = estructuras.PedidoREAD
+type PedidoWRITE = estructuras.PedidoWRITE
 
 //el KERNEL manda un proceso para inicializar con la estrcutura de PaqueteMemoria
 func InicializarProceso(w http.ResponseWriter, r *http.Request) {
@@ -43,18 +44,16 @@ func InicializarProceso(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pidString := strconv.Itoa(pid)
-
 	utilsMemoria.CrearTablaPaginas(pid, tamanio)
 	utilsMemoria.ReservarMarcos(pid, tamanio)
 	utilsMemoria.CargarProceso(pid, archivoPseudocodigo)
-	global.LoggerMemoria.Log("## "+ pidString +": <"+ pidString +"> - Proceso Creado - Tamaño: <"+strconv.Itoa(tamanio)+">", log.DEBUG)
+	global.LoggerMemoria.Log("## PID: "+ strconv.Itoa(pid) +"> - Proceso Creado - Tamaño: <"+strconv.Itoa(tamanio)+">", log.DEBUG)
 
     w.WriteHeader(http.StatusOK)
     fmt.Fprintf(w, "Paquete recibido correctamente para PID %d", paquete.PID)
 }
 
-//e KERNEL comprueba que haya espacio disponible en memoria antes de inicializar
+//KERNEL comprueba que haya espacio disponible en memoria antes de inicializar
 func VerificarEspacioDisponible(w http.ResponseWriter, r *http.Request) {
 	tamanioStr := r.URL.Query().Get("verificarEspacioDisponible") 
 	
@@ -79,7 +78,14 @@ func VerificarEspacioDisponible(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]bool{"espacioDisponible": espacioDisponible})
 }
 
-//la CPU pide una instruccion
+//KERNEL notifica a memoria que finalizo
+func FinalizarProceso(w http.ResponseWriter, r *http.Request){
+	//libera su espacio en memoria y marcar como libres sus entradas en SWAP
+	//genera log con las metricas
+
+}
+
+//la CPU pide una instruccion del diccionario de procesos
 func DevolverInstruccion(w http.ResponseWriter, r *http.Request) {
 	
 	var paquete PaqueteSolicitudInstruccion
@@ -90,6 +96,8 @@ func DevolverInstruccion(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error al parsear la solicitud", http.StatusBadRequest)
 		return
 	}
+	pid := paquete.Pid
+	pc := paquete.Pc
 
 	// Obtener instrucción desde memoria
 	instruccion, err := utilsMemoria.ObtenerInstruccion(paquete.Pid, paquete.Pc)
@@ -104,10 +112,8 @@ func DevolverInstruccion(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error al enviar la instrucción", http.StatusInternalServerError)
 		return
 	}
-	pidString := strconv.Itoa(paquete.Pid)
-	pcString :=  strconv.Itoa(paquete.Pc)
 	
-	global.LoggerMemoria.Log("## "+ pidString +": <"+ pidString +"> - Obtener instrucción: <"+ pcString +"> - Instrucción: <"+ instruccion +"> <...ARGS>", log.DEBUG)
+	global.LoggerMemoria.Log("## PID: "+ strconv.Itoa(pid) +">  - Obtener instrucción: <"+ strconv.Itoa(pc) +"> - Instrucción: <"+ instruccion +"> <...ARGS>", log.DEBUG)
 }
 
 //CPU lo pide
@@ -125,11 +131,8 @@ func ArmarPaqueteConfigMMU(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+//CPU pasa la direccion logica para que le devolvamos el marco
 func AccederTablaPaginas(w http.ResponseWriter, r *http.Request) {
-	//llega un PID y direccion logica
-	//hace la traduccion
-	//devuelve la direccion fisica 
-	//++ metricas de Acceso a TP
 	if r.Method != http.MethodPost {
         http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
         return
@@ -144,14 +147,12 @@ func AccederTablaPaginas(w http.ResponseWriter, r *http.Request) {
 	pid := paquete.PID
 	direccionLogica := paquete.DireccionLogica
 
-	utilsMemoria.TraducirLogicaAFisica(pid, direccionLogica)
+	utilsMemoria.EncontrarMarco(pid, direccionLogica)
 
 }
 
-//ACESSO A ESPACIO DE USUARIO
+//CPU queire leer o escribir en Espacio de usuario
 func LeerMemoria(w http.ResponseWriter, r *http.Request) {
-    // input: pid, direcciom_logica, tamaño
-    // output: contenido
 	if r.Method != http.MethodPost {
         http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
         return
@@ -162,37 +163,48 @@ func LeerMemoria(w http.ResponseWriter, r *http.Request) {
         http.Error(w, "Error al decodificar JSON", http.StatusBadRequest)
         return
     }
+
 	pid := paquete.PID
-	direccionLogica := paquete.DireccionLogica
+	direccionFisica := paquete.DireccionFisica
 	tamanio := paquete.Tamanio
 
-	if direccionLogica+tamanio > utilsMemoria.TamMemoria{
+	if direccionFisica+tamanio > utilsMemoria.TamMemoria{
 		http.Error(w, "Dirección física invalida", http.StatusBadRequest)
 		return
 	}
-	datos := utilsMemoria.DevolverLecturaMemoria(pid, direccionLogica, tamanio)
+	datos := utilsMemoria.DevolverLecturaMemoria(pid, direccionFisica, tamanio)
 	
 	if err := json.NewEncoder(w).Encode(datos); err != nil {
 		http.Error(w, "Error al enviar la instrucción", http.StatusInternalServerError)
 		return
 	}
+	global.LoggerMemoria.Log("## PID: <"+ strconv.Itoa(pid) +">- <Lectura> - Dir. Física: <"+ 
+	strconv.Itoa(direccionFisica) +"> - Tamaño: <"+ strconv.Itoa(tamanio)+ "> ", log.DEBUG)
+
 }
 
 func EscribirMemoria(w http.ResponseWriter, r *http.Request) {
-    // input: pid, direccion_logica, datos
-    // output: OK o error
+    if r.Method != http.MethodPost {
+        http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+        return
+    }
+
+    var paquete PedidoWRITE
+    if err := json.NewDecoder(r.Body).Decode(&paquete); err != nil {
+        http.Error(w, "Error al decodificar JSON", http.StatusBadRequest)
+        return
+    }
+
+	pid := paquete.PID
+	direccionFisica := paquete.DireccionFisica
+	datos := paquete.Datos
+	
+	utilsMemoria.EscribirDatos(pid, direccionFisica, datos)
+
+	w.WriteHeader(http.StatusOK)
+
+	global.LoggerMemoria.Log("## PID: <"+ strconv.Itoa(pid) +">- <Escritura> - Dir. Física: <"+ 
+	strconv.Itoa(direccionFisica) +"> - Datos: <"+ datos + "> ", log.DEBUG)
 }
 
-func AccederEspacioUsuario(w http.ResponseWriter, r *http.Request){
-	//ante un pedido de lectura, devolver el valor de esa posicion
-	//ante pedido de escrita escribir lo pedido
-	// PENSAR si conviene hacer una para write y otra para read
-	//en ambos casos edita las metricas
-}
 
-//KERNEL notifica a memoria que finalizo
-func FinalizarProceso(w http.ResponseWriter, r *http.Request){
-	//libera su espacio en memoria y marcar como libres sus entradas en SWAP
-	//genera log con las metricas
-
-}
