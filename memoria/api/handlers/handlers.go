@@ -15,7 +15,7 @@ import (
 )
 
 type PaqueteMemoria = estructuras.PaqueteMemoria
-type PaqueteSolicitudInstruccion = estructuras.SolicitudInstruccion
+type PaqueteSolicitudInstruccion = estructuras.PCB
 type PaqueteConfigMMU = estructuras.ConfiguracionMMU
 type AccesoTP = estructuras.AccesoTP
 type PedidoREAD = estructuras.PedidoREAD
@@ -96,11 +96,11 @@ func DevolverInstruccion(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error al parsear la solicitud", http.StatusBadRequest)
 		return
 	}
-	pid := paquete.Pid
-	pc := paquete.Pc
+	pid := paquete.PID
+	pc := paquete.PC
 
 	// Obtener instrucción desde memoria
-	instruccion, err := utilsMemoria.ObtenerInstruccion(paquete.Pid, paquete.Pc)
+	instruccion, err := utilsMemoria.ObtenerInstruccion(pid, pc)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

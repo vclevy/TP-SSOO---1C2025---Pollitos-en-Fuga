@@ -27,11 +27,6 @@ type PaqueteHandshakeIO struct {
 	PuertoIO int    `json:"puertoIO"`
 }
 
-type SolicitudInstruccion struct {
-	Pid int `json:"Pid"`
-	Pc  int `json:"Pc"`
-}
-
 type ConfiguracionMMU struct {
 	Tamanio_pagina       int `json:"tamanio_pagina"`
 	Cant_entradas_tabla int `json:"cant_entradas_tabla"`
