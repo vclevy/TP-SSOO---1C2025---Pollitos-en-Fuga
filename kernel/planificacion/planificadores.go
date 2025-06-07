@@ -220,7 +220,7 @@ func IniciarPlanificadorCortoPlazo() {
 							// Buscar CPU que ejecuta el proceso a desalojar
 							cpuEjecutando := utilskernel.BuscarCPUPorPID(ejecutando.PCB.PID)
 							if cpuEjecutando != nil {
-								err := utilskernel.EnviarInterrupcionCPU(cpuEjecutando, ejecutando.PCB.PID)
+								err := utilskernel.EnviarInterrupcionCPU(cpuEjecutando, ejecutando.PCB.PID, ejecutando.PCB.PC)
 								if err != nil {
 									global.LoggerKernel.Log(fmt.Sprintf("Error enviando interrupción a CPU %s para proceso %d: %v", cpuEjecutando.ID, ejecutando.PCB.PID, err), log.ERROR)
 								}
@@ -504,7 +504,7 @@ func EvaluarDesalojo(nuevo *global.Proceso) {
 			global.LoggerKernel.Log(fmt.Sprintf("No se encontró CPU ejecutando proceso %d para interrupción", procesoADesalojar.PCB.PID), log.ERROR)
 			return
 		}
-		if err := utilskernel.EnviarInterrupcionCPU(cpu, procesoADesalojar.PCB.PID); err != nil {
+		if err := utilskernel.EnviarInterrupcionCPU(cpu, procesoADesalojar.PCB.PID, procesoADesalojar.PCB.PC); err != nil {
 			global.LoggerKernel.Log(fmt.Sprintf("Error enviando interrupción: %v", err), log.ERROR)
 		}
 	}

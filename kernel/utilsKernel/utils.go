@@ -141,11 +141,12 @@ func EnviarADispatch(cpu *global.CPU, pid int, pc int) (*estructuras.RespuestaCP
 }
 
 
-func EnviarInterrupcionCPU(cpu *global.CPU, pid int) (error) {
+func EnviarInterrupcionCPU(cpu *global.CPU, pid int, pc int) (error) {
 	url := fmt.Sprintf("http://%s:%d/interrupt", cpu.IP, cpu.Puerto)
 
 	payload := map[string]interface{}{
 		"pid": pid,
+		"pc": pc,
 	}
 	jsonData, err := json.Marshal(payload)
 	if err != nil {
