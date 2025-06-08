@@ -211,22 +211,30 @@ func IniciarPlanificadorCortoPlazo() {
 
 				if global.ConfigKernel.SchedulerAlgorithm == "SRTF" {
 					global.MutexExecuting.Lock()
+
 					if len(global.ColaExecuting) > 0 {
-						ejecutando := global.ColaExecuting[0]
-						restanteEjecutando := EstimacionRestante(ejecutando)
+						var procesoMasLento *global.Proceso
+						maxTiempoRestante := -1.0
+
+						for _, ejecutando := range global.ColaExecuting {
+							restante := EstimacionRestante(ejecutando)
+							if restante > maxTiempoRestante {
+								maxTiempoRestante = restante
+								procesoMasLento = ejecutando
+							}
+						}
+
 						restanteNuevo := EstimacionRestante(nuevoProceso)
 
-						if restanteNuevo < restanteEjecutando {
-							// Buscar CPU que ejecuta el proceso a desalojar
-							cpuEjecutando := utilskernel.BuscarCPUPorPID(ejecutando.PCB.PID)
+						if procesoMasLento != nil && restanteNuevo < maxTiempoRestante {
+							cpuEjecutando := utilskernel.BuscarCPUPorPID(procesoMasLento.PCB.PID)
 							if cpuEjecutando != nil {
-								err := utilskernel.EnviarInterrupcionCPU(cpuEjecutando, ejecutando.PCB.PID, ejecutando.PCB.PC)
+								err := utilskernel.EnviarInterrupcionCPU(cpuEjecutando, procesoMasLento.PCB.PID, procesoMasLento.PCB.PC)
 								if err != nil {
-									global.LoggerKernel.Log(fmt.Sprintf("Error enviando interrupción a CPU %s para proceso %d: %v", cpuEjecutando.ID, ejecutando.PCB.PID, err), log.ERROR)
+									global.LoggerKernel.Log(fmt.Sprintf("Error enviando interrupción a CPU %s para proceso %d: %v", cpuEjecutando.ID, procesoMasLento.PCB.PID, err), log.ERROR)
 								}
 							} else {
-								global.LoggerKernel.Log(fmt.Sprint("No se encontró CPU ejecutando proceso ", ejecutando.PCB.PID, " para interrupción"), log.ERROR)
-
+								global.LoggerKernel.Log(fmt.Sprintf("No se encontró CPU ejecutando proceso %d para interrupción", procesoMasLento.PCB.PID), log.ERROR)
 							}
 							global.MutexExecuting.Unlock()
 						} else {
