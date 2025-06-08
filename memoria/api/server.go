@@ -17,8 +17,11 @@ func CrearServer() *server.Server {
 			"POST /inicializarProceso": handlers.InicializarProceso,
 			"POST /verificarEspacioDisponible": handlers.VerificarEspacioDisponible,
 			"POST /finalizarProceso": handlers.FinalizarProceso,
+
+			//usadas por la CPU
 			"POST /solicitudInstruccion": handlers.DevolverInstruccion,
 			"POST /configuracionMMU": handlers.ArmarPaqueteConfigMMU,
+			"POST /pedirMarco": handlers.AccederTablaPaginas,
 			"POST /leerMemoria": handlers.LeerMemoria,
 			"POST /escribirMemoria": handlers.EscribirMemoria,
 			

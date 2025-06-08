@@ -158,7 +158,7 @@ func CrearTablaNiveles(nivelActual int, maxNiveles int, cantEntradas int, pagina
 }
 
 //ACCESO A TABLA DE PAGINAS
-func EncontrarMarco(pid int,direcionLogica int){
+func EncontrarMarco(pid int,entradas []int) int{
 	//la cpu nos pasa una direccion logica con las entradas multinivel
 	// y nosotros recorremos la tabla de paginas devolviendo el marco correspondient
 	//sumar 1 a la metrica de acceso a memoria pr cada tabla recorrida
@@ -178,4 +178,18 @@ func EscribirDatos(pid int, direccionFisica int, datos string) {
 	//se para en la posicion pedida y escribe de ahi en adelante
 	copy(MemoriaUsuario[direccionFisica:], []byte(datos))
 	metricas[pid].EscriturasMemo++
+}
+
+func LeerPaginaCompleta (pid int, direccionFisica int) []byte{ //Hace lo mismo que Devolver Lectura memoria, solo que el tamaño es el de la pagina
+	// el Byte 0 no es el index 0, sería el offset=0
+	offset := direccionFisica%tamPagina
+	if(offset!=0){
+		fmt.Printf("Error: direccion física no alineada al byte 0 de la pagina")
+		return nil
+	}
+	return DevolverLecturaMemoria(pid, direccionFisica, tamPagina)
+}
+
+func ActualizarPaginaCompleta (pid int, direccionFísica int){
+	
 }
