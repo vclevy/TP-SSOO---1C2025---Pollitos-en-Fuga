@@ -6,6 +6,7 @@ import (
 	"strings"
 	"github.com/sisoputnfrba/tp-golang/memoria/global"
 	"math"
+	"time"
 )
 
 //ESTRUCTURAS
@@ -158,12 +159,32 @@ func CrearTablaNiveles(nivelActual int, maxNiveles int, cantEntradas int, pagina
 }
 
 //ACCESO A TABLA DE PAGINAS
-func EncontrarMarco(pid int,entradas []int) int{
-	//la cpu nos pasa una direccion logica con las entradas multinivel
-	// y nosotros recorremos la tabla de paginas devolviendo el marco correspondient
-	//sumar 1 a la metrica de acceso a memoria pr cada tabla recorrida
-	//considerar delay
+func EncontrarMarco(pid int, entradas []int) int {
+	actual := tablasPorProceso[pid]
+	
+	if actual == nil {
+		return -1 // error: no hay raíz
 	}
+
+	for i := 0; i < len(entradas); i++ {
+		idx := entradas[i]
+		if actual.SiguienteNivel == nil || idx >= len(actual.SiguienteNivel) || idx < 0 {
+			return -1 // error: tabla inválida
+		}
+
+		actual = actual.SiguienteNivel[idx]
+
+		time.Sleep(time.Millisecond * time.Duration(global.ConfigMemoria.Memory_delay))
+
+		metricas[pid].AcesosTP++
+	}
+
+	if !actual.Presente {
+		return -1 // está en SWAP u otro error
+	}
+
+	return actual.MarcoFisico
+}
 
 //ACCESO A ESPACIO DE USUARIO
 func DevolverLecturaMemoria(pid int, direccionFisica int, tamanio int) []byte{
@@ -171,7 +192,7 @@ func DevolverLecturaMemoria(pid int, direccionFisica int, tamanio int) []byte{
 	//Lee desde dirFisica hasta dirfisica+tamanio
 	metricas[pid].LecturasMemo++
 
-	return datos
+	return datos //ver si tenemos q devolvr un array
 }
 
 func EscribirDatos(pid int, direccionFisica int, datos string) { //ACTUALIZADO 8-6-2025
@@ -193,12 +214,29 @@ func LeerPaginaCompleta (pid int, direccionFisica int) []byte{ //Hace lo mismo q
 	// el Byte 0 no es el index 0, sería el offset=0
 	offset := direccionFisica%tamPagina
 	if(offset!=0){
-		fmt.Printf("Error: direccion física no alineada al byte 0 de la pagina")
+		fmt.Printf("Error: direccion física no alineada al byte 0 de la pagina \n")
 		return nil
 	}
 	return DevolverLecturaMemoria(pid, direccionFisica, tamPagina)
 }
 
-func ActualizarPaginaCompleta (pid int, direccionFísica int){
+func ActualizarPaginaCompleta (pid int, direccionFisica int, datos []byte) {
+	if len(datos) != tamPagina{
+		fmt.Printf("Error: se esperaban %d bytes \n", tamPagina)
+		return 
+	}
 
+	offset := direccionFisica%tamPagina
+	if(offset!=0){
+		fmt.Printf("Error: direccion física no alineada al byte 0 de la pagina\n")
+		return 
+	}
+
+	if direccionFisica+tamPagina > len(MemoriaUsuario) {
+        fmt.Printf("Error: intento de escritura fuera de los límites de memoria\n")
+        return
+    }
+
+    copy(MemoriaUsuario[direccionFisica:direccionFisica+tamPagina], datos)
+    metricas[pid].EscriturasMemo++
 }

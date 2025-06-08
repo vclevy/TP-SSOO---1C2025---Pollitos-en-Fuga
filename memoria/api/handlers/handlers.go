@@ -216,4 +216,8 @@ func LeerPaginaCompleta(w http.ResponseWriter, r *http.Request){
 	
 }
 
+func EscribirPaginaCompleta(w http.ResponseWriter, r *http.Request){
+	
+}
+
 
