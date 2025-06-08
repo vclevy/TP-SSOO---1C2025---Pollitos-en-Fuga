@@ -145,10 +145,15 @@ func AccederTablaPaginas(w http.ResponseWriter, r *http.Request) {
     }
 
 	pid := paquete.PID
-	direccionLogica := paquete.DireccionLogica
+	entradas := paquete.Entradas
 
-	utilsMemoria.EncontrarMarco(pid, direccionLogica)
+	marco := utilsMemoria.EncontrarMarco(pid, entradas)
 
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(marco); err != nil {
+		http.Error(w, "Error al enviar el marco", http.StatusInternalServerError)
+		return
+	}
 }
 
 //CPU queire leer o escribir en Espacio de usuario
@@ -205,6 +210,10 @@ func EscribirMemoria(w http.ResponseWriter, r *http.Request) {
 
 	global.LoggerMemoria.Log("## PID: <"+ strconv.Itoa(pid) +">- <Escritura> - Dir. Física: <"+ 
 	strconv.Itoa(direccionFisica) +"> - Datos: <"+ datos + "> ", log.DEBUG)
+}
+
+func LeerPaginaCompleta(w http.ResponseWriter, r *http.Request){
+	
 }
 
 

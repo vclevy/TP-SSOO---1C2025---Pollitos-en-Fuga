@@ -73,7 +73,7 @@ type PCB struct {
 
 type AccesoTP struct {
 	PID            int    `json:"pid"`
-	DireccionLogica int    `json:"direccion_logica"`
+	Entradas []int    `json:"entradas"`
 }
 
 type PedidoREAD struct {

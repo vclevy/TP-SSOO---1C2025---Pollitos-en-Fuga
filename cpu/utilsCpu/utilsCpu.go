@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -152,9 +153,10 @@ func Execute(instruccion Instruccion, requiereMMU bool){
 		if err != nil {
 			fmt.Println("Error al convertir:", err)
 		} else {
-			MMU(direccionLogica)
+			direccionFisica := MMU(direccionLogica)
 		}
 	}
+	//pasar write o read a memoria con los datos correspondientes
 
   	//todo INSTRUCCIONES SYSCALLS
 	if(instruccion.Opcode == "IO"){
@@ -182,19 +184,45 @@ func Execute(instruccion Instruccion, requiereMMU bool){
 	}
 }
 
-func MMU(direccionLogica int)/*  (int, error) */{
+func MMU(direccionLogica int) int {
 	/* tlbHabilitada := global.CpuConfig.TlbEntries > 0
-	tlbDeshabilitada := global.CpuConfig.TlbEntries == 0
-	var marco int
-	var hit bool
-
-	ConfigMMU()
-	nroPagina := direccionLogica / configMMU.Tamanio_pagina
-	entrada_nivel_X := floor(nroPagina  / configMMU.Cant_entradas_tabla ^ (configMMU.Cant_N_Niveles - X)) % configMMU.Cant_entradas_tabla
-	desplazamiento := direccionLogica % configMMU.Tamanio_pagina
+	tlbDeshabilitada := global.CpuConfig.TlbEntries == 0 */
+	/* var marco int */
+	/* var hit bool */
 	
+	ConfigMMU()
+	desplazamiento := direccionLogica % configMMU.Tamanio_pagina
+	nroPagina := direccionLogica / configMMU.Tamanio_pagina
+/* 	entrada_nivel_X := math.Floor(nroPagina  / math.Pow(configMMU.Cant_entradas_tabla , configMMU.Cant_N_Niveles - X)) % configMMU.Cant_entradas_tabla
+ */
+	
+	listaEntradas := armarListaEntradas(nroPagina)
+
+	accederTabla := estructuras.AccesoTP{
+		PID : global.PCB_Actual.PID,
+		Entradas : listaEntradas,
+	}
+
+	marco := pedirMarco(accederTabla)
+
+	direccionFisica := marco* configMMU.Tamanio_pagina + desplazamiento
+
+	return direccionFisica
+
+/* 	
+	if tlbHabilitada{
+
+	} else if tlbDeshabilitada{
+
+	}else{
+		//!! Error
+	} */
+	/*
+	Franco estuvo acá ;)
+	*/
+	/*
 	//todo TLB
-	if tlbHabilitada{ //TLB habilitada
+	 //TLB habilitada
 		marco, hit = TLB(nroPagina)
 		if !hit {
 			marco = ObtenerFrameDeMemoria(nroPagina)
@@ -211,6 +239,56 @@ func MMU(direccionLogica int)/*  (int, error) */{
 
     return direccionFisica, nil */
 }
+
+func pedirMarco(estructuras.AccesoTP) int{
+	var accesoTP estructuras.AccesoTP
+	
+	jsonData, err := json.Marshal(accesoTP)
+	if err != nil {
+		global.LoggerCpu.Log("Error serializando solicitud: "+err.Error(), log.ERROR)
+		return -1
+	}
+
+	url := fmt.Sprintf("http://%s:%d/pedirMarco", global.CpuConfig.Ip_Memoria, global.CpuConfig.Port_Memoria) //url a la que se va a conectar
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData)) //se abre la conexión
+	
+	if err != nil {
+		global.LoggerCpu.Log("Error enviando solicitud de instrucción a memoria: " + err.Error(), log.ERROR)
+		return -1
+	}
+	defer resp.Body.Close() //se cierra la conexión
+
+	global.LoggerCpu.Log("✅ Solicitud enviada a Memoria de forma exitosa", log.INFO)
+
+	//respuesta
+	body, _ := io.ReadAll(resp.Body)
+
+	var marco int
+	err = json.Unmarshal(body, marco)
+	if err != nil {
+		global.LoggerCpu.Log("Error parseando instruccion de Memoria: "+err.Error(), log.ERROR)
+		return -1
+	}
+	return marco
+}
+
+/* 
+entradas := []int{}
+entradas x = append.(entradas,  ) */
+
+func armarListaEntradas(nroPagina int) []int{
+	cantNiveles := configMMU.Cant_N_Niveles
+	cantEntradas := configMMU.Cant_entradas_tabla
+	
+	entradas := make([]int, cantNiveles)
+	
+	for i := 1; i <= cantNiveles; i++ {
+		entradas[i-1] = int(math.Floor(float64(nroPagina) / math.Pow(float64(cantEntradas), float64(cantNiveles - i)))) % cantEntradas
+	}
+	return entradas
+}
+
+
 
 func TLB(nroPagina int){
  // conseguir el marco
@@ -358,8 +436,5 @@ func Syscall_Exit(){
 
 /* 
 TODO:
-? implementar que las funciones reciban errores(?) func Decode(instruccion string) (string, error) 
-? que es lo que hace arrancar el fetch? Por ahora es el handshake con kernel
 solicitar a memoria utilizando solo el PC, query params
-
 */
