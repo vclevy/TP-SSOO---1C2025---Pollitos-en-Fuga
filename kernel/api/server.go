@@ -18,6 +18,7 @@ func CrearServer() *server.Server {
 			"POST /finalizacionIO": handlers.FinalizacionIO,
 			"POST /Init_Proc":      handlers.INIT_PROC,
 			"POST /exit":           handlers.EXIT,
+			"POST /dumpMemory":		handlers.DUMP_MEMORY,
 		},
 	}
 	fmt.Printf("🟢 Kernel prendido en http://localhost:%d\n", global.ConfigKernel.Port_Kernel)
