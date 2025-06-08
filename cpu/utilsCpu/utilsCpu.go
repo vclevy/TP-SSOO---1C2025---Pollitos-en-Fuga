@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
+
 	"github.com/sisoputnfrba/tp-golang/cpu/global"
 	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
 	"github.com/sisoputnfrba/tp-golang/utils/logger"
@@ -84,17 +86,62 @@ func instruccionAEjecutar(estructuras.PCB) string{
 	return instruccionAEjecutar
 }
 
-func CicloDeInstruccion(){
-	var instruccionAEjecutar = Fetch()
-	if(instruccionAEjecutar == "FIN"){
-		global.Motivo = "EXIT"
-		return
-	}
-	instruccion, requiereMMU := Decode(instruccionAEjecutar)
-	
-	Execute(instruccion, requiereMMU)
+var tiempoInicio time.Time
 
+func EmpezarRafaga() {
+    tiempoInicio = time.Now()
 }
+
+func FinalizarRafaga(motivo string) {
+    tiempoEjecutado := time.Since(tiempoInicio).Seconds()
+    DevolverPCBConTiempo(tiempoEjecutado, motivo)
+}
+
+func CicloDeInstruccion(){
+    EmpezarRafaga()
+
+    for {
+        instruccionAEjecutar := Fetch()
+        if instruccionAEjecutar == "FIN" {
+            global.Motivo = "EXIT"
+            break
+        }
+
+        instruccion, requiereMMU := Decode(instruccionAEjecutar)
+        Execute(instruccion, requiereMMU)
+
+
+        if global.Motivo != "" { //exit, io, etc @palenxu
+            break
+        }
+    }
+
+    FinalizarRafaga(global.Motivo)
+}
+
+func DevolverPCBConTiempo(tiempo float64, motivo string) {
+    respuesta := estructuras.RespuestaCPU{
+        PID: global.PCB_Actual.PID,
+        PC: global.PCB_Actual.PC,
+        Motivo: motivo,
+        RafagaReal: tiempo,
+    }
+
+    jsonData, err := json.Marshal(respuesta)
+    if err != nil {
+        global.LoggerCpu.Log("Error serializando respuesta CPU: "+err.Error(), log.ERROR)
+        return
+    }
+
+    url := fmt.Sprintf("http://%s:%d/respuestaCPU", global.CpuConfig.Ip_Kernel, global.CpuConfig.Port_Kernel)
+    resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
+    if err != nil {
+        global.LoggerCpu.Log("Error enviando respuesta CPU al Kernel: "+err.Error(), log.ERROR)
+        return
+    }
+    defer resp.Body.Close()
+}
+
 
 func Fetch() string {
 	pidActual := global.PCB_Actual.PID

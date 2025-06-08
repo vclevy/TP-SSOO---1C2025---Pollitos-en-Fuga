@@ -1,9 +1,12 @@
 package handlers
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
+
 	"github.com/sisoputnfrba/tp-golang/cpu/global"
 	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
 	log "github.com/sisoputnfrba/tp-golang/utils/logger"
@@ -40,30 +43,45 @@ func Interrupcion(w http.ResponseWriter, r *http.Request) {
 }
 
 func NuevoPCB(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
-		return
-	}
+    var pcb estructuras.PCB
 
-	var data estructuras.PCB
+    err := json.NewDecoder(r.Body).Decode(&pcb)
+    if err != nil {
+        http.Error(w, "Error en el body: "+err.Error(), http.StatusBadRequest)
+        return
+    }
 
-	if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
-		http.Error(w, "Error al leer el cuerpo de la solicitud", http.StatusBadRequest)
-		return
-	}
+    global.PCB_Actual = pcb
 
-	global.PCB_Actual = data
+    tiempoInicio := time.Now()
 
-	global.Interrupcion = true
-	global.LoggerCpu.Log(fmt.Sprintf("Fue asignado un nuevo proceso con PID %d y PC: %d", global.PCB_Actual.PID, global.PCB_Actual.PC), log.DEBUG)
+    // Ejecutar ciclo de instrucciones, puede estar en otra función (por ejemplo: cpu.CicloDeInstruccion)
+    Motivo := EjecutarProceso()  // implementá tu ciclo de instrucción aquí, que retorna el motivo de finalización
 
-	response := estructuras.RespuestaCPU{
-		PID : global.PCB_Actual.PID,
-		PC:  global.PCB_Actual.PC,
-		Motivo: global.Motivo,
-		RafagaReal: global.Rafaga,
-	}
+    tiempoRafaga := time.Since(tiempoInicio).Seconds()
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+    respuesta := estructuras.RespuestaCPU{
+        PID: pcb.PID,
+        PC: global.PCB_Actual.PC,
+        Motivo: Motivo,
+        RafagaReal: tiempoRafaga,
+    }
+
+    jsonData, err := json.Marshal(respuesta)
+    if err != nil {
+        http.Error(w, "Error serializando respuesta: "+err.Error(), http.StatusInternalServerError)
+        return
+    }
+
+    // Enviar respuesta al Kernel (post a /respuestaCPU)
+    urlKernel := fmt.Sprintf("http://%s:%d/respuestaCPU", global.CpuConfig.Ip_Kernel, global.CpuConfig.Port_Kernel)
+    resp, err := http.Post(urlKernel, "application/json", bytes.NewBuffer(jsonData))
+    if err != nil {
+        http.Error(w, "Error enviando respuesta al kernel: "+err.Error(), http.StatusInternalServerError)
+        return
+    }
+    defer resp.Body.Close()
+
+    w.WriteHeader(http.StatusOK)
 }
+
