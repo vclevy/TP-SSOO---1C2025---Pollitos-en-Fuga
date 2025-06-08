@@ -156,6 +156,7 @@ func Execute(instruccion Instruccion, requiereMMU bool){
 			direccionFisica := MMU(direccionLogica)
 		}
 	}
+	//pasar write o read a memoria con los datos correspondientes
 
   	//todo INSTRUCCIONES SYSCALLS
 	if(instruccion.Opcode == "IO"){

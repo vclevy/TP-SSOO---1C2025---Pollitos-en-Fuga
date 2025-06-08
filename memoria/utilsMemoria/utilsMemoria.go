@@ -174,10 +174,19 @@ func DevolverLecturaMemoria(pid int, direccionFisica int, tamanio int) []byte{
 	return datos
 }
 
-func EscribirDatos(pid int, direccionFisica int, datos string) {
+func EscribirDatos(pid int, direccionFisica int, datos string) { //ACTUALIZADO 8-6-2025
 	//se para en la posicion pedida y escribe de ahi en adelante
-	copy(MemoriaUsuario[direccionFisica:], []byte(datos))
-	metricas[pid].EscriturasMemo++
+	bytesDatos := []byte(datos)
+    tamanioDatos := len(bytesDatos)
+
+    // Validación de límites de memoria
+    if direccionFisica+tamanioDatos > len(MemoriaUsuario) {
+        fmt.Printf("Error: intento de escritura fuera de los límites de memoria\n")
+        return
+    }
+
+    copy(MemoriaUsuario[direccionFisica:], bytesDatos)
+    metricas[pid].EscriturasMemo++
 }
 
 func LeerPaginaCompleta (pid int, direccionFisica int) []byte{ //Hace lo mismo que Devolver Lectura memoria, solo que el tamaño es el de la pagina
@@ -191,5 +200,5 @@ func LeerPaginaCompleta (pid int, direccionFisica int) []byte{ //Hace lo mismo q
 }
 
 func ActualizarPaginaCompleta (pid int, direccionFísica int){
-	
+
 }
