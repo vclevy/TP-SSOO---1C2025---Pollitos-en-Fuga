@@ -104,53 +104,58 @@ func HayLugar(tamanio int)(bool){
 }
 
 //RESERVANDO MARCOS DEL PROCESO
-func ReservarMarcos(pid int, cantMarcos int) []int{
-
-		var asignados []int
-		for i := 0; i < len(MarcosLibres) && len(asignados) < cantMarcos; i++ {
+func ReservarMarcos(tamanio int) []int{
+		cantMarcos := int(math.Ceil(float64(tamanio) / float64(tamPagina)))
+		var reservados []int
+		for i := 0; i < len(MarcosLibres) && len(reservados) < cantMarcos; i++ {
 			if MarcosLibres[i] {
 				MarcosLibres[i] = false
 
-				asignados = append(asignados, i)
+				reservados = append(reservados, i)
 			}
 		}
-		return asignados
+		return reservados
 }
+
+//Cada índice de marco reservado (i) indica que los bytes de memoriaUsuario desde
+// i*tamPagina hasta (i+1)*tamPagina-1 están asignados a un proceso -> CPU
 
 //CREACION DE TABLA DE PAGINAS DEL PROCESO
 func CrearTablaPaginas(pid int, tamanio int){
 	paginas := int(math.Ceil(float64(tamanio) / float64(tamPagina)))
+	marcos := ReservarMarcos(tamanio) // slice con marcos reservados
+	idx := 0 // índice para saber qué marco usar
+
 	raiz := &EntradaTP{
-	SiguienteNivel: CrearTablaNiveles(1, cantNiveles, cantEntradas, &paginas),
-}
-tablasPorProceso[pid] = raiz
-
-}
-
-func AsignarMarcosATablas(pid int, tamanio int){
-	//cantMarcos := int(math.Ceil(float64(tamanio) / float64(tamPagina)))
-	// := ReservarMarcos(pid, cantMarcos)
-	
+		SiguienteNivel: CrearTablaNiveles(1, &paginas, &marcos, &idx),
+	}
+	tablasPorProceso[pid] = raiz
 }
 
-func CrearTablaNiveles(nivelActual int, maxNiveles int, cantEntradas int, paginasRestantes *int) []*EntradaTP {
+func CrearTablaNiveles(nivelActual int, paginasRestantes *int,marcosReservados *[]int,proximoMarco *int,) []*EntradaTP {
 	tabla := make([]*EntradaTP, cantEntradas)
 
 	for i := 0; i < cantEntradas; i++ {
-		if nivelActual == maxNiveles {
+		if nivelActual == cantNiveles {
 			if *paginasRestantes > 0 {
 				tabla[i] = &EntradaTP{
-					Presente:     false,
-					MarcoFisico:  -1,
+					Presente:       true,
+					MarcoFisico:    (*marcosReservados)[*proximoMarco],
 					SiguienteNivel: nil,
 				}
 				*paginasRestantes--
+				*proximoMarco++
 			} else {
-				tabla[i] = nil // sin página asignada
+				tabla[i] = nil
 			}
 		} else {
 			tabla[i] = &EntradaTP{
-				SiguienteNivel: CrearTablaNiveles(nivelActual+1, maxNiveles, cantEntradas, paginasRestantes),
+				SiguienteNivel: CrearTablaNiveles(
+					nivelActual+1,
+					paginasRestantes,
+					marcosReservados,
+					proximoMarco,
+				),
 			}
 		}
 	}
