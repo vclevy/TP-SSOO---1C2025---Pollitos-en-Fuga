@@ -7,7 +7,6 @@ import (
 	log "github.com/sisoputnfrba/tp-golang/utils/logger"
 	"sort"
 	"time"
-	//estructuras "github.com/sisoputnfrba/tp-golang/utils/estructuras"
 )
 
 const (
@@ -74,78 +73,69 @@ func IniciarPlanificadorLargoPlazo() {
 		global.LoggerKernel.Log("Iniciando planificación de largo plazo...", log.INFO)
 
 		for {
-			select {
-			case <-global.NotifySuspReady:
-				for {
-					global.MutexSuspReady.Lock()
-					tieneSuspReady := len(global.ColaSuspReady) > 0
-					global.MutexSuspReady.Unlock()
-
-					if !tieneSuspReady {
-						break
-					}
-					if !IntentarCargarDesdeSuspReady() {
-						break
-					}
-				}
-
-			case <-global.NotifyNew:
+			// Prioridad: SuspReady
+			for {
 				global.MutexSuspReady.Lock()
-				colaSuspReadyLen := len(global.ColaSuspReady)
+				tieneSuspReady := len(global.ColaSuspReady) > 0
 				global.MutexSuspReady.Unlock()
 
-				if colaSuspReadyLen == 0 {
-					global.MutexNew.Lock()
-					colaNewLen := len(global.ColaNew)
-					global.MutexNew.Unlock()
+				if !tieneSuspReady || !IntentarCargarDesdeSuspReady() {
+					break
+				}
+			}
 
-					if colaNewLen > 0 {
-						switch global.ConfigKernel.SchedulerAlgorithm {
-						case "FIFO":
+			select {
+			case <-global.NotifyNew:
+				global.MutexNew.Lock()
+				colaNewLen := len(global.ColaNew)
+				global.MutexNew.Unlock()
+
+				if colaNewLen > 0 {
+					switch global.ConfigKernel.SchedulerAlgorithm {
+					case "FIFO":
+						global.MutexNew.Lock()
+						if len(global.ColaNew) == 0 {
+							global.MutexNew.Unlock()
+							break
+						}
+						proceso := global.ColaNew[0]
+						global.MutexNew.Unlock()
+
+						if utilskernel.InicializarProceso(proceso) {
 							global.MutexNew.Lock()
-							if len(global.ColaNew) == 0 {
-								global.MutexNew.Unlock()
-								break
-							}
-							proceso := global.ColaNew[0]
+							global.ColaNew = global.ColaNew[1:]
 							global.MutexNew.Unlock()
 
-							if utilskernel.SolicitarMemoria(proceso.MemoriaRequerida) {
+							ActualizarEstadoPCB(&proceso.PCB, READY)
+							global.AgregarAReady(proceso)
+							EvaluarDesalojo(proceso)
+						}
+
+					case "CHICO":
+						global.MutexNew.Lock()
+						ordenada := make([]*global.Proceso, len(global.ColaNew))
+						copy(ordenada, global.ColaNew)
+						global.MutexNew.Unlock()
+
+						sort.Slice(ordenada, func(i, j int) bool {
+							return ordenada[i].MemoriaRequerida < ordenada[j].MemoriaRequerida
+						})
+
+						for _, proc := range ordenada {
+							if utilskernel.InicializarProceso(proc) {
 								global.MutexNew.Lock()
-								global.ColaNew = global.ColaNew[1:]
+								for i, p := range global.ColaNew {
+									if p.PCB.PID == proc.PCB.PID {
+										global.ColaNew = append(global.ColaNew[:i], global.ColaNew[i+1:]...)
+										break
+									}
+								}
 								global.MutexNew.Unlock()
 
-								ActualizarEstadoPCB(&proceso.PCB, READY)
-								global.AgregarAReady(proceso)
-								EvaluarDesalojo(proceso)
-							}
-
-						case "CHICO":
-							global.MutexNew.Lock()
-							ordenada := make([]*global.Proceso, len(global.ColaNew))
-							copy(ordenada, global.ColaNew)
-							global.MutexNew.Unlock()
-
-							sort.Slice(ordenada, func(i, j int) bool {
-								return ordenada[i].MemoriaRequerida < ordenada[j].MemoriaRequerida
-							})
-
-							for _, proc := range ordenada {
-								if utilskernel.SolicitarMemoria(proc.MemoriaRequerida) {
-									global.MutexNew.Lock()
-									for i, p := range global.ColaNew {
-										if p.PCB.PID == proc.PCB.PID {
-											global.ColaNew = append(global.ColaNew[:i], global.ColaNew[i+1:]...)
-											break
-										}
-									}
-									global.MutexNew.Unlock()
-
-									ActualizarEstadoPCB(&proc.PCB, READY)
-									global.AgregarAReady(proc)
-									EvaluarDesalojo(proc)
-									break
-								}
+								ActualizarEstadoPCB(&proc.PCB, READY)
+								global.AgregarAReady(proc)
+								EvaluarDesalojo(proc)
+								break
 							}
 						}
 					}
@@ -176,6 +166,7 @@ func IniciarPlanificadorLargoPlazo() {
 		}
 	}()
 }
+
 
 func IniciarPlanificadorCortoPlazo() {
 	go func() {
@@ -385,7 +376,7 @@ func IntentarCargarDesdeSuspReady() bool {
 			continue
 		}
 
-		if utilskernel.SolicitarMemoria(proceso.MemoriaRequerida) {
+		if utilskernel.VerificarEspacioDisponible(proceso.MemoriaRequerida) {
 			if err := utilskernel.MoverAMemoria(proceso.PID); err != nil {
 				global.LoggerKernel.Log(fmt.Sprintf("Error moviendo proceso %d a memoria: %v", proceso.PID, err), log.ERROR)
 				nuevaCola = append(nuevaCola, proceso)
@@ -437,7 +428,6 @@ func liberarPCB(p *Proceso) {
 		return
 	}
 
-	// Limpiar mapas para liberar referencias internas
 	for k := range p.ME {
 		delete(p.ME, k)
 	}
@@ -445,7 +435,6 @@ func liberarPCB(p *Proceso) {
 		delete(p.MT, k)
 	}
 
-	// Limpiar datos de PCB y proceso si quieres (no obligatorio, GC los limpia)
 	p.PC = 0
 	p.UltimoEstado = ""
 	p.InicioEstado = time.Time{}
