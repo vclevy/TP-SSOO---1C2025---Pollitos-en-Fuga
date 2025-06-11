@@ -21,8 +21,8 @@ type EntradaTP struct {
     SiguienteNivel []*EntradaTP 
 }
 
-var tablaDePaginasRaiz []*EntradaTP // una por proceso
-var tablasPorProceso = make(map[int]*EntradaTP)
+var TablaDePaginasRaiz []*EntradaTP // una por proceso
+var TablasPorProceso = make(map[int]*EntradaTP)
 
 //Diccionario de procesos
 var diccionarioProcesosMemoria map[int]*[]string
@@ -46,6 +46,8 @@ func InicializarMemoria() {
     for i := range MarcosLibres {
         MarcosLibres[i] = true
     }
+
+	TablasPorProceso = make(map[int]*EntradaTP)
 }
 
 //MERTRICAS
@@ -129,7 +131,7 @@ func CrearTablaPaginas(pid int, tamanio int){
 	raiz := &EntradaTP{
 		SiguienteNivel: CrearTablaNiveles(1, &paginas, &marcos, &idx),
 	}
-	tablasPorProceso[pid] = raiz
+	TablasPorProceso[pid] = raiz
 }
 
 func CrearTablaNiveles(nivelActual int, paginasRestantes *int,marcosReservados *[]int,proximoMarco *int,) []*EntradaTP {
@@ -163,9 +165,10 @@ func CrearTablaNiveles(nivelActual int, paginasRestantes *int,marcosReservados *
 	return tabla
 }
 
+
 //ACCESO A TABLA DE PAGINAS
 func EncontrarMarco(pid int, entradas []int) int {
-	actual := tablasPorProceso[pid]
+	actual := TablasPorProceso[pid]
 	
 	if actual == nil {
 		return -1 // error: no hay raíz
@@ -244,4 +247,21 @@ func ActualizarPaginaCompleta (pid int, direccionFisica int, datos []byte) {
 
     copy(MemoriaUsuario[direccionFisica:direccionFisica+tamPagina], datos)
     metricas[pid].EscriturasMemo++
+}
+
+
+//----------PRUEBAS
+func ImprimirTabla(tabla []*EntradaTP, nivel int, path string) {
+	for i, entrada := range tabla {
+		if entrada == nil {
+			continue
+		}
+		prefijo := fmt.Sprintf("Nivel %d - Entrada %d (%s)", nivel, i, path)
+
+		if entrada.SiguienteNivel == nil {
+			fmt.Printf("%s → MARCO %d\n", prefijo, entrada.MarcoFisico)
+		} else {
+			ImprimirTabla(entrada.SiguienteNivel, nivel+1, fmt.Sprintf("%s->%d", path, i))
+		}
+	}
 }
