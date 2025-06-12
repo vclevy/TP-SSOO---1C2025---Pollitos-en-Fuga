@@ -15,11 +15,10 @@ import (
 
 func main() {
 
-utilsMemoria.InicializarMemoria()
-	// configurar logger e inicializar config
 	global.InitGlobal()
-	defer global.LoggerMemoria.CloseLogger()
-
+	defer global.LoggerMemoria.CloseLogger()	
+	
+	// configurar logger e inicializar config
 	s := api.CrearServer()
 	go func() {
 		err_server := s.Iniciar()
@@ -28,16 +27,20 @@ utilsMemoria.InicializarMemoria()
 		}
 		}()
 
+	utilsMemoria.InicializarMemoria()
 
-	pid := 42
-	tamanio := 768 // 768 / 64 = 12 páginas
-
-	utilsMemoria.CrearTablaPaginas(pid, tamanio)
+	pid := 35
+	utilsMemoria.InicializarMetricas(pid)
+	utilsMemoria.CrearTablaPaginas(pid,217)
 
 	fmt.Printf("Tablas de páginas del proceso PID %d:\n", pid)
 	utilsMemoria.ImprimirTabla(utilsMemoria.TablasPorProceso[pid].SiguienteNivel, 1, "")
-	
 
+	marco := utilsMemoria.EncontrarMarco(pid, []int{0, 0, 0, 0, 1}) // debería dar marco 1
+
+	fmt.Printf("Marco encontrado a partir de entradas %d:\n", marco)
+
+	utilsMemoria.ImprimirMetricas(pid)
 	select{}
 }
 

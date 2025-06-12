@@ -47,6 +47,7 @@ func InicializarProceso(w http.ResponseWriter, r *http.Request) {
 
 	utilsMemoria.CrearTablaPaginas(pid, tamanio)
 	utilsMemoria.CargarProceso(pid, archivoPseudocodigo)
+	utilsMemoria.InicializarMetricas(pid)
 	global.LoggerMemoria.Log("## PID: "+ strconv.Itoa(pid) +"> - Proceso Creado - Tamaño: <"+strconv.Itoa(tamanio)+">", log.INFO)
 }
 
