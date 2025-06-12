@@ -29,18 +29,26 @@ func main() {
 
 	utilsMemoria.InicializarMemoria()
 
+	//TESTING
+	//probando creacion de TABLA DE PAGINAS y encontrar MARCO
 	pid := 35
+	tamanio := 869
+	dirLogica := []int{0, 0, 0, 2, 1} //devuelve marco 9
+	
 	utilsMemoria.InicializarMetricas(pid)
-	utilsMemoria.CrearTablaPaginas(pid,217)
+	utilsMemoria.CrearTablaPaginas(pid,tamanio)
 
 	fmt.Printf("Tablas de páginas del proceso PID %d:\n", pid)
 	utilsMemoria.ImprimirTabla(utilsMemoria.TablasPorProceso[pid].SiguienteNivel, 1, "")
 
-	marco := utilsMemoria.EncontrarMarco(pid, []int{0, 0, 0, 0, 1}) // debería dar marco 1
+	marco := utilsMemoria.EncontrarMarco(pid, dirLogica)
 
-	fmt.Printf("Marco encontrado a partir de entradas %d:\n", marco)
+	fmt.Printf("Marco encontrado a partir de entradas: %d\n", marco)
 
 	utilsMemoria.ImprimirMetricas(pid)
+
+
+
 	select{}
 }
 
