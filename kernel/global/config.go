@@ -55,15 +55,13 @@ type Config struct {
 	InitialEstimate       int     `json:"initial_estimate"`
 }
 
-func InitGlobal() {
-	// 1. Cargar configuración desde archivo
-	ConfigKernel = utils.CargarConfig[Config]("config/config.json")
 
-	// 2. Inicializar logger con lo que vino en la config
+func InitGlobal(archivoConfig string) {
+	ConfigKernel = utils.CargarConfig[Config](archivoConfig)
+
 	LoggerKernel = logger.ConfigurarLogger(ConfigKernel.Log_file, ConfigKernel.LogLevel)
 	LoggerKernel.Log("Logger de Kernel inicializado", logger.DEBUG)
 
-	// 3. Inicializar canal de sincronización para planificación
 	InicioPlanificacionLargoPlazo = make(chan struct{})
 }
 
