@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 
@@ -109,8 +110,7 @@ func BuscarCPUPorPID(pid int) *global.CPU {
     return nil
 }
 
-
-func EnviarADispatch(cpu *global.CPU, pid int, pc int) (*estructuras.RespuestaCPU, error) {
+func EnviarADispatch(cpu *global.CPU, pid int, pc int) error {
 	url := fmt.Sprintf("http://%s:%d/dispatch", cpu.IP, cpu.Puerto)
 
 	payload := map[string]interface{}{
@@ -119,27 +119,21 @@ func EnviarADispatch(cpu *global.CPU, pid int, pc int) (*estructuras.RespuestaCP
 	}
 	jsonData, err := json.Marshal(payload)
 	if err != nil {
-		return nil, fmt.Errorf("error serializando payload: %w", err)
+		return fmt.Errorf("error serializando payload: %w", err)
 	}
 
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
-		return nil, fmt.Errorf("error enviando request HTTP: %w", err)
+		return fmt.Errorf("error enviando request HTTP: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("respuesta no OK del dispatch: %d", resp.StatusCode)
+		return fmt.Errorf("respuesta no OK del dispatch: %d", resp.StatusCode)
 	}
 
-	var respuesta estructuras.RespuestaCPU
-	if err := json.NewDecoder(resp.Body).Decode(&respuesta); err != nil {
-		return nil, fmt.Errorf("error parseando respuesta JSON: %w", err)
-	}
-
-	return &respuesta, nil
+	return nil
 }
-
 
 func EnviarInterrupcionCPU(cpu *global.CPU, pid int, pc int) (error) {
 	url := fmt.Sprintf("http://%s:%d/interrupt", cpu.IP, cpu.Puerto)
@@ -186,7 +180,7 @@ func HayCPUDisponible() bool {
 	return false
 }
 
-func SolicitarMemoria(tamanio int) bool {
+func VerificarEspacioDisponible(tamanio int) bool {
 	cliente := &http.Client{}
 	endpoint := "verificarEspacioDisponible"
 	url := fmt.Sprintf("http://%s:%d/%s?tamanio=%d", global.ConfigKernel.IPMemory, global.ConfigKernel.Port_Memory, endpoint, tamanio)
@@ -214,7 +208,7 @@ func SolicitarMemoria(tamanio int) bool {
 }
 
 func MoverASwap(pid int) error {
-	url := fmt.Sprintf("http://%s:%d/moverASwap?pid=%d",
+	url := fmt.Sprintf("http://%s:%d/suspension?pid=%d",
 		global.ConfigKernel.IPMemory,
 		global.ConfigKernel.Port_Memory,
 		pid)
@@ -230,7 +224,7 @@ func MoverASwap(pid int) error {
 }
 
 func MoverAMemoria(pid int) error {
-	url := fmt.Sprintf("http://%s:%d/moverAMemoria?pid=%d",
+	url := fmt.Sprintf("http://%s:%d/dessuspension?pid=%d",
 		global.ConfigKernel.IPMemory,
 		global.ConfigKernel.Port_Memory,
 		pid)
@@ -267,4 +261,41 @@ func BuscarProcesoPorPID(cola []*global.Proceso, pid int) (*global.Proceso) {
 		}
 	}
 	return nil
+}
+type PaqueteMemoria struct {
+		PID                 int    `json:"PID"`
+		TamanioProceso      int    `json:"TamanioProceso"`
+		ArchivoPseudocodigo string `json:"ArchivoPseudo"`
+}
+
+func InicializarProceso(proceso *global.Proceso) bool {
+	paquete := PaqueteMemoria{
+		PID:                proceso.PID,
+		TamanioProceso:     proceso.MemoriaRequerida,
+		ArchivoPseudocodigo: proceso.ArchivoPseudo,
+	}
+
+	jsonData, err := json.Marshal(paquete)
+	if err != nil {
+		global.LoggerKernel.Log(fmt.Sprintf("Error al serializar paquete para PID %d: %v", proceso.PID, err), log.ERROR)
+		return false
+	}
+
+	url := "http://"+ global.ConfigKernel.IPMemory+":"+ strconv.Itoa(global.ConfigKernel.Port_Memory)+"/inicializarProceso"
+
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		global.LoggerKernel.Log(fmt.Sprintf("Error al enviar solicitud HTTP para inicializar proceso PID %d: %v", proceso.PID, err), log.ERROR)
+		return false
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		global.LoggerKernel.Log(fmt.Sprintf("Fallo inicialización PID %d. Código %d: %s", proceso.PID, resp.StatusCode, string(body)), log.ERROR)
+		return false
+	}
+
+	global.LoggerKernel.Log(fmt.Sprintf("Proceso %d inicializado correctamente en Memoria", proceso.PID), log.DEBUG)
+	return true
 }
