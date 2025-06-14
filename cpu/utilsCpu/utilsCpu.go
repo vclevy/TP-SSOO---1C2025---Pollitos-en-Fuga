@@ -164,10 +164,16 @@ func Execute(instruccion Instruccion, requiereMMU bool) {
 
 	//todo INSTRUCCIONES MMU
 
-	if (instruccion.Opcode == "READ") { /* READ 0 20 // READ (Dirección, Tamaño) */
-		
+	if (instruccion.Opcode == "READ") { // READ 0 20 - READ (Dirección, Tamaño)
+		marco := -1
 		tlbHabilitada := global.CpuConfig.TlbEntries > 0
 		cacheHabilitada := global.CpuConfig.CacheEntries > 0
+
+		tamanioStr := instruccion.Parametros[1]
+		tamanio, err := strconv.Atoi(tamanioStr)
+		if err != nil {
+			fmt.Println("Error al convertir:", err)
+		}
 
 		direccionLogicaStr := instruccion.Parametros[0]
 		direccionLogica, err := strconv.Atoi(direccionLogicaStr)
@@ -180,29 +186,19 @@ func Execute(instruccion Instruccion, requiereMMU bool) {
 			nroPagina = direccionLogica / configMMU.Tamanio_pagina
 			
 		}
-		if (cacheHabilitada)  {
-			if(cacheHIT()){
-				
-			}
-		} else if (tlbHabilitada) {
-			if(tlbHIT()){
-				direccionFisica = MMU(direccionLogica, instruccion.Opcode,nroPagina)
-			}
-		} else {
-			tamanioStr := instruccion.Parametros[1]
-			tamanio, err := strconv.Atoi(tamanioStr)
+		if (cacheHabilitada){
 			
-			direccionFisica = MMU(direccionLogica, instruccion.Opcode,nroPagina)
-			
-			if err != nil {
-				fmt.Println("Error al convertir:", err)
-			} else {
-				MemoriaLee(direccionFisica, tamanio)
+		}else{
+			if (tlbHabilitada) {
+				marco = tlbHIT()
 			}
+			direccionFisica = MMU(direccionLogica, instruccion.Opcode, nroPagina, marco)
+			MemoriaLee(direccionFisica, tamanio)
 		}
 	}
-
-	if (instruccion.Opcode == "WRITE") { /* WRITE 0 EJEMPLO_DE_ENUNCIADO // WRITE (Dirección, Datos) */
+/* 
+	if (instruccion.Opcode == "WRITE") { // WRITE 0 EJEMPLO_DE_ENUNCIADO - WRITE (Dirección, Datos) 
+		marco := -1
 		
 		tlbHabilitada := global.CpuConfig.TlbEntries > 0
 		cacheHabilitada := global.CpuConfig.CacheEntries > 0
@@ -215,12 +211,9 @@ func Execute(instruccion Instruccion, requiereMMU bool) {
 		if err != nil {
 			fmt.Println("Error al convertir:", err)
 		} else {
-			direccionFisica = MMU(direccionLogica, instruccion.Opcode,nroPagina)
+			direccionFisica = MMU(direccionLogica, instruccion.Opcode,nroPagina,marco)
 		}
 		if (cacheHabilitada)  {
-			if(cacheHIT()){
-				
-			}
 		} else if (tlbHabilitada) {
 			if(tlbHIT() != -1){
 				
@@ -228,7 +221,7 @@ func Execute(instruccion Instruccion, requiereMMU bool) {
 		} else {
 			MemoriaEscribe(direccionFisica, datos)
 		}
-	}
+	} */
 }
 
 /* func cacheHIT() bool {
@@ -304,10 +297,8 @@ func MemoriaEscribe(direccionFisica int, datos string) error {
 	return nil
 }
 
-func MMU(direccionLogica int, opcode string, nroPagina int) int {
-
-		
-
+func MMU(direccionLogica int, opcode string, nroPagina int, marco int) int {
+	if(marco == -1){
 		listaEntradas := armarListaEntradas(nroPagina)
 
 		accederTabla := estructuras.AccesoTP{
@@ -315,11 +306,12 @@ func MMU(direccionLogica int, opcode string, nroPagina int) int {
 			Entradas: listaEntradas,
 		}
 
-		marco := pedirMarco(accederTabla)
+		marco = pedirMarco(accederTabla)
+	}
 
-		direccionFisica := marco*configMMU.Tamanio_pagina + desplazamiento
-
-		return direccionFisica
+	direccionFisica = marco*configMMU.Tamanio_pagina + desplazamiento
+	return direccionFisica
+		
 }
 
 func pedirMarco(estructuras.AccesoTP) int {
