@@ -174,8 +174,6 @@ func IO(w http.ResponseWriter, r *http.Request) {
 	primero.Mutex.Unlock()
 }
 
-//! Falta esto creo @valenchu: Al momento que se conecte una nueva IO o se reciba el desbloqueo por medio de una de ellas, se deberá verificar si hay proceso encolados para dicha IO y enviarlo a la misma. 
-
 func FinalizacionIO(w http.ResponseWriter, r *http.Request){
 
 	// Extraer IP y puerto del remitente
@@ -280,4 +278,14 @@ func DUMP_MEMORY(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Dump exitoso para PID %d", pid)
 }
 
-//APIs para conexion con cada instancia de CPU 
+func DevolucionCPUHandler(w http.ResponseWriter, r *http.Request) {
+	var devolucion estructuras.RespuestaCPU
+	err := json.NewDecoder(r.Body).Decode(&devolucion)
+	if err != nil {
+		http.Error(w, "Error al decodificar devolución", http.StatusBadRequest)
+		return
+	}
+
+	go planificacion.ManejarDevolucionDeCPU(devolucion.PID, devolucion.PC, devolucion.Motivo, devolucion.RafagaReal)
+	w.WriteHeader(http.StatusOK)
+}
