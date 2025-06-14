@@ -9,32 +9,33 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+
 	"github.com/sisoputnfrba/tp-golang/cpu/global"
 	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
-	"github.com/sisoputnfrba/tp-golang/utils/logger"
+	log "github.com/sisoputnfrba/tp-golang/utils/logger"
 )
 
 var instruccionesConMMU = map[string]bool{
-	"WRITE":      true,
-	"READ":       true,
+	"WRITE": true,
+	"READ":  true,
 }
 
 type Instruccion struct {
-	Opcode  string	`json:"opcode"`  // El tipo de operación (e.g. WRITE, READ, GOTO, etc.)
+	Opcode     string   `json:"opcode"`     // El tipo de operación (e.g. WRITE, READ, GOTO, etc.)
 	Parametros []string `json:"parametros"` // Los parámetros de la instrucción, de tipo variable
 }
 
 func HandshakeKernel() error {
 	datosEnvio := estructuras.HandshakeConCPU{
-		ID   : global.CpuID,
-		Puerto : global.CpuConfig.Port_Cpu,
-		IP : global.CpuConfig.Ip_Cpu,
+		ID:     global.CpuID,
+		Puerto: global.CpuConfig.Port_Cpu,
+		IP:     global.CpuConfig.Ip_Cpu,
 	}
 
 	jsonData, err := json.Marshal(datosEnvio)
 	if err != nil {
-        return fmt.Errorf("error codificando handshake: %w", err)
-    }
+		return fmt.Errorf("error codificando handshake: %w", err)
+	}
 	url := fmt.Sprintf("http://%s:%d/handshakeCPU", global.CpuConfig.Ip_Kernel, global.CpuConfig.Port_Kernel)
 
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
@@ -52,9 +53,9 @@ func HandshakeKernel() error {
 	return nil
 }
 
-func instruccionAEjecutar(estructuras.PCB) string{
+func instruccionAEjecutar(estructuras.PCB) string {
 	var solicitudInstruccion estructuras.PCB
-	
+
 	jsonData, err := json.Marshal(solicitudInstruccion)
 	if err != nil {
 		global.LoggerCpu.Log("Error serializando solicitud: "+err.Error(), log.ERROR)
@@ -62,10 +63,10 @@ func instruccionAEjecutar(estructuras.PCB) string{
 	}
 
 	url := fmt.Sprintf("http://%s:%d/solicitudInstruccion", global.CpuConfig.Ip_Memoria, global.CpuConfig.Port_Memoria) //url a la que se va a conectar
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData)) //se abre la conexión
-	
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))                                          //se abre la conexión
+
 	if err != nil {
-		global.LoggerCpu.Log("Error enviando solicitud de instrucción a memoria: " + err.Error(), log.ERROR)
+		global.LoggerCpu.Log("Error enviando solicitud de instrucción a memoria: "+err.Error(), log.ERROR)
 		return ""
 	}
 	defer resp.Body.Close() //se cierra la conexión
@@ -84,14 +85,14 @@ func instruccionAEjecutar(estructuras.PCB) string{
 	return instruccionAEjecutar
 }
 
-func CicloDeInstruccion(){
+func CicloDeInstruccion() {
 	var instruccionAEjecutar = Fetch()
-	if(instruccionAEjecutar == "FIN"){
+	if instruccionAEjecutar == "FIN" {
 		global.Motivo = "EXIT"
 		return
 	}
 	instruccion, requiereMMU := Decode(instruccionAEjecutar)
-	
+
 	Execute(instruccion, requiereMMU)
 
 }
@@ -101,7 +102,7 @@ func Fetch() string {
 	pcActual := global.PCB_Actual.PC
 
 	global.LoggerCpu.Log(fmt.Sprintf(" ## PID: %d - FETCH - Program Counter: %d", pidActual, pcActual), log.INFO)
-	
+
 	solicitudInstruccion := estructuras.PCB{
 		PID: pidActual,
 		PC:  pcActual,
@@ -114,23 +115,23 @@ func Fetch() string {
 	return instruccionAEjecutar
 }
 
-func Decode(instruccionAEjecutar string) (Instruccion, bool){
+func Decode(instruccionAEjecutar string) (Instruccion, bool) {
 	/* if len(instruccionPartida) == 0 {
 		global.LoggerCpu.Log("Instrucción vacía o malformada", log.ERROR)
-		
+
 		instruccion := Instruccion{
 			Opcode: "INVALIDA",
 			Parametros:  instruccionPartida[1:],
 		}
-		
+
 		return instruccion, FALSE
 	} */
 
 	instruccionPartida := strings.Fields(instruccionAEjecutar) //?  "MOV AX BX" --> []string{"MOV", "AX", "BX"}
 
 	instruccion := Instruccion{
-		Opcode: instruccionPartida[0],
-		Parametros:  instruccionPartida[1:],
+		Opcode:     instruccionPartida[0],
+		Parametros: instruccionPartida[1:],
 	}
 
 	_, requiereMMU := instruccionesConMMU[instruccion.Opcode]
@@ -138,43 +139,56 @@ func Decode(instruccionAEjecutar string) (Instruccion, bool){
 	return instruccion, requiereMMU
 }
 
-func Execute(instruccion Instruccion, requiereMMU bool){
-	global.LoggerCpu.Log(fmt.Sprintf("## PID: %d - Ejecutando: %s - %s", global.PCB_Actual.PID, instruccion.Opcode , instruccion.Parametros), log.INFO)
-  	
+func Execute(instruccion Instruccion, requiereMMU bool) {
+	global.LoggerCpu.Log(fmt.Sprintf("## PID: %d - Ejecutando: %s - %s", global.PCB_Actual.PID, instruccion.Opcode, instruccion.Parametros), log.INFO)
+
 	//todo INSTRUCCIONES MMU
-	/* 
-	WRITE 0 EJEMPLO_DE_ENUNCIADO // WRITE (Dirección, Datos)
-	READ 0 20 // READ (Dirección, Tamaño)
+	/*
+		WRITE 0 EJEMPLO_DE_ENUNCIADO // WRITE (Dirección, Datos)
+		READ 0 20 // READ (Dirección, Tamaño)
 	*/
 
 	if requiereMMU {
+		var direccionFisica int
+		tlbHabilitada := global.CpuConfig.TlbEntries > 0
+		cacheHabilitada := global.CpuConfig.CacheEntries > 0
+
 		direccionLogicaStr := instruccion.Parametros[0]
+
 		direccionLogica, err := strconv.Atoi(direccionLogicaStr)
+
 		if err != nil {
 			fmt.Println("Error al convertir:", err)
 		} else {
-			direccionFisica := MMU(direccionLogica)
+			direccionFisica = MMU(direccionLogica, instruccion.Opcode)
+		}
+		if (cacheHabilitada && cacheHIT())  {
+			
+		} else if (tlbHabilitada && tlbHIT()) {
+			
+		} else {
+			DelegoAMemoria(instruccion,direccionFisica)
 		}
 	}
-	//pasar write o read a memoria con los datos correspondientes
-
-  	//todo INSTRUCCIONES SYSCALLS
-	if(instruccion.Opcode == "IO"){
+	
+	//todo INSTRUCCIONES SYSCALLS
+	if instruccion.Opcode == "IO" {
 		Syscall_IO(instruccion)
 	}
-	if(instruccion.Opcode == "INIT_PROC"){
+	if instruccion.Opcode == "INIT_PROC" {
 		Syscall_Init_Proc(instruccion)
 	}
-	if(instruccion.Opcode == "DUMP_MEMORY"){
+	if instruccion.Opcode == "DUMP_MEMORY" {
 		Syscall_Dump_Memory()
 	}
-	if(instruccion.Opcode == "EXIT"){
+	if instruccion.Opcode == "EXIT" {
 		Syscall_Exit()
 	}
-	//todo OTRAS INSTRUCCIONES 
-	if(instruccion.Opcode == "NOOP"){}
-	
-	if(instruccion.Opcode == "GOTO"){	
+	//todo OTRAS INSTRUCCIONES
+	if instruccion.Opcode == "NOOP" {
+	}
+
+	if instruccion.Opcode == "GOTO" {
 		pcNuevo, err := strconv.Atoi(instruccion.Parametros[1])
 		if err != nil {
 			global.LoggerCpu.Log("Error al convertir tiempo estimado: %v", log.ERROR)
@@ -184,65 +198,118 @@ func Execute(instruccion Instruccion, requiereMMU bool){
 	}
 }
 
-func MMU(direccionLogica int) int {
-	/* tlbHabilitada := global.CpuConfig.TlbEntries > 0
-	tlbDeshabilitada := global.CpuConfig.TlbEntries == 0 */
+func cacheHIT() bool {
+	return true
+}
+func tlbHIT() bool {
+	return true
+}
+
+func DelegoAMemoria(instruccion Instruccion, direccionFisica int){
+	if instruccion.Opcode == "WRITE" { //TODO MEMORIA ESCRIBE
+		datos := instruccion.Parametros[1]
+		MemoriaEscribe(direccionFisica, datos)
+	
+	} else if instruccion.Opcode == "READ" { //TODO MEMORIA LEE
+		tamanioStr := instruccion.Parametros[1]
+		tamanio, err := strconv.Atoi(tamanioStr)
+
+		if err != nil {
+			fmt.Println("Error al convertir:", err)
+		} else {
+			MemoriaLee(direccionFisica, tamanio)
+		}				
+	}
+}
+
+func MemoriaLee(direccionFisica int, tamanio int) error {
+	datosEnvio := estructuras.PedidoREAD{
+		PID:             global.PCB_Actual.PID,
+		DireccionFisica: direccionFisica,
+		Tamanio:           tamanio,
+	}
+
+	jsonData, err := json.Marshal(datosEnvio)
+	if err != nil {
+		return fmt.Errorf("error codificando pedido: %w", err)
+	}
+	url := fmt.Sprintf("http://%s:%d/leerMemoria", global.CpuConfig.Ip_Memoria, global.CpuConfig.Port_Memoria)
+
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		global.LoggerCpu.Log("Error enviando pedido lectura a Memoria: "+err.Error(), log.ERROR)
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("Pedido lectura fallido con status %d", resp.StatusCode)
+	}
+	global.LoggerCpu.Log("✅ Pedido lectura enviado a Memoria con éxito", log.INFO)
+
+	return nil
+}
+func MemoriaEscribe(direccionFisica int, datos string) error {
+	datosEnvio := estructuras.PedidoWRITE{
+		PID:             global.PCB_Actual.PID,
+		DireccionFisica: direccionFisica,
+		Datos:           datos,
+	}
+
+	jsonData, err := json.Marshal(datosEnvio)
+	if err != nil {
+		return fmt.Errorf("error codificando pedido: %w", err)
+	}
+	url := fmt.Sprintf("http://%s:%d/escribirMemoria", global.CpuConfig.Ip_Memoria, global.CpuConfig.Port_Memoria)
+
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		global.LoggerCpu.Log("Error enviando pedido escritura a Memoria: "+err.Error(), log.ERROR)
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("pedido escritura fallido con status %d", resp.StatusCode)
+	}
+	global.LoggerCpu.Log("✅ Pedido escritura enviados a Memoria con éxito", log.INFO)
+
+	return nil
+}
+
+func MMU(direccionLogica int, opcode string) int {
+/* 	tlbHabilitada := global.CpuConfig.TlbEntries > 0
+	cacheHabilitada := global.CpuConfig.CacheEntries > 0 */
 	/* var marco int */
 	/* var hit bool */
-	
+
 	ConfigMMU()
 	desplazamiento := direccionLogica % configMMU.Tamanio_pagina
 	nroPagina := direccionLogica / configMMU.Tamanio_pagina
-/* 	entrada_nivel_X := math.Floor(nroPagina  / math.Pow(configMMU.Cant_entradas_tabla , configMMU.Cant_N_Niveles - X)) % configMMU.Cant_entradas_tabla
- */
-	
-	listaEntradas := armarListaEntradas(nroPagina)
+/* 
+	if cacheHabilitada {
 
-	accederTabla := estructuras.AccesoTP{
-		PID : global.PCB_Actual.PID,
-		Entradas : listaEntradas,
-	}
+	} else if tlbHabilitada {
 
-	marco := pedirMarco(accederTabla)
+	} else { */
+		listaEntradas := armarListaEntradas(nroPagina)
 
-	direccionFisica := marco* configMMU.Tamanio_pagina + desplazamiento
-
-	return direccionFisica
-
-/* 	
-	if tlbHabilitada{
-
-	} else if tlbDeshabilitada{
-
-	}else{
-		//!! Error
-	} */
-	/*
-	Franco estuvo acá ;)
-	*/
-	/*
-	//todo TLB
-	 //TLB habilitada
-		marco, hit = TLB(nroPagina)
-		if !hit {
-			marco = ObtenerFrameDeMemoria(nroPagina)
-			ActualizarTLB(nroPagina, marco)
+		accederTabla := estructuras.AccesoTP{
+			PID:      global.PCB_Actual.PID,
+			Entradas: listaEntradas,
 		}
-	} else if (tlbDeshabilitada){ //TLB deshabilitada
-		marco = ObtenerFrameDeMemoria(nroPagina)
-	} else{ //TLB valor incorrecto
-		global.LoggerCpu.Log("Error en configuración TLB: entradas inválidas", log.ERROR)
-        return 0, fmt.Errorf("configuración TLB inválida")
-	}
 
-	direccionFisica := marco * configMMU.Tamanio_pagina + desplazamiento
+		marco := pedirMarco(accederTabla)
 
-    return direccionFisica, nil */
+		direccionFisica := marco*configMMU.Tamanio_pagina + desplazamiento
+
+		return direccionFisica
+/* 	} */
 }
 
-func pedirMarco(estructuras.AccesoTP) int{
+func pedirMarco(estructuras.AccesoTP) int {
 	var accesoTP estructuras.AccesoTP
-	
+
 	jsonData, err := json.Marshal(accesoTP)
 	if err != nil {
 		global.LoggerCpu.Log("Error serializando solicitud: "+err.Error(), log.ERROR)
@@ -250,10 +317,10 @@ func pedirMarco(estructuras.AccesoTP) int{
 	}
 
 	url := fmt.Sprintf("http://%s:%d/pedirMarco", global.CpuConfig.Ip_Memoria, global.CpuConfig.Port_Memoria) //url a la que se va a conectar
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData)) //se abre la conexión
-	
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))                                //se abre la conexión
+
 	if err != nil {
-		global.LoggerCpu.Log("Error enviando solicitud de instrucción a memoria: " + err.Error(), log.ERROR)
+		global.LoggerCpu.Log("Error enviando solicitud de instrucción a memoria: "+err.Error(), log.ERROR)
 		return -1
 	}
 	defer resp.Body.Close() //se cierra la conexión
@@ -272,61 +339,59 @@ func pedirMarco(estructuras.AccesoTP) int{
 	return marco
 }
 
-/* 
+/*
 entradas := []int{}
 entradas x = append.(entradas,  ) */
 
-func armarListaEntradas(nroPagina int) []int{
+func armarListaEntradas(nroPagina int) []int {
 	cantNiveles := configMMU.Cant_N_Niveles
 	cantEntradas := configMMU.Cant_entradas_tabla
-	
+
 	entradas := make([]int, cantNiveles)
-	
+
 	for i := 1; i <= cantNiveles; i++ {
-		entradas[i-1] = int(math.Floor(float64(nroPagina) / math.Pow(float64(cantEntradas), float64(cantNiveles - i)))) % cantEntradas
+		entradas[i-1] = int(math.Floor(float64(nroPagina)/math.Pow(float64(cantEntradas), float64(cantNiveles-i)))) % cantEntradas
 	}
 	return entradas
 }
 
-
-
-func TLB(nroPagina int){
- // conseguir el marco
- // ver si está la página
+func TLB(nroPagina int) {
+	// conseguir el marco
+	// ver si está la página
 }
 
-func ObtenerFrameDeMemoria(nroPagina int){}
+func ObtenerFrameDeMemoria(nroPagina int) {}
 
-func ActualizarTLB(nroPagina int, marco int){}
+func ActualizarTLB(nroPagina int, marco int) {}
 
-func CheckInterrupt(){}
+func CheckInterrupt() {}
 
-func CacheDePaginas(direccionFisica int){
+func CacheDePaginas(direccionFisica int) {
 	/* if(cacheHit){
-				
+
 	} else if (cacheMiss){
 		AccederMemoria()
 		ActualizarCache()
 	} */
 }
 
-func AccederMemoria(){}
-func ActualizarCache(){}
+func AccederMemoria()  {}
+func ActualizarCache() {}
 
 var configMMU estructuras.ConfiguracionMMU
 
-/* 
+/*
 type ConfiguracionMMU struct {
 	Tamaño_página       int `json:"tamaño_página"`
 	Cant_entradas_tabla int `json:"cant_entradas_tabla"`
 	Cant_N_Niveles      int `json:"cant_N_Niveles"`
 }
- */
+*/
 
 func ConfigMMU() error {
 	url := fmt.Sprintf("http://%s:%d/configuracionMMU", global.CpuConfig.Ip_Memoria, global.CpuConfig.Port_Memoria)
 	resp, err := http.Get(url)
-	
+
 	if err != nil {
 		global.LoggerCpu.Log("Error al conectar con Memoria:", log.ERROR)
 		return err
@@ -344,13 +409,13 @@ func ConfigMMU() error {
 		global.LoggerCpu.Log("Error parseando JSON de configuración:", log.ERROR)
 		return err
 	}
-	
+
 	return nil
 }
 
 //todo DELEGO SYSCALLS
 
-func Syscall_IO(instruccion Instruccion){
+func Syscall_IO(instruccion Instruccion) {
 	tiempo, err := strconv.Atoi(instruccion.Parametros[1])
 	if err != nil {
 		global.LoggerCpu.Log("Error al convertir tiempo estimado: %v", log.ERROR)
@@ -358,9 +423,9 @@ func Syscall_IO(instruccion Instruccion){
 	}
 
 	syscall_IO := estructuras.Syscall_IO{
-		IoSolicitada : instruccion.Parametros[0],
-		TiempoEstimado : tiempo,
-		PIDproceso: global.PCB_Actual.PID,
+		IoSolicitada:   instruccion.Parametros[0],
+		TiempoEstimado: tiempo,
+		PIDproceso:     global.PCB_Actual.PID,
 	}
 
 	jsonData, err := json.Marshal(syscall_IO)
@@ -370,17 +435,17 @@ func Syscall_IO(instruccion Instruccion){
 	}
 
 	url := fmt.Sprintf("http://%s:%d/IO", global.CpuConfig.Ip_Kernel, global.CpuConfig.Port_Kernel) //url a la que se va a conectar
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData)) //se abre la conexión
-	
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))                      //se abre la conexión
+
 	if err != nil {
-		global.LoggerCpu.Log("Error enviando solicitud de instrucción a Kernel: " + err.Error(), log.ERROR)
+		global.LoggerCpu.Log("Error enviando solicitud de instrucción a Kernel: "+err.Error(), log.ERROR)
 		return
 	}
 
 	defer resp.Body.Close() //se cierra la conexión
 }
 
-func Syscall_Init_Proc(instruccion Instruccion){
+func Syscall_Init_Proc(instruccion Instruccion) {
 	tamanio, err := strconv.Atoi(instruccion.Parametros[1]) //convieto tamanio de string a int
 	if err != nil {
 		global.LoggerCpu.Log("Error al convertir tamanio: %v", log.ERROR)
@@ -388,8 +453,8 @@ func Syscall_Init_Proc(instruccion Instruccion){
 	}
 
 	syscall_Init_Proc := estructuras.Syscall_Init_Proc{
-		ArchivoInstrucciones : instruccion.Parametros[0],
-		Tamanio : tamanio,
+		ArchivoInstrucciones: instruccion.Parametros[0],
+		Tamanio:              tamanio,
 		/* PIDproceso: pidActual, */
 	}
 
@@ -400,41 +465,41 @@ func Syscall_Init_Proc(instruccion Instruccion){
 	}
 
 	url := fmt.Sprintf("http://%s:%d/Init_Proc", global.CpuConfig.Ip_Kernel, global.CpuConfig.Port_Kernel) //url a la que se va a conectar
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData)) //se abre la conexión
-	
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))                             //se abre la conexión
+
 	if err != nil {
-		global.LoggerCpu.Log("Error enviando solicitud de instrucción a Kernel: " + err.Error(), log.ERROR)
+		global.LoggerCpu.Log("Error enviando solicitud de instrucción a Kernel: "+err.Error(), log.ERROR)
 		return
 	}
 
 	defer resp.Body.Close() //se cierra la conexión
 }
 
-func Syscall_Dump_Memory(){
-	url := fmt.Sprintf("http://%s:%d/Dump_Memory?pid=%d", global.CpuConfig.Ip_Kernel, global.CpuConfig.Port_Kernel,global.PCB_Actual.PID) //url a la que se va a conectar
-	resp, err := http.Post(url, "application/json", nil) //se abre la conexión
-	
+func Syscall_Dump_Memory() {
+	url := fmt.Sprintf("http://%s:%d/Dump_Memory?pid=%d", global.CpuConfig.Ip_Kernel, global.CpuConfig.Port_Kernel, global.PCB_Actual.PID) //url a la que se va a conectar
+	resp, err := http.Post(url, "application/json", nil)                                                                                   //se abre la conexión
+
 	if err != nil {
-		global.LoggerCpu.Log("Error enviando solicitud de instrucción a Kernel: " + err.Error(), log.ERROR)
+		global.LoggerCpu.Log("Error enviando solicitud de instrucción a Kernel: "+err.Error(), log.ERROR)
 		return
 	}
 
 	defer resp.Body.Close() //se cierra la conexión
 }
 
-func Syscall_Exit(){
-	url := fmt.Sprintf("http://%s:%d/Exit?pid=%d", global.CpuConfig.Ip_Kernel, global.CpuConfig.Port_Kernel,global.PCB_Actual.PID) //url a la que se va a conectar
-	resp, err := http.Post(url, "application/json", nil) //se abre la conexión
-	
+func Syscall_Exit() {
+	url := fmt.Sprintf("http://%s:%d/Exit?pid=%d", global.CpuConfig.Ip_Kernel, global.CpuConfig.Port_Kernel, global.PCB_Actual.PID) //url a la que se va a conectar
+	resp, err := http.Post(url, "application/json", nil)                                                                            //se abre la conexión
+
 	if err != nil {
-		global.LoggerCpu.Log("Error enviando solicitud de instrucción a Kernel: " + err.Error(), log.ERROR)
+		global.LoggerCpu.Log("Error enviando solicitud de instrucción a Kernel: "+err.Error(), log.ERROR)
 		return
 	}
 
 	defer resp.Body.Close() //se cierra la conexión
 }
 
-/* 
+/*
 TODO:
 solicitar a memoria utilizando solo el PC, query params
 */
