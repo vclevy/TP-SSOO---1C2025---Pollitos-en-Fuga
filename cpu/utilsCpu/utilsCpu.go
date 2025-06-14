@@ -25,6 +25,10 @@ type Instruccion struct {
 	Parametros []string `json:"parametros"` // Los parámetros de la instrucción, de tipo variable
 }
 
+var direccionFisica int
+var desplazamiento int
+var nroPagina int
+
 func HandshakeKernel() error {
 	datosEnvio := estructuras.HandshakeConCPU{
 		ID:     global.CpuID,
@@ -116,17 +120,6 @@ func Fetch() string {
 }
 
 func Decode(instruccionAEjecutar string) (Instruccion, bool) {
-	/* if len(instruccionPartida) == 0 {
-		global.LoggerCpu.Log("Instrucción vacía o malformada", log.ERROR)
-
-		instruccion := Instruccion{
-			Opcode: "INVALIDA",
-			Parametros:  instruccionPartida[1:],
-		}
-
-		return instruccion, FALSE
-	} */
-
 	instruccionPartida := strings.Fields(instruccionAEjecutar) //?  "MOV AX BX" --> []string{"MOV", "AX", "BX"}
 
 	instruccion := Instruccion{
@@ -140,36 +133,8 @@ func Decode(instruccionAEjecutar string) (Instruccion, bool) {
 }
 
 func Execute(instruccion Instruccion, requiereMMU bool) {
+	
 	global.LoggerCpu.Log(fmt.Sprintf("## PID: %d - Ejecutando: %s - %s", global.PCB_Actual.PID, instruccion.Opcode, instruccion.Parametros), log.INFO)
-
-	//todo INSTRUCCIONES MMU
-	/*
-		WRITE 0 EJEMPLO_DE_ENUNCIADO // WRITE (Dirección, Datos)
-		READ 0 20 // READ (Dirección, Tamaño)
-	*/
-
-	if requiereMMU {
-		var direccionFisica int
-		tlbHabilitada := global.CpuConfig.TlbEntries > 0
-		cacheHabilitada := global.CpuConfig.CacheEntries > 0
-
-		direccionLogicaStr := instruccion.Parametros[0]
-
-		direccionLogica, err := strconv.Atoi(direccionLogicaStr)
-
-		if err != nil {
-			fmt.Println("Error al convertir:", err)
-		} else {
-			direccionFisica = MMU(direccionLogica, instruccion.Opcode)
-		}
-		if (cacheHabilitada && cacheHIT())  {
-			
-		} else if (tlbHabilitada && tlbHIT()) {
-			
-		} else {
-			DelegoAMemoria(instruccion,direccionFisica)
-		}
-	}
 	
 	//todo INSTRUCCIONES SYSCALLS
 	if instruccion.Opcode == "IO" {
@@ -196,30 +161,92 @@ func Execute(instruccion Instruccion, requiereMMU bool) {
 		}
 		global.PCB_Actual.PC = pcNuevo
 	}
-}
 
-func cacheHIT() bool {
-	return true
-}
-func tlbHIT() bool {
-	return true
-}
+	//todo INSTRUCCIONES MMU
 
-func DelegoAMemoria(instruccion Instruccion, direccionFisica int){
-	if instruccion.Opcode == "WRITE" { //TODO MEMORIA ESCRIBE
-		datos := instruccion.Parametros[1]
-		MemoriaEscribe(direccionFisica, datos)
-	
-	} else if instruccion.Opcode == "READ" { //TODO MEMORIA LEE
-		tamanioStr := instruccion.Parametros[1]
-		tamanio, err := strconv.Atoi(tamanioStr)
+	if (instruccion.Opcode == "READ") { /* READ 0 20 // READ (Dirección, Tamaño) */
+		
+		tlbHabilitada := global.CpuConfig.TlbEntries > 0
+		cacheHabilitada := global.CpuConfig.CacheEntries > 0
+
+		direccionLogicaStr := instruccion.Parametros[0]
+		direccionLogica, err := strconv.Atoi(direccionLogicaStr)
 
 		if err != nil {
 			fmt.Println("Error al convertir:", err)
 		} else {
-			MemoriaLee(direccionFisica, tamanio)
-		}				
+			ConfigMMU()
+			desplazamiento = direccionLogica % configMMU.Tamanio_pagina
+			nroPagina = direccionLogica / configMMU.Tamanio_pagina
+			
+		}
+		if (cacheHabilitada)  {
+			if(cacheHIT()){
+				
+			}
+		} else if (tlbHabilitada) {
+			if(tlbHIT()){
+				direccionFisica = MMU(direccionLogica, instruccion.Opcode,nroPagina)
+			}
+		} else {
+			tamanioStr := instruccion.Parametros[1]
+			tamanio, err := strconv.Atoi(tamanioStr)
+			
+			direccionFisica = MMU(direccionLogica, instruccion.Opcode,nroPagina)
+			
+			if err != nil {
+				fmt.Println("Error al convertir:", err)
+			} else {
+				MemoriaLee(direccionFisica, tamanio)
+			}
+		}
 	}
+
+	if (instruccion.Opcode == "WRITE") { /* WRITE 0 EJEMPLO_DE_ENUNCIADO // WRITE (Dirección, Datos) */
+		
+		tlbHabilitada := global.CpuConfig.TlbEntries > 0
+		cacheHabilitada := global.CpuConfig.CacheEntries > 0
+
+		direccionLogicaStr := instruccion.Parametros[0]
+		datos := instruccion.Parametros[1]
+
+		direccionLogica, err := strconv.Atoi(direccionLogicaStr)
+
+		if err != nil {
+			fmt.Println("Error al convertir:", err)
+		} else {
+			direccionFisica = MMU(direccionLogica, instruccion.Opcode,nroPagina)
+		}
+		if (cacheHabilitada)  {
+			if(cacheHIT()){
+				
+			}
+		} else if (tlbHabilitada) {
+			if(tlbHIT() != -1){
+				
+			}
+		} else {
+			MemoriaEscribe(direccionFisica, datos)
+		}
+	}
+}
+
+/* func cacheHIT() bool {
+	for i := 0; i <= len(global.CACHE)-1; i++ {
+		if(global.CACHE[i].NroPagina == nroPagina){
+			return true
+		}		
+	}
+	return false	
+} */
+ 
+func tlbHIT() int {
+	for i := 0; i <= len(global.TLB)-1; i++ {
+		if(global.TLB[i].NroPagina == nroPagina){
+			return global.TLB[i].Marco
+		}
+	}
+	return -1
 }
 
 func MemoriaLee(direccionFisica int, tamanio int) error {
@@ -243,7 +270,7 @@ func MemoriaLee(direccionFisica int, tamanio int) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("Pedido lectura fallido con status %d", resp.StatusCode)
+		return fmt.Errorf("pedido lectura fallido con status %d", resp.StatusCode)
 	}
 	global.LoggerCpu.Log("✅ Pedido lectura enviado a Memoria con éxito", log.INFO)
 
@@ -277,21 +304,10 @@ func MemoriaEscribe(direccionFisica int, datos string) error {
 	return nil
 }
 
-func MMU(direccionLogica int, opcode string) int {
-/* 	tlbHabilitada := global.CpuConfig.TlbEntries > 0
-	cacheHabilitada := global.CpuConfig.CacheEntries > 0 */
-	/* var marco int */
-	/* var hit bool */
+func MMU(direccionLogica int, opcode string, nroPagina int) int {
 
-	ConfigMMU()
-	desplazamiento := direccionLogica % configMMU.Tamanio_pagina
-	nroPagina := direccionLogica / configMMU.Tamanio_pagina
-/* 
-	if cacheHabilitada {
+		
 
-	} else if tlbHabilitada {
-
-	} else { */
 		listaEntradas := armarListaEntradas(nroPagina)
 
 		accederTabla := estructuras.AccesoTP{
@@ -304,7 +320,6 @@ func MMU(direccionLogica int, opcode string) int {
 		direccionFisica := marco*configMMU.Tamanio_pagina + desplazamiento
 
 		return direccionFisica
-/* 	} */
 }
 
 func pedirMarco(estructuras.AccesoTP) int {
@@ -331,17 +346,13 @@ func pedirMarco(estructuras.AccesoTP) int {
 	body, _ := io.ReadAll(resp.Body)
 
 	var marco int
-	err = json.Unmarshal(body, marco)
+	err = json.Unmarshal(body, &marco)
 	if err != nil {
 		global.LoggerCpu.Log("Error parseando instruccion de Memoria: "+err.Error(), log.ERROR)
 		return -1
 	}
 	return marco
 }
-
-/*
-entradas := []int{}
-entradas x = append.(entradas,  ) */
 
 func armarListaEntradas(nroPagina int) []int {
 	cantNiveles := configMMU.Cant_N_Niveles

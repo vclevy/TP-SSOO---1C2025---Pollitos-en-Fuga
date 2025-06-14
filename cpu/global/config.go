@@ -33,6 +33,9 @@ var PCB_Actual estructuras.PCB
 var Motivo string
 var Rafaga float64
 
+var TLB []estructuras.DatoTLB
+var CACHE []estructuras.DatoCACHE
+
 func InitGlobal(idCPU string) {	
 	CpuID = idCPU
 	// 1. Cargar configuración desde archivo
