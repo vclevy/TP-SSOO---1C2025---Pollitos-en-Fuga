@@ -278,4 +278,14 @@ func DUMP_MEMORY(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Dump exitoso para PID %d", pid)
 }
 
-//APIs para conexion con cada instancia de CPU 
+func DevolucionCPUHandler(w http.ResponseWriter, r *http.Request) {
+	var devolucion estructuras.RespuestaCPU
+	err := json.NewDecoder(r.Body).Decode(&devolucion)
+	if err != nil {
+		http.Error(w, "Error al decodificar devolución", http.StatusBadRequest)
+		return
+	}
+
+	go planificacion.ManejarDevolucionDeCPU(devolucion.PID, devolucion.PC, devolucion.Motivo, devolucion.RafagaReal)
+	w.WriteHeader(http.StatusOK)
+}

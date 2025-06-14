@@ -214,7 +214,6 @@ func IniciarPlanificadorCortoPlazo() {
 	}()
 }
 
-// evalúa si corresponde interrumpir el proceso actual con el nuevo proceso
 func evaluarDesalojoSRTF(nuevoProceso *global.Proceso) bool {
 	global.MutexExecuting.Lock()
 	defer global.MutexExecuting.Unlock()
@@ -268,7 +267,7 @@ func AsignarCPU(proceso *global.Proceso) {
 	global.AgregarAExecuting(proceso)
 
 	go func(cpu *global.CPU, proceso *global.Proceso) {
-		respuesta, err := utilskernel.EnviarADispatch(cpu, proceso.PCB.PID, proceso.PCB.PC)
+		err := utilskernel.EnviarADispatch(cpu, proceso.PCB.PID, proceso.PCB.PC)
 		if err != nil {
 			global.LoggerKernel.Log(fmt.Sprintf("Error en dispatch de proceso %d a CPU %s: %v", proceso.PID, cpu.ID, err), log.ERROR)
 
@@ -279,29 +278,34 @@ func AsignarCPU(proceso *global.Proceso) {
 			global.AgregarAReady(proceso)
 			return
 		}
-
-		global.MutexCPUs.Lock()
-		cpu.ProcesoEjecutando = nil
-		global.MutexCPUs.Unlock()
-
-		ManejarDevolucionDeCPU(respuesta.PID, respuesta.PC, respuesta.Motivo, respuesta.RafagaReal)
 	}(cpuLibre, proceso)
 }
 
 func ManejarDevolucionDeCPU(pid int, nuevoPC int, motivo string, rafagaReal float64) {
 	var proceso *global.Proceso
 
+	// Liberar CPU que ejecutaba este proceso
+	global.MutexCPUs.Lock()
+	for _, cpu := range global.CPUsConectadas {
+		if cpu.ProcesoEjecutando != nil && cpu.ProcesoEjecutando.PID == pid {
+			cpu.ProcesoEjecutando = nil
+			break
+		}
+	}
+	global.MutexCPUs.Unlock()
+
 	global.MutexExecuting.Lock()
 	for i, p := range global.ColaExecuting {
 		if p.PCB.PID == pid {
 			proceso = p
-			global.ColaExecuting = append(global.ColaExecuting[:i], global.ColaExecuting[i+1:]...)
+			global.ColaExecuting = append(global.ColaExecuting[:i], global.ColaExecuting[i+1:]... )
 			break
 		}
 	}
 	global.MutexExecuting.Unlock()
 
 	if proceso == nil {
+		global.LoggerKernel.Log(fmt.Sprintf("Proceso %d no encontrado en EXECUTING al devolver", pid), log.DEBUG)
 		return
 	}
 

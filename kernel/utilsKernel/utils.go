@@ -110,8 +110,7 @@ func BuscarCPUPorPID(pid int) *global.CPU {
     return nil
 }
 
-
-func EnviarADispatch(cpu *global.CPU, pid int, pc int) (*estructuras.RespuestaCPU, error) {
+func EnviarADispatch(cpu *global.CPU, pid int, pc int) error {
 	url := fmt.Sprintf("http://%s:%d/dispatch", cpu.IP, cpu.Puerto)
 
 	payload := map[string]interface{}{
@@ -120,27 +119,21 @@ func EnviarADispatch(cpu *global.CPU, pid int, pc int) (*estructuras.RespuestaCP
 	}
 	jsonData, err := json.Marshal(payload)
 	if err != nil {
-		return nil, fmt.Errorf("error serializando payload: %w", err)
+		return fmt.Errorf("error serializando payload: %w", err)
 	}
 
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
-		return nil, fmt.Errorf("error enviando request HTTP: %w", err)
+		return fmt.Errorf("error enviando request HTTP: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("respuesta no OK del dispatch: %d", resp.StatusCode)
+		return fmt.Errorf("respuesta no OK del dispatch: %d", resp.StatusCode)
 	}
 
-	var respuesta estructuras.RespuestaCPU
-	if err := json.NewDecoder(resp.Body).Decode(&respuesta); err != nil {
-		return nil, fmt.Errorf("error parseando respuesta JSON: %w", err)
-	}
-
-	return &respuesta, nil
+	return nil
 }
-
 
 func EnviarInterrupcionCPU(cpu *global.CPU, pid int, pc int) (error) {
 	url := fmt.Sprintf("http://%s:%d/interrupt", cpu.IP, cpu.Puerto)
