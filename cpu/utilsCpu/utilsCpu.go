@@ -25,6 +25,8 @@ type Instruccion struct {
 	Parametros []string `json:"parametros"` // Los parámetros de la instrucción, de tipo variable
 }
 
+var configMMU estructuras.ConfiguracionMMU
+
 var direccionFisica int
 var desplazamiento int
 var nroPagina int
@@ -98,7 +100,6 @@ func CicloDeInstruccion() {
 	instruccion, requiereMMU := Decode(instruccionAEjecutar)
 
 	Execute(instruccion, requiereMMU)
-
 }
 
 func Fetch() string {
@@ -150,8 +151,7 @@ func Execute(instruccion Instruccion, requiereMMU bool) {
 		Syscall_Exit()
 	}
 	//todo OTRAS INSTRUCCIONES
-	if instruccion.Opcode == "NOOP" {
-	}
+	if instruccion.Opcode == "NOOP" {}
 
 	if instruccion.Opcode == "GOTO" {
 		pcNuevo, err := strconv.Atoi(instruccion.Parametros[1])
@@ -164,82 +164,85 @@ func Execute(instruccion Instruccion, requiereMMU bool) {
 
 	//todo INSTRUCCIONES MMU
 
-	if (instruccion.Opcode == "READ") { // READ 0 20 - READ (Dirección, Tamaño)
+	if(requiereMMU){
 		marco := -1
 		tlbHabilitada := global.CpuConfig.TlbEntries > 0
 		cacheHabilitada := global.CpuConfig.CacheEntries > 0
 
-		tamanioStr := instruccion.Parametros[1]
-		tamanio, err := strconv.Atoi(tamanioStr)
-		if err != nil {
-			fmt.Println("Error al convertir:", err)
-		}
-
 		direccionLogicaStr := instruccion.Parametros[0]
 		direccionLogica, err := strconv.Atoi(direccionLogicaStr)
-
 		if err != nil {
 			fmt.Println("Error al convertir:", err)
 		} else {
 			ConfigMMU()
 			desplazamiento = direccionLogica % configMMU.Tamanio_pagina
 			nroPagina = direccionLogica / configMMU.Tamanio_pagina
-			
 		}
-		if (cacheHabilitada){
-			
-		}else{
-			if (tlbHabilitada) {
-				marco = tlbHIT()
+
+
+		
+		
+		if (instruccion.Opcode == "READ") { // READ 0 20 - READ (Dirección, Tamaño)
+			tamanioStr := instruccion.Parametros[1]
+			tamanio, err := strconv.Atoi(tamanioStr)
+			if err != nil {
+				fmt.Println("Error al convertir:", err)
 			}
-			direccionFisica = MMU(direccionLogica, instruccion.Opcode, nroPagina, marco)
-			MemoriaLee(direccionFisica, tamanio)
+		
+			if (cacheHabilitada){
+				
+			}else{
+				if (tlbHabilitada) {
+					marco = tlbHIT()
+				}
+				direccionFisica = MMU(direccionLogica, instruccion.Opcode, nroPagina, marco)
+				MemoriaLee(direccionFisica, tamanio)
+			}
+		}
+
+		if (instruccion.Opcode == "WRITE") { // WRITE 0 EJEMPLO_DE_ENUNCIADO - WRITE (Dirección, Datos) 
+			dato := instruccion.Parametros[1]
+			if (cacheHabilitada){
+				indice := cacheHIT()
+				if(indice == -1){
+					if(global.CACHE[indice].BitModificado == 1){
+						MemoriaEscribe(direccionFisica, global.CACHE[indice].Contenido)
+					}
+					global.CACHE[indice].Contenido = dato
+					global.CACHE[indice].BitModificado = 1
+				}
+
+			}else{
+				if (tlbHabilitada) {
+					marco = tlbHIT()
+				}
+				direccionFisica = MMU(direccionLogica, instruccion.Opcode, nroPagina, marco)
+				MemoriaEscribe(direccionFisica, dato)
+			}
 		}
 	}
-/* 
-	if (instruccion.Opcode == "WRITE") { // WRITE 0 EJEMPLO_DE_ENUNCIADO - WRITE (Dirección, Datos) 
-		marco := -1
-		
-		tlbHabilitada := global.CpuConfig.TlbEntries > 0
-		cacheHabilitada := global.CpuConfig.CacheEntries > 0
-
-		direccionLogicaStr := instruccion.Parametros[0]
-		datos := instruccion.Parametros[1]
-
-		direccionLogica, err := strconv.Atoi(direccionLogicaStr)
-
-		if err != nil {
-			fmt.Println("Error al convertir:", err)
-		} else {
-			direccionFisica = MMU(direccionLogica, instruccion.Opcode,nroPagina,marco)
-		}
-		if (cacheHabilitada)  {
-		} else if (tlbHabilitada) {
-			if(tlbHIT() != -1){
-				
-			}
-		} else {
-			MemoriaEscribe(direccionFisica, datos)
-		}
-	} */
 }
 
-/* func cacheHIT() bool {
+func cacheHIT() int {
 	for i := 0; i <= len(global.CACHE)-1; i++ {
-		if(global.CACHE[i].NroPagina == nroPagina){
-			return true
-		}		
+		if(global.CACHE[i].NroPagina == nroPagina){ 
+			global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Cache Hit - Pagina: %d", global.PCB_Actual.PID, nroPagina), log.INFO) //!! CACHE HIT
+			return i 
+		}
 	}
-	return false	
-} */
+	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Cache Miss - Pagina: %d", global.PCB_Actual.PID, nroPagina), log.INFO) //!! CACHE MISS
+	return -1 
+}
  
 func tlbHIT() int {
 	for i := 0; i <= len(global.TLB)-1; i++ {
 		if(global.TLB[i].NroPagina == nroPagina){
+			global.LoggerCpu.Log(fmt.Sprintf("PID: %d - TLB HIT - Pagina: %d", global.PCB_Actual.PID, nroPagina), log.INFO) //!! TLB HIT
 			return global.TLB[i].Marco
 		}
 	}
-	return -1
+	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - TLB MISS - Pagina: %d", global.PCB_Actual.PID, nroPagina), log.INFO) //!!TLB MISS
+	return -1 
 }
 
 func MemoriaLee(direccionFisica int, tamanio int) error {
@@ -358,38 +361,14 @@ func armarListaEntradas(nroPagina int) []int {
 	return entradas
 }
 
-func TLB(nroPagina int) {
-	// conseguir el marco
-	// ver si está la página
-}
-
 func ObtenerFrameDeMemoria(nroPagina int) {}
 
 func ActualizarTLB(nroPagina int, marco int) {}
 
 func CheckInterrupt() {}
 
-func CacheDePaginas(direccionFisica int) {
-	/* if(cacheHit){
-
-	} else if (cacheMiss){
-		AccederMemoria()
-		ActualizarCache()
-	} */
-}
-
 func AccederMemoria()  {}
 func ActualizarCache() {}
-
-var configMMU estructuras.ConfiguracionMMU
-
-/*
-type ConfiguracionMMU struct {
-	Tamaño_página       int `json:"tamaño_página"`
-	Cant_entradas_tabla int `json:"cant_entradas_tabla"`
-	Cant_N_Niveles      int `json:"cant_N_Niveles"`
-}
-*/
 
 func ConfigMMU() error {
 	url := fmt.Sprintf("http://%s:%d/configuracionMMU", global.CpuConfig.Ip_Memoria, global.CpuConfig.Port_Memoria)
@@ -458,7 +437,6 @@ func Syscall_Init_Proc(instruccion Instruccion) {
 	syscall_Init_Proc := estructuras.Syscall_Init_Proc{
 		ArchivoInstrucciones: instruccion.Parametros[0],
 		Tamanio:              tamanio,
-		/* PIDproceso: pidActual, */
 	}
 
 	jsonData, err := json.Marshal(syscall_Init_Proc)
@@ -502,7 +480,23 @@ func Syscall_Exit() {
 	defer resp.Body.Close() //se cierra la conexión
 }
 
-/*
-TODO:
-solicitar a memoria utilizando solo el PC, query params
+
+/* 
+LOGS: 
+
+//Fetch Instrucción: “## PID: <PID> - FETCH - Program Counter: <PROGRAM_COUNTER>”.
+Interrupción Recibida: “## Llega interrupción al puerto Interrupt”.
+//Instrucción Ejecutada: “## PID: <PID> - Ejecutando: <INSTRUCCION> - <PARAMETROS>”.
+Lectura/Escritura Memoria: “PID: <PID> - Acción: <LEER / ESCRIBIR> - Dirección Física: <DIRECCION_FISICA> - Valor: <VALOR LEIDO / ESCRITO>”.
+Obtener Marco: “PID: <PID> - OBTENER MARCO - Página: <NUMERO_PAGINA> - Marco: <NUMERO_MARCO>”.
+//TLB Hit: “PID: <PID> - TLB HIT - Pagina: <NUMERO_PAGINA>”
+//TLB Miss: “PID: <PID> - TLB MISS - Pagina: <NUMERO_PAGINA>”
+//Página encontrada en Caché: “PID: <PID> - Cache Hit - Pagina: <NUMERO_PAGINA>”
+//Página faltante en Caché: “PID: <PID> - Cache Miss - Pagina: <NUMERO_PAGINA>”
+Página ingresada en Caché: “PID: <PID> - Cache Add - Pagina: <NUMERO_PAGINA>”
+Página Actualizada de Caché a Memoria: “PID: <PID> - Memory Update - Página: <NUMERO_PAGINA> - Frame: <FRAME_EN_MEMORIA_PRINCIPAL>”
+
+
+
+
 */
