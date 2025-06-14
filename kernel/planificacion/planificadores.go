@@ -310,8 +310,7 @@ func ManejarDevolucionDeCPU(pid int, nuevoPC int, motivo string, rafagaReal floa
 
 	switch motivo {
 	case "EXIT":
-		ActualizarEstadoPCB(&proceso.PCB, EXIT)
-		global.AgregarAExit(proceso)
+		FinalizarProceso(proceso)
 
 	case "BLOCKED":
 		ActualizarEstadoPCB(&proceso.PCB, BLOCKED)
