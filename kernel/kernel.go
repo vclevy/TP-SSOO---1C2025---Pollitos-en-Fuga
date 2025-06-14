@@ -12,17 +12,20 @@ import (
 )
 
 func main() {
-	// 1. Cargar config y configurar logger
-	global.InitGlobal()
+
+	archivoConfig := os.Args[1]
+	global.InitGlobal(archivoConfig)
 	defer global.LoggerKernel.CloseLogger()
 
-	if len(os.Args) != 3 { // go run kernel.go hola.txt 1024
-		fmt.Println("Uso: ./kernel <archivo_pseudocodigo> <tamaño_memoria>")
-		os.Exit(1)
-	}
+	if len(os.Args) != 4 {
+	fmt.Println("Uso: ./kernel <archivo_config> <archivo_pseudocodigo> <tamaño_memoria>")
+	os.Exit(1)
+}
+	// para pasar como parametro el archivo de config sería config/config.json (o el nombre que le pongamos en las pruebas)
 
-	archivo := os.Args[1]
-	tamMemoriaString := os.Args[2]
+	archivo := os.Args[2]
+	tamMemoriaString := os.Args[3]
+
 
 	tamMemoria, err := strconv.Atoi(tamMemoriaString)
 	if err != nil {
