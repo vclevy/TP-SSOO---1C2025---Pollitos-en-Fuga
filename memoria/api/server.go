@@ -17,6 +17,8 @@ func CrearServer() *server.Server {
 			"POST /inicializarProceso": handlers.InicializarProceso,
 			"POST /verificarEspacioDisponible": handlers.VerificarEspacioDisponible,
 			"POST /finalizarProceso": handlers.FinalizarProceso,
+			"POST /suspension": handlers.SuspenderProceso,
+			"POST /dessuspension": handlers.DesSuspenderProceso,
 
 			//usadas por la CPU
 			"POST /solicitudInstruccion": handlers.DevolverInstruccion,

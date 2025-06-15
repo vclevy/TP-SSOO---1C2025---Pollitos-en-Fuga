@@ -272,6 +272,18 @@ func ActualizarPaginaCompleta (pid int, direccionFisica int, datos []byte) {
     metricas[pid].EscriturasMemo++
 }
 
+//SWAP
+
+func GuardarInfoSwap(pid int){
+	//no hay que guardar literalmente la tabla de paginas
+	//habria q poner en la tabla de paginas q los marcos estan en swap P=0
+	//habria que guardar todos los datos en el swap file bin
+}
+func LiberarEspacioMemoria(pid int) {
+	//como encuentro los marcos que tiene asignado un proceso?
+	//marcar como libre los marcos correspondientes
+}
+
 
 //----------PRUEBAS
 func ImprimirTabla(tabla []*EntradaTP, nivel int, path string) {
