@@ -102,6 +102,8 @@ func CicloDeInstruccion() {
 	instruccion, requiereMMU := Decode(instruccionAEjecutar)
 
 	Execute(instruccion, requiereMMU)
+
+	CheckInterrupt()
 }
 
 func Fetch() string {
@@ -159,14 +161,12 @@ func Execute(instruccion Instruccion, requiereMMU bool) error {
 	if instruccion.Opcode == "GOTO" {
 		pcNuevo, err := strconv.Atoi(instruccion.Parametros[1])
 		if err != nil {
-			global.LoggerCpu.Log("Error al convertir tiempo estimado: %v", log.ERROR)
-
+			return fmt.Errorf("error al convertir tiempo estimado")
 		}
 		global.PCB_Actual.PC = pcNuevo
 	}
 
 	//todo INSTRUCCIONES MMU
-
 	if requiereMMU {
 		marco := -1
 		tlbHabilitada := global.CpuConfig.TlbEntries > 0
@@ -316,7 +316,6 @@ func MMU(direccionLogica int, opcode string, nroPagina int, marco int) int {
 
 	direccionFisica = marco*configMMU.Tamanio_pagina + desplazamiento
 	return direccionFisica
-
 }
 
 func pedirMarco(estructuras.AccesoTP) int {
@@ -367,7 +366,12 @@ func ObtenerFrameDeMemoria(nroPagina int) {}
 
 func ActualizarTLB(nroPagina int, marco int) {}
 
-func CheckInterrupt() {}
+func CheckInterrupt() {
+	if(global.Interrupcion){
+		global.PCB_Actual = global.PCB_Interrupcion
+		global.Interrupcion = false
+	}
+}
 
 func AccederMemoria() {}
 
@@ -485,7 +489,6 @@ func Syscall_Exit() {
 
 /*
 LOGS:
-
 //Fetch Instrucción: “## PID: <PID> - FETCH - Program Counter: <PROGRAM_COUNTER>”.
 Interrupción Recibida: “## Llega interrupción al puerto Interrupt”.
 //Instrucción Ejecutada: “## PID: <PID> - Ejecutando: <INSTRUCCION> - <PARAMETROS>”.
@@ -497,8 +500,4 @@ Obtener Marco: “PID: <PID> - OBTENER MARCO - Página: <NUMERO_PAGINA> - Marco:
 //Página faltante en Caché: “PID: <PID> - Cache Miss - Pagina: <NUMERO_PAGINA>”
 Página ingresada en Caché: “PID: <PID> - Cache Add - Pagina: <NUMERO_PAGINA>”
 Página Actualizada de Caché a Memoria: “PID: <PID> - Memory Update - Página: <NUMERO_PAGINA> - Frame: <FRAME_EN_MEMORIA_PRINCIPAL>”
-
-
-
-
 */

@@ -33,6 +33,8 @@ var PCB_Actual estructuras.PCB
 var Motivo string
 var Rafaga float64
 
+var PCB_Interrupcion estructuras.PCB
+
 var TLB []estructuras.DatoTLB
 var CACHE []estructuras.DatoCACHE
 
