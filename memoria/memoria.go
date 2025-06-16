@@ -6,16 +6,16 @@ import (
 	"github.com/sisoputnfrba/tp-golang/memoria/utilsMemoria"
 	"github.com/sisoputnfrba/tp-golang/utils/logger"
 	//"github.com/sisoputnfrba/tp-golang/utils/paquetes"
+	"fmt"
 )
 
 //CONEXIÓN;
 //[KERNEL] ➜ Cliente (conectado a) [MEMORIA]
 //[CPU]    ➜ Cliente (conectado a) [MEMORIA]
 
-var memoriaUsuario []byte
-var marcosLibres []bool
-
 func main() {
+
+utilsMemoria.InicializarMemoria()
 	// configurar logger e inicializar config
 	global.InitGlobal()
 	defer global.LoggerMemoria.CloseLogger()
@@ -28,8 +28,14 @@ func main() {
 		}
 		}()
 
-utilsMemoria.InicializarMemoria()
 
+	pid := 42
+	tamanio := 768 // 768 / 64 = 12 páginas
+
+	utilsMemoria.CrearTablaPaginas(pid, tamanio)
+
+	fmt.Printf("Tablas de páginas del proceso PID %d:\n", pid)
+	utilsMemoria.ImprimirTabla(utilsMemoria.TablasPorProceso[pid].SiguienteNivel, 1, "")
 	
 
 	select{}

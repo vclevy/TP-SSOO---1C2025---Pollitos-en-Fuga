@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strconv"
 
@@ -39,18 +38,16 @@ func InicializarProceso(w http.ResponseWriter, r *http.Request) {
 	tamanio := paquete.TamanioProceso
     archivoPseudocodigo := paquete.ArchivoPseudocodigo
 	
-	if !utilsMemoria.HayLugar(paquete.TamanioProceso){ //Restricción x las dudas
-		http.Error(w, "No hay lugar disponible", http.StatusBadRequest)
-		return
+	espacioDisponible := utilsMemoria.HayLugar(tamanio)
+	if !espacioDisponible {
+		http.Error(w, "No hay suficiente espacio", http.StatusConflict)
 	}
 
-	utilsMemoria.CrearTablaPaginas(pid, tamanio)
-	utilsMemoria.ReservarMarcos(pid, tamanio)
-	utilsMemoria.CargarProceso(pid, archivoPseudocodigo)
-	global.LoggerMemoria.Log("## PID: "+ strconv.Itoa(pid) +"> - Proceso Creado - Tamaño: <"+strconv.Itoa(tamanio)+">", log.DEBUG)
+	w.WriteHeader(http.StatusOK)
 
-    w.WriteHeader(http.StatusOK)
-    fmt.Fprintf(w, "Paquete recibido correctamente para PID %d", paquete.PID)
+	utilsMemoria.CrearTablaPaginas(pid, tamanio)
+	utilsMemoria.CargarProceso(pid, archivoPseudocodigo)
+	global.LoggerMemoria.Log("## PID: "+ strconv.Itoa(pid) +"> - Proceso Creado - Tamaño: <"+strconv.Itoa(tamanio)+">", log.INFO)
 }
 
 //KERNEL comprueba que haya espacio disponible en memoria antes de inicializar
@@ -113,7 +110,7 @@ func DevolverInstruccion(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	global.LoggerMemoria.Log("## PID: "+ strconv.Itoa(pid) +">  - Obtener instrucción: <"+ strconv.Itoa(pc) +"> - Instrucción: <"+ instruccion +"> <...ARGS>", log.DEBUG)
+	global.LoggerMemoria.Log("## PID: "+ strconv.Itoa(pid) +">  - Obtener instrucción: <"+ strconv.Itoa(pc) +"> - Instrucción: <"+ instruccion +"> <...ARGS>", log.INFO)
 }
 
 //CPU lo pide
@@ -184,7 +181,7 @@ func LeerMemoria(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	global.LoggerMemoria.Log("## PID: <"+ strconv.Itoa(pid) +">- <Lectura> - Dir. Física: <"+ 
-	strconv.Itoa(direccionFisica) +"> - Tamaño: <"+ strconv.Itoa(tamanio)+ "> ", log.DEBUG)
+	strconv.Itoa(direccionFisica) +"> - Tamaño: <"+ strconv.Itoa(tamanio)+ "> ", log.INFO)
 
 }
 
@@ -209,7 +206,7 @@ func EscribirMemoria(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	global.LoggerMemoria.Log("## PID: <"+ strconv.Itoa(pid) +">- <Escritura> - Dir. Física: <"+ 
-	strconv.Itoa(direccionFisica) +"> - Datos: <"+ datos + "> ", log.DEBUG)
+	strconv.Itoa(direccionFisica) +"> - Datos: <"+ datos + "> ", log.INFO)
 }
 
 func LeerPaginaCompleta(w http.ResponseWriter, r *http.Request){
