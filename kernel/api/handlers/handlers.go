@@ -123,6 +123,7 @@ func IO(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error al parsear la syscall", http.StatusBadRequest)
 		return
 	}
+
 	nombre := syscall.IoSolicitada
 	tiempoUso := syscall.TiempoEstimado
 	pid := syscall.PIDproceso
@@ -131,16 +132,15 @@ func IO(w http.ResponseWriter, r *http.Request) {
 	dispositivos := utilsKernel.ObtenerDispositivoIO(nombre)
 	global.IOListMutex.RUnlock()
 
-	proceso := utilsKernel.BuscarProcesoPorPID(global.ColaExecuting, pid)
-	if proceso == nil {
-		http.Error(w, "No se pudo obtener el proceso actual", http.StatusInternalServerError)
+	if len(dispositivos) == 0 {
+		global.LoggerKernel.Log(fmt.Sprintf("Dispositivo IO %s no existe", nombre), log.ERROR)
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
-	if len(dispositivos) == 0 {
-		planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.EXIT)
-		global.AgregarAExit(proceso)
-		w.WriteHeader(http.StatusNotFound)
-		fmt.Fprintf(w, "Dispositivo %s no existe", nombre)
+
+	proceso := utilsKernel.BuscarProcesoPorPID(global.ColaBlocked, pid)
+	if proceso == nil {
+		http.Error(w, "No se pudo obtener el proceso en BLOCKED", http.StatusInternalServerError)
 		return
 	}
 
@@ -155,13 +155,13 @@ func IO(w http.ResponseWriter, r *http.Request) {
 			dispositivo.Mutex.Unlock()
 
 			go utilsKernel.EnviarAIO(dispositivo, proceso.PCB.PID, tiempoUso)
-			planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.BLOCKED)
+			w.WriteHeader(http.StatusOK)
 			return
 		}
 		dispositivo.Mutex.Unlock()
 	}
 
-	// Si todos están ocupados, se encola en el primero
+	// Todos ocupados, encolarlo
 	procesoEncolado := &global.ProcesoIO{
 		Proceso:   proceso,
 		TiempoUso: tiempoUso,
@@ -169,14 +169,14 @@ func IO(w http.ResponseWriter, r *http.Request) {
 
 	primero := dispositivos[0]
 	primero.Mutex.Lock()
-	planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.BLOCKED)
 	primero.ColaEspera = append(primero.ColaEspera, procesoEncolado)
 	primero.Mutex.Unlock()
+
+	w.WriteHeader(http.StatusOK)
 }
 
 func FinalizacionIO(w http.ResponseWriter, r *http.Request){
 
-	// Extraer IP y puerto del remitente
     host, portStr, err := net.SplitHostPort(r.RemoteAddr)
     if err != nil {
         http.Error(w, "Error al parsear dirección remota", http.StatusBadRequest)
@@ -234,17 +234,13 @@ func FinalizacionIO(w http.ResponseWriter, r *http.Request){
 	w.WriteHeader(http.StatusOK)
 }
 
-func EXIT(w http.ResponseWriter, r *http.Request){
+func EXIT(w http.ResponseWriter, r *http.Request) {
 	pidStr := r.URL.Query().Get("pid")
+	PID, _ := strconv.Atoi(pidStr)
 
-	PID,_ := strconv.Atoi(pidStr)
-	proceso := utilsKernel.BuscarProcesoPorPID(global.ColaExecuting, PID) //! está en exec necesariamente??
+	global.LoggerKernel.Log(fmt.Sprintf("Recibida syscall EXIT para PID %d", PID), log.DEBUG)
 
-	if proceso == nil {
-		http.Error(w, "Proceso no encontrado", http.StatusNotFound)
-		return
-	}
-	planificacion.FinalizarProceso(proceso)
+	w.WriteHeader(http.StatusOK) // !! @Delfi : ya no se finaliza el proceso acá, solo responde OK a la cpu y el proceso lo terminamos en planificacion, con manejarDevolucionDeCPU
 }
 
 func DUMP_MEMORY(w http.ResponseWriter, r *http.Request) {
