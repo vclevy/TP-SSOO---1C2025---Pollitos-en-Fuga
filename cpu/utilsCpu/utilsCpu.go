@@ -122,11 +122,9 @@ func terminaProceso() error {
 
 func CicloDeInstruccion() {
 	var instruccionAEjecutar = Fetch()
-	if instruccionAEjecutar == "EXIT" {
-		global.Motivo = "EXIT"
-		terminaProceso()
-	}
+	
 	instruccion, requiereMMU := Decode(instruccionAEjecutar)
+	
 	tiempoInicio := time.Now()
 	Execute(instruccion, requiereMMU)
 	global.Rafaga = time.Since(tiempoInicio).Seconds()
@@ -172,8 +170,8 @@ func Execute(instruccion Instruccion, requiereMMU bool) error {
 	//todo INSTRUCCIONES SYSCALLS
 	if instruccion.Opcode == "IO" {
 		global.Motivo = "BLOCKED"
-		Syscall_IO(instruccion)
 		terminaProceso()
+		Syscall_IO(instruccion)
 	}
 	if instruccion.Opcode == "INIT_PROC" {
 		Syscall_Init_Proc(instruccion)
@@ -182,6 +180,8 @@ func Execute(instruccion Instruccion, requiereMMU bool) error {
 		Syscall_Dump_Memory()
 	}
 	if instruccion.Opcode == "EXIT" {
+		global.Motivo = "EXIT"
+		terminaProceso()
 		Syscall_Exit()
 	}
 	//todo OTRAS INSTRUCCIONES
@@ -198,7 +198,6 @@ func Execute(instruccion Instruccion, requiereMMU bool) error {
 
 	//todo INSTRUCCIONES MMU
 	if requiereMMU {
-		marco := -1
 		tlbHabilitada := global.CpuConfig.TlbEntries > 0
 		cacheHabilitada := global.CpuConfig.CacheEntries > 0
 
@@ -213,7 +212,7 @@ func Execute(instruccion Instruccion, requiereMMU bool) error {
 		}
 
 		if instruccion.Opcode == "READ" { // READ 0 20 - READ (Dirección, Tamaño)
-			Read(instruccion, cacheHabilitada, tlbHabilitada, direccionLogica, marco)
+			Read(instruccion, cacheHabilitada, tlbHabilitada, direccionLogica)
 		}
 
 		if instruccion.Opcode == "WRITE" { // WRITE 0 EJEMPLO_DE_ENUNCIADO - WRITE (Dirección, Datos)
@@ -257,21 +256,20 @@ func CheckInterrupt() {
 	}
 }
 
-func Read(instruccion Instruccion, cacheHabilitada bool, tlbHabilitada bool, direccionLogica int, marco int) error {
+func Read(instruccion Instruccion, cacheHabilitada bool, tlbHabilitada bool, direccionLogica int) error {
 	tamanioStr := instruccion.Parametros[1]
 	tamanio, err := strconv.Atoi(tamanioStr)
 	if err != nil {
 		return fmt.Errorf("error al convertir tamanio")
 	}
 
-	if (cacheHabilitada && CacheHIT()) { 
-		global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: %s - Dirección Física: %d - Valor: %s.", global.PCB_Actual.PID, instruccion.Opcode, direccionFisica, global.CACHE[indice].Contenido), log.INFO)
-	} else if (tlbHabilitada && TlbHIT()){
-		marco = global.TLB[indice].Marco
+	if cacheHabilitada && CacheHIT() {
+/* 		global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: %s - Dirección Física: %d - Valor: %s.", global.PCB_Actual.PID, instruccion.Opcode, direccionFisica, global.CACHE[indice].Contenido), log.INFO) */	} else if tlbHabilitada && TlbHIT() {
+		marco := global.TLB[indice].Marco
 		direccionFisica = MMU(direccionLogica, instruccion.Opcode, nroPagina, marco)
 		MemoriaLee(direccionFisica, tamanio)
-	}else{
-		marco = CalcularMarco()
+	} else {
+		marco := CalcularMarco()
 		direccionFisica = MMU(direccionLogica, instruccion.Opcode, nroPagina, marco)
 		MemoriaLee(direccionFisica, tamanio)
 	}
@@ -280,25 +278,20 @@ func Read(instruccion Instruccion, cacheHabilitada bool, tlbHabilitada bool, dir
 
 func Write(instruccion Instruccion, cacheHabilitada bool, tlbHabilitada bool) error {
 	dato := instruccion.Parametros[1]
-			if cacheHabilitada {
-				if CacheHIT() {
-					if global.CACHE[indice].BitModificado == 0 {
-						global.CACHE[indice].Contenido = dato
-						global.CACHE[indice].BitModificado = 1
-					} else if global.CACHE[indice].BitModificado == 1 {
-						MemoriaEscribe(direccionFisica, dato) //!! VER, necesito saber la dirección fisica igual?
-						global.CACHE[indice].Contenido = dato
-					} else {
-						return fmt.Errorf("el bit de modificado no es 1 ni 0")
-					}
-				} else if tlbHabilitada {
-					if TlbHIT() {
-						//algorito por cuál cambiar
-					} else {
+	if cacheHabilitada && CacheHIT() {
+		if global.CACHE[indice].BitModificado == 0 {
+			global.CACHE[indice].Contenido = dato
+			global.CACHE[indice].BitModificado = 1
+		} else if global.CACHE[indice].BitModificado == 1 {
+			MemoriaEscribe(direccionFisica, dato) //!! VER, necesito saber la dirección fisica igual?
+			global.CACHE[indice].Contenido = dato
+		} else {
+			return fmt.Errorf("el bit de modificado no es 1 ni 0")
+		}
+	} else if tlbHabilitada && TlbHIT() {
+		//algorito por cuál cambiar
+	}
 
-					}
-				}
-			}
 	return nil
 }
 
@@ -308,11 +301,11 @@ LOGS:
 //Interrupción Recibida: “## Llega interrupción al puerto Interrupt”.
 //Instrucción Ejecutada: “## PID: <PID> - Ejecutando: <INSTRUCCION> - <PARAMETROS>”.
 Lectura/Escritura Memoria: “PID: <PID> - Acción: <LEER / ESCRIBIR> - Dirección Física: <DIRECCION_FISICA> - Valor: <VALOR LEIDO / ESCRITO>”.
-Obtener Marco: “PID: <PID> - OBTENER MARCO - Página: <NUMERO_PAGINA> - Marco: <NUMERO_MARCO>”.
+//Obtener Marco: “PID: <PID> - OBTENER MARCO - Página: <NUMERO_PAGINA> - Marco: <NUMERO_MARCO>”. 
 //TLB Hit: “PID: <PID> - TLB HIT - Pagina: <NUMERO_PAGINA>”
 //TLB Miss: “PID: <PID> - TLB MISS - Pagina: <NUMERO_PAGINA>”
 //Página encontrada en Caché: “PID: <PID> - Cache Hit - Pagina: <NUMERO_PAGINA>”
 //Página faltante en Caché: “PID: <PID> - Cache Miss - Pagina: <NUMERO_PAGINA>”
-Página ingresada en Caché: “PID: <PID> - Cache Add - Pagina: <NUMERO_PAGINA>”
-Página Actualizada de Caché a Memoria: “PID: <PID> - Memory Update - Página: <NUMERO_PAGINA> - Frame: <FRAME_EN_MEMORIA_PRINCIPAL>”
+Página ingresada en Caché: “PID: <PID> - Cache Add - Pagina: <NUMERO_PAGINA>” //?? la pagina que reemplaza a otra, según el algoritmo
+Página Actualizada de Caché a Memoria: “PID: <PID> - Memory Update - Página: <NUMERO_PAGINA> - Frame: <FRAME_EN_MEMORIA_PRINCIPAL>” //?? la pagina que se desaloja, según el algoritmo
 */

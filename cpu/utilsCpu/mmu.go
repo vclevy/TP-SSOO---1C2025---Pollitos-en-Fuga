@@ -1,14 +1,15 @@
 package utilsIo
+
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/sisoputnfrba/tp-golang/cpu/global"
 	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
 	log "github.com/sisoputnfrba/tp-golang/utils/logger"
 	"io"
-	"net/http"
-	"bytes"
 	"math"
+	"net/http"
 )
 
 func ConfigMMU() error {
@@ -51,12 +52,15 @@ func armarListaEntradas(nroPagina int) []int {
 func CalcularMarco() int {
 	listaEntradas := armarListaEntradas(nroPagina)
 
-		accederTabla := estructuras.AccesoTP{
-			PID:      global.PCB_Actual.PID,
-			Entradas: listaEntradas,
-		}
-
+	accederTabla := estructuras.AccesoTP{
+		PID:      global.PCB_Actual.PID,
+		Entradas: listaEntradas,
+	}
+	
 	marco := pedirMarco(accederTabla)
+
+	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - OBTENER MARCO - Página: %d - Marco: %d", global.PCB_Actual.PID, nroPagina, marco), log.INFO)
+
 
 	return marco
 }
