@@ -215,13 +215,24 @@ func FinalizacionIO(w http.ResponseWriter, r *http.Request){
 		return
 	}
 
+//! @Valenchu chequear que esto de moverlo a ready este bien aca
 	// Caso normal: Fin de IO
 	if dispositivo.ProcesoEnUso != nil {
-		fmt.Fprintf(w, "Proceso %d completó E/S. Verificando cola...\n", dispositivo.ProcesoEnUso.Proceso.PID)
+
+		proceso := dispositivo.ProcesoEnUso.Proceso		
+		global.LoggerKernel.Log(fmt.Sprintf("## (%d) finalizó IO y pasa a READY", proceso.PID), log.INFO) //! @Valenchu me parece que va aca
+		fmt.Fprintf(w, " Verificando cola...\n")
 
 		// Liberamos proceso actual
 		dispositivo.ProcesoEnUso = nil
+		global.MutexBlocked.Lock()
+		global.EliminarProcesoDeCola(&global.ColaBlocked, proceso.PID)
+		global.MutexBlocked.Unlock()
 
+		// Agregar a READY
+		global.AgregarAReady(proceso)
+		planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.READY)
+				
 		if len(dispositivo.ColaEspera) > 0 {
 			dispositivo.Mutex.Lock()
 			nuevo := dispositivo.ColaEspera[0]
@@ -244,8 +255,8 @@ func EXIT(w http.ResponseWriter, r *http.Request) {
 
 	global.LoggerKernel.Log("## ("+strconv.Itoa(PID)+") - Solicitó syscall: <EXIT>", log.INFO)
 
-	w.WriteHeader(http.StatusOK) // !! @Delfi : ya no se finaliza el proceso acá, solo responde OK a la cpu y el proceso lo terminamos en planificacion, con manejarDevolucionDeCPU
-}								//* Copied that ✅
+	w.WriteHeader(http.StatusOK)
+}
 
 func DUMP_MEMORY(w http.ResponseWriter, r *http.Request) {
 	pidStr := r.URL.Query().Get("pid")
