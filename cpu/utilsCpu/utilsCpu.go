@@ -227,7 +227,7 @@ func Execute(instruccion Instruccion, requiereMMU bool) error {
 	return nil
 }
 
-func CacheHIT() bool {
+/* func CacheHIT() bool {
 	for i := 0; i <= len(global.CACHE)-1; i++ {
 		if global.CACHE[i].NroPagina == nroPagina {
 			global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Cache Hit - Pagina: %d", global.PCB_Actual.PID, nroPagina), log.INFO) //!! CACHE HIT
@@ -238,7 +238,7 @@ func CacheHIT() bool {
 	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Cache Miss - Pagina: %d", global.PCB_Actual.PID, nroPagina), log.INFO) //!! CACHE MISS
 	return false
 }
-
+*/
 func TlbHIT() bool {
 	for i := 0; i <= len(global.TLB)-1; i++ {
 		if global.TLB[i].NroPagina == nroPagina {
@@ -249,7 +249,7 @@ func TlbHIT() bool {
 	}
 	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - TLB MISS - Pagina: %d", global.PCB_Actual.PID, nroPagina), log.INFO) //!!TLB MISS
 	return false
-}
+} 
 
 func CheckInterrupt() {
 	if global.Interrupcion {
@@ -260,26 +260,6 @@ func CheckInterrupt() {
 	}
 }
 
-/* func Read(instruccion Instruccion, cacheHabilitada bool, tlbHabilitada bool, direccionLogica int) error {
-	tamanioStr := instruccion.Parametros[1]
-	tamanio, err := strconv.Atoi(tamanioStr)
-	if err != nil {
-		return fmt.Errorf("error al convertir tamanio")
-	}
-
-	if cacheHabilitada && CacheHIT(){
-		global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: %s - Dirección Física: %d - Valor: %s.", global.PCB_Actual.PID, instruccion.Opcode, direccionFisica, global.CACHE[indice].Contenido), log.INFO)
-	}else if  tlbHabilitada && TlbHIT() {
-			marco := global.TLB[indice].Marco
-			direccionFisica = MMU(direccionLogica, instruccion.Opcode, nroPagina, marco)
-			MemoriaLee(direccionFisica, tamanio)
-	} else {
-		marco := CalcularMarco()
-		direccionFisica = MMU(direccionLogica, instruccion.Opcode, nroPagina, marco)
-		MemoriaLee(direccionFisica, tamanio)
-	}
-	return nil
-} */
 
 func WRITE(instruccion Instruccion, cacheHabilitada bool, tlbHabilitada bool, direccionLogica int) {
 	dato := instruccion.Parametros[1]
@@ -306,7 +286,8 @@ func WRITE(instruccion Instruccion, cacheHabilitada bool, tlbHabilitada bool, di
 
 func actualizarCACHE(pagina int, nuevoContenido string) {
 	indice := indicePagina(pagina)
-	if indice == -1 { // no está la página
+	if indice == -1 { 
+		global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Cache Miss - Pagina: %d", global.PCB_Actual.PID, nroPagina), log.INFO) //!! CACHE MISS
 		paginaPisar := AlgoritmoCACHE()
 		indicePisar := indicePagina(paginaPisar)
 		if global.CACHE[indicePisar].BitModificado == 1 {
@@ -315,7 +296,8 @@ func actualizarCACHE(pagina int, nuevoContenido string) {
 		global.CACHE[indicePisar].NroPagina = pagina
 		global.CACHE[indicePisar].Contenido = nuevoContenido
 		global.CACHE[indicePisar].BitModificado = 0
-	} else {		
+	} else {
+		global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Cache Hit - Pagina: %d", global.PCB_Actual.PID, nroPagina), log.INFO) //!! CACHE HIT	
 		global.CACHE[indice].Contenido = nuevoContenido
 		global.CACHE[indice].BitModificado = 1
 	}
@@ -341,6 +323,28 @@ func indicePagina(pagina int) int {
 	}
 	return -1
 }
+
+/* func Read(instruccion Instruccion, cacheHabilitada bool, tlbHabilitada bool, direccionLogica int) error {
+	tamanioStr := instruccion.Parametros[1]
+	tamanio, err := strconv.Atoi(tamanioStr)
+	if err != nil {
+		return fmt.Errorf("error al convertir tamanio")
+	}
+
+	if cacheHabilitada && CacheHIT(){
+		global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: %s - Dirección Física: %d - Valor: %s.", global.PCB_Actual.PID, instruccion.Opcode, direccionFisica, global.CACHE[indice].Contenido), log.INFO)
+	}else if  tlbHabilitada && TlbHIT() {
+			marco := global.TLB[indice].Marco
+			direccionFisica = MMU(direccionLogica, instruccion.Opcode, nroPagina, marco)
+			MemoriaLee(direccionFisica, tamanio)
+	} else {
+		marco := CalcularMarco()
+		direccionFisica = MMU(direccionLogica, instruccion.Opcode, nroPagina, marco)
+		MemoriaLee(direccionFisica, tamanio)
+	}
+	return nil
+} */
+
 
 /*
 LOGS:
