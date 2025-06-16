@@ -5,7 +5,6 @@ import (
 	"github.com/sisoputnfrba/tp-golang/cpu/global"
 )
 
-
 func AlgoritmoTLB(tlb []estructuras.DatoTLB){ //TLB: FIFO o LRU.
 	if(global.CpuConfig.TlbReplacement == "FIFO"){
 

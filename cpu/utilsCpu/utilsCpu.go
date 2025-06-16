@@ -31,6 +31,7 @@ var nroPagina int
 var Marco int
 var indice int
 var Rafaga int
+var tiempoInicio time.Time
 
 func HandshakeKernel() error {
 	datosEnvio := estructuras.HandshakeConCPU{
@@ -92,7 +93,9 @@ func instruccionAEjecutar(estructuras.PCB) string {
 	return instruccionAEjecutar
 }
 
-func terminaProceso() error {
+func cortoProceso() error {
+	global.Rafaga = time.Since(tiempoInicio).Seconds()
+
 	datosEnvio := estructuras.RespuestaCPU{
 		PID:        global.PCB_Actual.PID,
 		PC:         global.PCB_Actual.PC,
@@ -108,13 +111,13 @@ func terminaProceso() error {
 
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
-		global.LoggerCpu.Log("Error enviando pedido lectura a Memoria: "+err.Error(), log.ERROR)
+		global.LoggerCpu.Log("Error devolviendo proceso a Kernel: "+err.Error(), log.ERROR)
 		return err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("devolución procesofallido con status %d", resp.StatusCode)
+		return fmt.Errorf("devolución proceso fallido con status %d", resp.StatusCode)
 	}
 	global.LoggerCpu.Log("✅ Devolución proceso enviado a Kernel con éxito", log.INFO)
 	return nil
@@ -125,10 +128,9 @@ func CicloDeInstruccion() {
 	
 	instruccion, requiereMMU := Decode(instruccionAEjecutar)
 	
-	tiempoInicio := time.Now()
+	tiempoInicio = time.Now()
 	Execute(instruccion, requiereMMU)
-	global.Rafaga = time.Since(tiempoInicio).Seconds()
-
+	
 	CheckInterrupt()
 }
 
@@ -170,7 +172,7 @@ func Execute(instruccion Instruccion, requiereMMU bool) error {
 	//todo INSTRUCCIONES SYSCALLS
 	if instruccion.Opcode == "IO" {
 		global.Motivo = "BLOCKED"
-		terminaProceso()
+		cortoProceso()
 		Syscall_IO(instruccion)
 	}
 	if instruccion.Opcode == "INIT_PROC" {
@@ -181,9 +183,10 @@ func Execute(instruccion Instruccion, requiereMMU bool) error {
 	}
 	if instruccion.Opcode == "EXIT" {
 		global.Motivo = "EXIT"
-		terminaProceso()
+		cortoProceso()
 		Syscall_Exit()
 	}
+	
 	//todo OTRAS INSTRUCCIONES
 	if instruccion.Opcode == "NOOP" {
 	}
@@ -249,10 +252,12 @@ func TlbHIT() bool {
 
 func CheckInterrupt() {
 	if global.Interrupcion {
+		global.Motivo = "READY"
+		cortoProceso()
 		global.PCB_Actual = global.PCB_Interrupcion
 		global.Interrupcion = false
-		global.Motivo = "READY"
-		terminaProceso()
+		
+		
 	}
 }
 
