@@ -15,7 +15,6 @@ func CrearServer() *server.Server {
 			"POST /handshakeCPU":   handlers.HandshakeConCPU,
 			"POST /handshakeIO":    handlers.RecibirPaquete,
 			"POST /syscallIO":      handlers.IO,
-			"POST /finalizacionIO": handlers.FinalizacionIO,
 			"POST /Init_Proc":      handlers.INIT_PROC,
 			"POST /exit":           handlers.EXIT,
 			"POST /dumpMemory":		handlers.DUMP_MEMORY,

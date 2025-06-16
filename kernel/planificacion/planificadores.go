@@ -153,15 +153,15 @@ func IniciarPlanificadorLargoPlazo() {
 					}
 				}
 
-				global.MutexExit.Lock()
+				/* global.MutexExit.Lock()
 				if len(global.ColaExit) > 0 {
 					p := global.ColaExit[0]
 					global.ColaExit = global.ColaExit[1:]
 					global.MutexExit.Unlock()
-					FinalizarProceso(p)
+					FinalizarProceso(p) //! @Valenchu que onda esto aca, no esta de mas? si el finalizar lo hacemos con manejar devolucion
 				} else {
 					global.MutexExit.Unlock()
-				}
+				} */
 			}
 		}
 	}()

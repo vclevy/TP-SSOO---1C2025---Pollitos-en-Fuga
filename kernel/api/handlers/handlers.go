@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"strconv"
 
@@ -171,65 +170,6 @@ func IO(w http.ResponseWriter, r *http.Request) {
 	primero.Mutex.Lock()
 	primero.ColaEspera = append(primero.ColaEspera, procesoEncolado)
 	primero.Mutex.Unlock()
-
-	w.WriteHeader(http.StatusOK)
-}
-
-func FinalizacionIO(w http.ResponseWriter, r *http.Request){
-
-    host, portStr, err := net.SplitHostPort(r.RemoteAddr)
-    if err != nil {
-        http.Error(w, "Error al parsear dirección remota", http.StatusBadRequest)
-        return
-    }
-    
-    port, err := strconv.Atoi(portStr)
-    if err != nil {
-        http.Error(w, "Puerto inválido", http.StatusBadRequest)
-        return
-    }
-
-	dispositivo, err := utilsKernel.BuscarDispositivo(host, port)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
-		return
-	}
-
-	// Verificamos si hay body. Si NO hay, es desconexión
-	if r.ContentLength == 0 {
-		proc := dispositivo.ProcesoEnUso.Proceso
-		global.MutexBlocked.Lock()
-		global.EliminarProcesoDeCola(&global.ColaBlocked, proc.PID)
-		global.MutexBlocked.Unlock()
-		global.IOListMutex.Lock()
-		global.IOConectados = utilsKernel.FiltrarIODevice(global.IOConectados, dispositivo)
-		global.IOListMutex.Unlock()
-		planificacion.FinalizarProceso(proc)
-
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, "Proceso %d desconectado y marcado como EXIT.\n", proc.PID)
-		return
-	}
-
-	// Caso normal: Fin de IO
-	if dispositivo.ProcesoEnUso != nil {
-		fmt.Fprintf(w, "Proceso %d completó E/S. Verificando cola...\n", dispositivo.ProcesoEnUso.Proceso.PID)
-
-		// Liberamos proceso actual
-		dispositivo.ProcesoEnUso = nil
-
-		if len(dispositivo.ColaEspera) > 0 {
-			dispositivo.Mutex.Lock()
-			nuevo := dispositivo.ColaEspera[0]
-			dispositivo.ColaEspera = utilsKernel.FiltrarColaIO(dispositivo.ColaEspera, nuevo)
-			dispositivo.Mutex.Unlock()
-			dispositivo.ProcesoEnUso = nuevo
-
-			utilsKernel.EnviarAIO(dispositivo, nuevo.Proceso.PID, nuevo.TiempoUso)
-		} else {
-			dispositivo.Ocupado = false
-		}
-	}
 
 	w.WriteHeader(http.StatusOK)
 }
