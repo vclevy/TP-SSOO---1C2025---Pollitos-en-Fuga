@@ -56,10 +56,12 @@ func ActualizarEstadoPCB(pcb *PCB, nuevoEstado string) {
 		pcb.MT[pcb.UltimoEstado] += duracion
 	}
 	// Log antes de actualizar el último estado
-	global.LoggerKernel.Log(
-		fmt.Sprintf("## (%d) Pasa del estado %s al estado %s", pcb.PID, pcb.UltimoEstado, nuevoEstado),
-		log.INFO,
-	)
+	if(nuevoEstado != NEW){
+		global.LoggerKernel.Log(
+			fmt.Sprintf("## (%d) Pasa del estado %s al estado %s", pcb.PID, pcb.UltimoEstado, nuevoEstado),
+			log.INFO,
+		)
+	}
 	// Aumenta contador de veces en el nuevo estado
 	pcb.ME[nuevoEstado] += 1
 	// Actualiza último estado y momento de entrada
@@ -152,16 +154,6 @@ func IniciarPlanificadorLargoPlazo() {
 					default:
 					}
 				}
-
-				/* global.MutexExit.Lock()
-				if len(global.ColaExit) > 0 {
-					p := global.ColaExit[0]
-					global.ColaExit = global.ColaExit[1:]
-					global.MutexExit.Unlock()
-					FinalizarProceso(p) //! @Valenchu que onda esto aca, no esta de mas? si el finalizar lo hacemos con manejar devolucion
-				} else {
-					global.MutexExit.Unlock()
-				} */
 			}
 		}
 	}()

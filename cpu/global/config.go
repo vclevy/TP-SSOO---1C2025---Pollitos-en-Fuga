@@ -21,7 +21,7 @@ type Config struct {
     TlbEntries     		int    	`json:"tlb_entries"`
     TlbReplacement      string 	`json:"tlb_replacement"`
 	CacheEntries        int 	`json:"cache_entries"`
-	CacheReplacement	int		`json:"cache_replacement"`
+	CacheReplacement	string		`json:"cache_replacement"`
 	CacheDelay			int		`json:"cache_delay"`
 	LogLevel			string	`json:"log_level"`
 	LogFile				string  `json:"log_file"`
@@ -32,6 +32,11 @@ var Interrupcion bool
 var PCB_Actual estructuras.PCB
 var Motivo string
 var Rafaga float64
+
+var PCB_Interrupcion estructuras.PCB
+
+var TLB []estructuras.DatoTLB
+var CACHE []estructuras.DatoCACHE
 
 func InitGlobal(idCPU string) {	
 	CpuID = idCPU
