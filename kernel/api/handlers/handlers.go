@@ -156,7 +156,7 @@ func IO(w http.ResponseWriter, r *http.Request) {
 			}
 			dispositivo.Mutex.Unlock()
 
-			global.LoggerKernel.Log("## (<"+strconv.Itoa(dispositivo.ProcesoEnUso.Proceso.PID)+">) - Bloqueado por IO: <"+dispositivo.Nombre+">", log.INFO)
+			global.LoggerKernel.Log("## ("+strconv.Itoa(dispositivo.ProcesoEnUso.Proceso.PID)+") - Bloqueado por IO: <"+dispositivo.Nombre+">", log.INFO)
 			go utilsKernel.EnviarAIO(dispositivo, proceso.PCB.PID, tiempoUso)
 
 			w.WriteHeader(http.StatusOK)
@@ -180,7 +180,7 @@ func IO(w http.ResponseWriter, r *http.Request) {
 }
 
 func FinalizacionIO(w http.ResponseWriter, r *http.Request){
-
+	fmt.Println("Llego al handler FinalizacionIO")
     host, portStr, err := net.SplitHostPort(r.RemoteAddr)
     if err != nil {
         http.Error(w, "Error al parsear dirección remota", http.StatusBadRequest)
@@ -215,23 +215,22 @@ func FinalizacionIO(w http.ResponseWriter, r *http.Request){
 		return
 	}
 
-//! @Valenchu chequear que esto de moverlo a ready este bien aca
 	// Caso normal: Fin de IO
 	if dispositivo.ProcesoEnUso != nil {
 
 		proceso := dispositivo.ProcesoEnUso.Proceso		
-		global.LoggerKernel.Log(fmt.Sprintf("## (%d) finalizó IO y pasa a READY", proceso.PID), log.INFO) //! @Valenchu me parece que va aca
-		fmt.Fprintf(w, " Verificando cola...\n")
-
 		// Liberamos proceso actual
 		dispositivo.ProcesoEnUso = nil
 		global.MutexBlocked.Lock()
 		global.EliminarProcesoDeCola(&global.ColaBlocked, proceso.PID)
 		global.MutexBlocked.Unlock()
-
+		
 		// Agregar a READY
 		global.AgregarAReady(proceso)
 		planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.READY)
+		
+		global.LoggerKernel.Log(fmt.Sprintf("## (%d) finalizó IO y pasa a READY", proceso.PID), log.INFO)
+		
 				
 		if len(dispositivo.ColaEspera) > 0 {
 			dispositivo.Mutex.Lock()
