@@ -413,6 +413,8 @@ func FinalizarProceso(p *Proceso) {
 	global.AgregarAExit(p)
 	global.MutexExit.Unlock()
 
+	global.LoggerKernel.Log(fmt.Sprintf("## (%d) - Finaliza el proceso", p.PID), log.INFO) //! LOG OBLIGATORIO: Fin de Proceso
+
 	liberarPCB(p)
 	LoguearMetricas(p)
 
@@ -447,7 +449,6 @@ func liberarPCB(p *Proceso) {
 }
 
 func LoguearMetricas(p *Proceso) {
-	global.LoggerKernel.Log(fmt.Sprintf("## (%d) - Finaliza el proceso", p.PID), log.INFO) //! LOG OBLIGATORIO: Fin de Proceso
 	msg := fmt.Sprintf("## (%d) - Métricas de estado:", p.PID)
 	for _, unEstado := range estado {
 		count := p.ME[unEstado]
@@ -500,7 +501,7 @@ func EvaluarDesalojo(nuevo *global.Proceso) {
 	}
 
 	if procesoADesalojar != nil && nuevo.EstimacionRafaga < maxRafaga {
-		global.LoggerKernel.Log(fmt.Sprintf("Desalojando proceso %d por nuevo proceso %d", procesoADesalojar.PCB.PID, nuevo.PCB.PID), log.INFO)
+		global.LoggerKernel.Log(fmt.Sprintf("## (%d) - Desalojado por algoritmo SJF/SRT", procesoADesalojar.PCB.PID), log.INFO) //! @Valenchu creo que va ahi el Log, chequemoslo
 		cpu := utilskernel.BuscarCPUPorPID(procesoADesalojar.PCB.PID)
 		if cpu == nil {
 			global.LoggerKernel.Log(fmt.Sprintf("No se encontró CPU ejecutando proceso %d para interrupción", procesoADesalojar.PCB.PID), log.ERROR)

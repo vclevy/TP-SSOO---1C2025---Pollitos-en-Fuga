@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"strconv"
 
@@ -76,8 +77,8 @@ func INIT_PROC(w http.ResponseWriter, r *http.Request) {
 	}
 
 	procesoCreado := planificacion.CrearProceso(syscall.Tamanio, syscall.ArchivoInstrucciones)
-
-    global.LoggerKernel.Log(fmt.Sprintf("Proceso creado: %+v", procesoCreado), log.DEBUG)
+	global.LoggerKernel.Log("## ("+strconv.Itoa(procesoCreado.PID)+") - Solicitó syscall: <INIT_PROC>", log.INFO)
+	global.LoggerKernel.Log(fmt.Sprintf("Proceso creado: %+v", procesoCreado), log.DEBUG)
 	//el log ya lo hace crearProceso
 }
 
@@ -126,6 +127,8 @@ func IO(w http.ResponseWriter, r *http.Request) {
 	nombre := syscall.IoSolicitada
 	tiempoUso := syscall.TiempoEstimado
 	pid := syscall.PIDproceso
+	
+	global.LoggerKernel.Log("## ("+strconv.Itoa(pid)+") - Solicitó syscall: <IO>", log.INFO)
 
 	global.IOListMutex.RLock()
 	dispositivos := utilsKernel.ObtenerDispositivoIO(nombre)
@@ -153,7 +156,9 @@ func IO(w http.ResponseWriter, r *http.Request) {
 			}
 			dispositivo.Mutex.Unlock()
 
+			global.LoggerKernel.Log("## (<"+strconv.Itoa(dispositivo.ProcesoEnUso.Proceso.PID)+">) - Bloqueado por IO: <"+dispositivo.Nombre+">", log.INFO)
 			go utilsKernel.EnviarAIO(dispositivo, proceso.PCB.PID, tiempoUso)
+
 			w.WriteHeader(http.StatusOK)
 			return
 		}
@@ -174,14 +179,73 @@ func IO(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+func FinalizacionIO(w http.ResponseWriter, r *http.Request){
+
+    host, portStr, err := net.SplitHostPort(r.RemoteAddr)
+    if err != nil {
+        http.Error(w, "Error al parsear dirección remota", http.StatusBadRequest)
+        return
+    }
+    
+    port, err := strconv.Atoi(portStr)
+    if err != nil {
+        http.Error(w, "Puerto inválido", http.StatusBadRequest)
+        return
+    }
+
+	dispositivo, err := utilsKernel.BuscarDispositivo(host, port)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	// Verificamos si hay body. Si NO hay, es desconexión
+	if r.ContentLength == 0 {
+		proc := dispositivo.ProcesoEnUso.Proceso
+		global.MutexBlocked.Lock()
+		global.EliminarProcesoDeCola(&global.ColaBlocked, proc.PID)
+		global.MutexBlocked.Unlock()
+		global.IOListMutex.Lock()
+		global.IOConectados = utilsKernel.FiltrarIODevice(global.IOConectados, dispositivo)
+		global.IOListMutex.Unlock()
+		planificacion.FinalizarProceso(proc)
+
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, "Proceso %d desconectado y marcado como EXIT.\n", proc.PID)
+		return
+	}
+
+	// Caso normal: Fin de IO
+	if dispositivo.ProcesoEnUso != nil {
+		fmt.Fprintf(w, "Proceso %d completó E/S. Verificando cola...\n", dispositivo.ProcesoEnUso.Proceso.PID)
+
+		// Liberamos proceso actual
+		dispositivo.ProcesoEnUso = nil
+
+		if len(dispositivo.ColaEspera) > 0 {
+			dispositivo.Mutex.Lock()
+			nuevo := dispositivo.ColaEspera[0]
+			dispositivo.ColaEspera = utilsKernel.FiltrarColaIO(dispositivo.ColaEspera, nuevo)
+			dispositivo.Mutex.Unlock()
+			dispositivo.ProcesoEnUso = nuevo
+
+			utilsKernel.EnviarAIO(dispositivo, nuevo.Proceso.PID, nuevo.TiempoUso)
+		} else {
+			dispositivo.Ocupado = false
+		}
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
 func EXIT(w http.ResponseWriter, r *http.Request) {
 	pidStr := r.URL.Query().Get("pid")
 	PID, _ := strconv.Atoi(pidStr)
 
-	global.LoggerKernel.Log(fmt.Sprintf("Recibida syscall EXIT para PID %d", PID), log.DEBUG)
+	global.LoggerKernel.Log("## ("+strconv.Itoa(PID)+") - Solicitó syscall: <EXIT>", log.INFO)
 
 	w.WriteHeader(http.StatusOK) // !! @Delfi : ya no se finaliza el proceso acá, solo responde OK a la cpu y el proceso lo terminamos en planificacion, con manejarDevolucionDeCPU
-}
+}								//* Copied that ✅
 
 func DUMP_MEMORY(w http.ResponseWriter, r *http.Request) {
 	pidStr := r.URL.Query().Get("pid")
@@ -191,6 +255,7 @@ func DUMP_MEMORY(w http.ResponseWriter, r *http.Request) {
 
 	planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.BLOCKED)
 	global.AgregarABlocked(proceso)
+	global.LoggerKernel.Log("## ("+strconv.Itoa(pid)+") - Solicitó syscall: <INIT_PROC>", log.INFO)
 
 	// 2. Enviar solicitud a memoria
 	err := utilsKernel.SolicitarDumpAMemoria(pid)
