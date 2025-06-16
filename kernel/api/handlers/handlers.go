@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"strconv"
 
@@ -179,35 +178,38 @@ func IO(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func FinalizacionIO(w http.ResponseWriter, r *http.Request){
-	fmt.Println("Llego al handler FinalizacionIO")
-    host, portStr, err := net.SplitHostPort(r.RemoteAddr)
-    if err != nil {
-        http.Error(w, "Error al parsear dirección remota", http.StatusBadRequest)
-        return
-    }
-    
-    port, err := strconv.Atoi(portStr)
-    if err != nil {
-        http.Error(w, "Puerto inválido", http.StatusBadRequest)
-        return
-    }
+func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
 
-	dispositivo, err := utilsKernel.BuscarDispositivo(host, port)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
-		return
-	}
-
-	// Verificamos si hay body. Si NO hay, es desconexión
+	// Si NO hay body → desconexión
 	if r.ContentLength == 0 {
+		fmt.Println("Desconexión recibida")
+		
+		r.Header.Get("X-IO-Nombre")
+		ip := r.Header.Get("X-IO-IP")
+		puertoStr := r.Header.Get("X-IO-Puerto")
+
+		puerto, err := strconv.Atoi(puertoStr)
+		if err != nil {
+			http.Error(w, "Puerto inválido en header", http.StatusBadRequest)
+			return
+		}
+
+		dispositivo, err := utilsKernel.BuscarDispositivo(ip, puerto)
+		if err != nil {
+			http.Error(w, "Dispositivo no encontrado en desconexión", http.StatusNotFound)
+			return
+		}
+
 		proc := dispositivo.ProcesoEnUso.Proceso
+
 		global.MutexBlocked.Lock()
 		global.EliminarProcesoDeCola(&global.ColaBlocked, proc.PID)
 		global.MutexBlocked.Unlock()
+
 		global.IOListMutex.Lock()
 		global.IOConectados = utilsKernel.FiltrarIODevice(global.IOConectados, dispositivo)
 		global.IOListMutex.Unlock()
+
 		planificacion.FinalizarProceso(proc)
 
 		w.WriteHeader(http.StatusOK)
@@ -215,37 +217,54 @@ func FinalizacionIO(w http.ResponseWriter, r *http.Request){
 		return
 	}
 
-	// Caso normal: Fin de IO
-	if dispositivo.ProcesoEnUso != nil {
+	// Caso normal: finalización de IO
+	var mensaje estructuras.FinDeIO
+	if err := json.NewDecoder(r.Body).Decode(&mensaje); err != nil {
+		http.Error(w, "Error al decodificar mensaje de finalización", http.StatusBadRequest)
+		return
+	}
 
-		proceso := dispositivo.ProcesoEnUso.Proceso		
-		// Liberamos proceso actual
+	pid := mensaje.PID
+	fmt.Printf("Finalizó IO del PID: %d\n", pid)
+
+	dispositivo := utilsKernel.BuscarDispositivoPorPID(pid)
+	if dispositivo == nil {
+		http.Error(w, "No se encontró dispositivo para el PID", http.StatusNotFound)
+		return
+	}
+
+	if dispositivo.ProcesoEnUso != nil && dispositivo.ProcesoEnUso.Proceso.PID == pid {
+		proceso := dispositivo.ProcesoEnUso.Proceso
 		dispositivo.ProcesoEnUso = nil
+
 		global.MutexBlocked.Lock()
 		global.EliminarProcesoDeCola(&global.ColaBlocked, proceso.PID)
 		global.MutexBlocked.Unlock()
-		
-		// Agregar a READY
+
 		global.AgregarAReady(proceso)
 		planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.READY)
-		
+
 		global.LoggerKernel.Log(fmt.Sprintf("## (%d) finalizó IO y pasa a READY", proceso.PID), log.INFO)
-		
-				
+
+		// Ver si hay proceso esperando en el dispositivo
+		dispositivo.Mutex.Lock()
 		if len(dispositivo.ColaEspera) > 0 {
-			dispositivo.Mutex.Lock()
 			nuevo := dispositivo.ColaEspera[0]
 			dispositivo.ColaEspera = utilsKernel.FiltrarColaIO(dispositivo.ColaEspera, nuevo)
-			dispositivo.Mutex.Unlock()
 			dispositivo.ProcesoEnUso = nuevo
+			dispositivo.Mutex.Unlock()
 
 			utilsKernel.EnviarAIO(dispositivo, nuevo.Proceso.PID, nuevo.TiempoUso)
 		} else {
 			dispositivo.Ocupado = false
+			dispositivo.Mutex.Unlock()
 		}
+
+		w.WriteHeader(http.StatusOK)
+		return
 	}
 
-	w.WriteHeader(http.StatusOK)
+	http.Error(w, "No se encontró proceso en uso para este PID", http.StatusNotFound)
 }
 
 func EXIT(w http.ResponseWriter, r *http.Request) {
