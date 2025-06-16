@@ -9,6 +9,7 @@ import (
 	log "github.com/sisoputnfrba/tp-golang/utils/logger"
 	"io"
 	"math"
+	"time"
 	"net/http"
 	"strconv"
 	"strings"
@@ -95,7 +96,6 @@ func instruccionAEjecutar(estructuras.PCB) string {
 	return instruccionAEjecutar
 }
 
-
 func terminaProceso() error {
 	datosEnvio := estructuras.RespuestaCPU{
 		PID: global.PCB_Actual.PID,
@@ -121,17 +121,19 @@ func terminaProceso() error {
 		return fmt.Errorf("devolución procesofallido con status %d", resp.StatusCode)
 	}
 	global.LoggerCpu.Log("✅ Devolución proceso enviado a Kernel con éxito", log.INFO)
-
+	return nil
 }
 
 func CicloDeInstruccion() {
 	var instruccionAEjecutar = Fetch()
 	if instruccionAEjecutar == "EXIT" {
 		global.Motivo = "EXIT"
+		terminaProceso()
 	}
 	instruccion, requiereMMU := Decode(instruccionAEjecutar)
-
+	tiempoInicio := time.Now()
 	Execute(instruccion, requiereMMU)
+	global.Rafaga = time.Since(tiempoInicio).Seconds()
 
 	CheckInterrupt()
 }
@@ -168,13 +170,14 @@ func Decode(instruccionAEjecutar string) (Instruccion, bool) {
 }
 
 func Execute(instruccion Instruccion, requiereMMU bool) error {
-
+    
 	global.LoggerCpu.Log(fmt.Sprintf("## PID: %d - Ejecutando: %s - %s", global.PCB_Actual.PID, instruccion.Opcode, instruccion.Parametros), log.INFO)
 
 	//todo INSTRUCCIONES SYSCALLS
 	if instruccion.Opcode == "IO" {
-		global.Motivo = "BLOCKED"	
+		global.Motivo = "BLOCKED"
 		Syscall_IO(instruccion)
+		terminaProceso()
 	}
 	if instruccion.Opcode == "INIT_PROC" {
 		Syscall_Init_Proc(instruccion)
@@ -257,6 +260,7 @@ func Execute(instruccion Instruccion, requiereMMU bool) error {
 			}
 		}
 	}
+	
 	return nil
 }
 
@@ -409,6 +413,7 @@ func CheckInterrupt() {
 		global.PCB_Actual = global.PCB_Interrupcion
 		global.Interrupcion = false
 		global.Motivo = "READY"
+		terminaProceso()
 	}
 }
 
