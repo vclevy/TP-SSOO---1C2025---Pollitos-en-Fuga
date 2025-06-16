@@ -281,51 +281,10 @@ func CheckInterrupt() {
 	return nil
 } */
 
-/* func Write(instruccion Instruccion, cacheHabilitada bool, tlbHabilitada bool,direccionLogica int) error {
+func WRITE(instruccion Instruccion, cacheHabilitada bool, tlbHabilitada bool, direccionLogica int) {
 	dato := instruccion.Parametros[1]
 	if cacheHabilitada {
-		if CacheHIT(){
-			if global.CACHE[indice].BitModificado == 0 {
-				actualizarCACHE(dato)
-			} else if global.CACHE[indice].BitModificado == 1 {
-				actualizarCACHE(dato)
-			} else {
-				return fmt.Errorf("el bit de modificado no es 1 ni 0")
-			}
-		} else{
-			reemplazar := AlgoritmoCACHE()
-			cargarCACHE(reemplazar, nroPagina, dato)
-		}
-	} else if tlbHabilitada{
-
-	}
-
-	if tlbHabilitada{
-		if TlbHIT(){
-			actualizarTLB()
-		} else{
-			reemplazar := AlgoritmoTLB()
-			cargarTLB(reemplazar, nroPagina, dato)
-		}
-	}
-
-	if !cacheHabilitada && !tlbHabilitada{
-		marco := CalcularMarco()
-		direccionFisica = MMU(direccionLogica, instruccion.Opcode, nroPagina, marco)
-		MemoriaEscribe(direccionFisica, dato)
-	}
-
-	return nil
-} */
-
-func WRITE(instruccion Instruccion, cacheHabilitada bool, tlbHabilitada bool, direccionLogica int) error {
-	dato := instruccion.Parametros[1]
-	if cacheHabilitada {
-		if CacheHIT() {
-			actualizarCACHE(nroPagina, dato)
-		} else {
-			escribirCache(nroPagina, dato)
-		}
+		actualizarCACHE(nroPagina, dato)
 	} else {
 		if tlbHabilitada {
 			var marco int
@@ -336,39 +295,43 @@ func WRITE(instruccion Instruccion, cacheHabilitada bool, tlbHabilitada bool, di
 			}
 			direccionFisica = MMU(direccionLogica, instruccion.Opcode, nroPagina, marco)
 			MemoriaEscribe(direccionFisica, dato)
-			actualizarTLB(marco)
+			actualizarTLB(nroPagina, marco)
 		} else {
 			marco := CalcularMarco()
 			direccionFisica = MMU(direccionLogica, instruccion.Opcode, nroPagina, marco)
 			MemoriaEscribe(direccionFisica, dato)
 		}
 	}
-	return nil
 }
 
 func actualizarCACHE(pagina int, nuevoContenido string) {
-	i := indicePagina(pagina)
-	global.CACHE[i].Contenido = nuevoContenido
-	global.CACHE[i].BitModificado = 1
-}
-
-func escribirCache(pagina int, nuevoContenido string) {
-	paginaReescribir := AlgoritmoCACHE()
-	i := indicePagina(paginaReescribir)
-	if global.CACHE[i].BitModificado == 1 {
-		MemoriaEscribe(direccionFisica , global.CACHE[i].Contenido)
+	indice := indicePagina(pagina)
+	if indice == -1 { // no está la página
+		paginaPisar := AlgoritmoCACHE()
+		indicePisar := indicePagina(paginaPisar)
+		if global.CACHE[indicePisar].BitModificado == 1 {
+			MemoriaEscribe(direccionFisica, global.CACHE[indicePisar].Contenido) //!! ver dirección fisica
+		}
+		global.CACHE[indicePisar].NroPagina = pagina
+		global.CACHE[indicePisar].Contenido = nuevoContenido
+		global.CACHE[indicePisar].BitModificado = 0
+	} else {		
+		global.CACHE[indice].Contenido = nuevoContenido
+		global.CACHE[indice].BitModificado = 1
 	}
-	global.CACHE[i].NroPagina = pagina
-	global.CACHE[i].Contenido = nuevoContenido
-	global.CACHE[i].BitModificado = 0
 }
 
-func actualizarTLB(marco int) {
-	i := indicePagina(nroPagina)
-	global.TLB[i].NroPagina = nroPagina
-	global.TLB[i].Marco = marco
+func actualizarTLB(pagina int, marco int) {
+	indice := indicePagina(pagina)
+	if indice == -1 { // no está la página
+		paginaPisar := AlgoritmoTLB()
+		indicePisar := indicePagina(paginaPisar)
+		global.TLB[indicePisar].Marco = marco
+		global.TLB[indicePisar].NroPagina = pagina
+	} else {
+		global.TLB[indice].Marco = marco
+	}
 }
-
 
 func indicePagina(pagina int) int {
 	for i := 0; i <= len(global.CACHE)-1; i++ {
