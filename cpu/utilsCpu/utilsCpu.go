@@ -25,14 +25,11 @@ type Instruccion struct {
 }
 
 var configMMU estructuras.ConfiguracionMMU
-
 var direccionFisica int
 var desplazamiento int
 var nroPagina int
-
 var Marco int
 var indice int
-
 var Rafaga int
 
 func HandshakeKernel() error {
@@ -216,47 +213,11 @@ func Execute(instruccion Instruccion, requiereMMU bool) error {
 		}
 
 		if instruccion.Opcode == "READ" { // READ 0 20 - READ (Dirección, Tamaño)
-			tamanioStr := instruccion.Parametros[1]
-			tamanio, err := strconv.Atoi(tamanioStr)
-			if err != nil {
-				return fmt.Errorf("error al convertir tamanio")
-			}
-
-			if cacheHabilitada {
-				if CacheHIT() {
-					global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: %s - Dirección Física: %d - Valor: %s.", global.PCB_Actual.PID, instruccion.Opcode, direccionFisica, global.CACHE[indice].Contenido), log.INFO)
-				} else if tlbHabilitada {
-					if TlbHIT() {
-						Marco = global.TLB[indice].Marco
-					} else {
-						direccionFisica = MMU(direccionLogica, instruccion.Opcode, nroPagina, marco)
-						MemoriaLee(direccionFisica, tamanio)
-					}
-				}
-			}
+			Read(instruccion, cacheHabilitada, tlbHabilitada, direccionLogica, marco)
 		}
 
 		if instruccion.Opcode == "WRITE" { // WRITE 0 EJEMPLO_DE_ENUNCIADO - WRITE (Dirección, Datos)
-			dato := instruccion.Parametros[1]
-			if cacheHabilitada {
-				if CacheHIT() {
-					if global.CACHE[indice].BitModificado == 0 {
-						global.CACHE[indice].Contenido = dato
-						global.CACHE[indice].BitModificado = 1
-					} else if global.CACHE[indice].BitModificado == 1 {
-						MemoriaEscribe(direccionFisica, dato) //!! VER, necesito saber la dirección fisica igual?
-						global.CACHE[indice].Contenido = dato
-					} else {
-						return fmt.Errorf("el bit de modificado no es 1 ni 0")
-					}
-				} else if tlbHabilitada {
-					if TlbHIT() {
-						//algorito por cuál cambiar
-					} else {
-
-					}
-				}
-			}
+			Write(instruccion, cacheHabilitada, tlbHabilitada)
 		}
 	}
 
@@ -294,6 +255,51 @@ func CheckInterrupt() {
 		global.Motivo = "READY"
 		terminaProceso()
 	}
+}
+
+func Read(instruccion Instruccion, cacheHabilitada bool, tlbHabilitada bool, direccionLogica int, marco int) error {
+	tamanioStr := instruccion.Parametros[1]
+	tamanio, err := strconv.Atoi(tamanioStr)
+	if err != nil {
+		return fmt.Errorf("error al convertir tamanio")
+	}
+
+	if (cacheHabilitada && CacheHIT()) { 
+		global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: %s - Dirección Física: %d - Valor: %s.", global.PCB_Actual.PID, instruccion.Opcode, direccionFisica, global.CACHE[indice].Contenido), log.INFO)
+	} else if (tlbHabilitada && TlbHIT()){
+		marco = global.TLB[indice].Marco
+		direccionFisica = MMU(direccionLogica, instruccion.Opcode, nroPagina, marco)
+		MemoriaLee(direccionFisica, tamanio)
+	}else{
+		marco = CalcularMarco()
+		direccionFisica = MMU(direccionLogica, instruccion.Opcode, nroPagina, marco)
+		MemoriaLee(direccionFisica, tamanio)
+	}
+	return nil
+}
+
+func Write(instruccion Instruccion, cacheHabilitada bool, tlbHabilitada bool) error {
+	dato := instruccion.Parametros[1]
+			if cacheHabilitada {
+				if CacheHIT() {
+					if global.CACHE[indice].BitModificado == 0 {
+						global.CACHE[indice].Contenido = dato
+						global.CACHE[indice].BitModificado = 1
+					} else if global.CACHE[indice].BitModificado == 1 {
+						MemoriaEscribe(direccionFisica, dato) //!! VER, necesito saber la dirección fisica igual?
+						global.CACHE[indice].Contenido = dato
+					} else {
+						return fmt.Errorf("el bit de modificado no es 1 ni 0")
+					}
+				} else if tlbHabilitada {
+					if TlbHIT() {
+						//algorito por cuál cambiar
+					} else {
+
+					}
+				}
+			}
+	return nil
 }
 
 /*

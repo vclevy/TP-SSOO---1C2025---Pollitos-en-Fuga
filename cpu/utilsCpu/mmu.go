@@ -48,18 +48,20 @@ func armarListaEntradas(nroPagina int) []int {
 	return entradas
 }
 
-func MMU(direccionLogica int, opcode string, nroPagina int, marco int) int {
-	if marco == -1 {
-		listaEntradas := armarListaEntradas(nroPagina)
+func CalcularMarco() int {
+	listaEntradas := armarListaEntradas(nroPagina)
 
 		accederTabla := estructuras.AccesoTP{
 			PID:      global.PCB_Actual.PID,
 			Entradas: listaEntradas,
 		}
 
-		marco = pedirMarco(accederTabla)
-	}
+	marco := pedirMarco(accederTabla)
 
+	return marco
+}
+
+func MMU(direccionLogica int, opcode string, nroPagina int, marco int) int {
 	direccionFisica = marco*configMMU.Tamanio_pagina + desplazamiento
 	return direccionFisica
 }
