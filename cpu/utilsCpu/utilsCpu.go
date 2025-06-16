@@ -33,6 +33,8 @@ var nroPagina int
 var Marco int
 var indice int
 
+var Rafaga int
+
 func HandshakeKernel() error {
 	datosEnvio := estructuras.HandshakeConCPU{
 		ID:     global.CpuID,
@@ -93,11 +95,39 @@ func instruccionAEjecutar(estructuras.PCB) string {
 	return instruccionAEjecutar
 }
 
+
+func terminaProceso() error {
+	datosEnvio := estructuras.RespuestaCPU{
+		PID: global.PCB_Actual.PID,
+		PC: global.PCB_Actual.PC,
+		Motivo: global.Motivo,
+		RafagaReal: global.Rafaga,
+	}
+
+	jsonData, err := json.Marshal(datosEnvio)
+	if err != nil {
+		return fmt.Errorf("error codificando pedido: %w", err)
+	}
+	url := fmt.Sprintf("http://%s:%d/devolucion", global.CpuConfig.Ip_Kernel, global.CpuConfig.Port_Kernel)
+
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		global.LoggerCpu.Log("Error enviando pedido lectura a Memoria: "+err.Error(), log.ERROR)
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("devolución procesofallido con status %d", resp.StatusCode)
+	}
+	global.LoggerCpu.Log("✅ Devolución proceso enviado a Kernel con éxito", log.INFO)
+
+}
+
 func CicloDeInstruccion() {
 	var instruccionAEjecutar = Fetch()
-	if instruccionAEjecutar == "FIN" {
+	if instruccionAEjecutar == "EXIT" {
 		global.Motivo = "EXIT"
-		return
 	}
 	instruccion, requiereMMU := Decode(instruccionAEjecutar)
 
@@ -143,6 +173,7 @@ func Execute(instruccion Instruccion, requiereMMU bool) error {
 
 	//todo INSTRUCCIONES SYSCALLS
 	if instruccion.Opcode == "IO" {
+		global.Motivo = "BLOCKED"	
 		Syscall_IO(instruccion)
 	}
 	if instruccion.Opcode == "INIT_PROC" {
@@ -189,33 +220,40 @@ func Execute(instruccion Instruccion, requiereMMU bool) error {
 				return fmt.Errorf("error al convertir tamanio")
 			}
 
-			if cacheHabilitada && CacheHIT() {
-				global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: %s - Dirección Física: %d - Valor: %s.", global.PCB_Actual.PID, instruccion.Opcode, direccionFisica, global.CACHE[indice].Contenido), log.INFO)
-			} else if tlbHabilitada && TlbHIT() {
-				Marco = global.TLB[indice].Marco
-			} else {
-				direccionFisica = MMU(direccionLogica, instruccion.Opcode, nroPagina, marco)
-				MemoriaLee(direccionFisica, tamanio)
-			}
-		}
-
-		if instruccion.Opcode == "WRITE" { // WRITE 0 EJEMPLO_DE_ENUNCIADO - WRITE (Dirección, Datos)
-			dato := instruccion.Parametros[1]
-			if cacheHabilitada && CacheHIT() {
-				if global.CACHE[indice].BitModificado == 0 {
-					global.CACHE[indice].Contenido = dato
-					global.CACHE[indice].BitModificado = 1
-				} else if global.CACHE[indice].BitModificado == 1 {
-					MemoriaEscribe(direccionFisica, dato) //!! VER, necesito saber la dirección fisica igual?
-					global.CACHE[indice].Contenido = dato
-				} else {
-					return fmt.Errorf("el bit de modificado no es 1 ni 0")
+			if cacheHabilitada {
+				if CacheHIT() {
+					global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: %s - Dirección Física: %d - Valor: %s.", global.PCB_Actual.PID, instruccion.Opcode, direccionFisica, global.CACHE[indice].Contenido), log.INFO)
+				} else if tlbHabilitada {
+					if TlbHIT() {
+						Marco = global.TLB[indice].Marco
+					} else {
+						direccionFisica = MMU(direccionLogica, instruccion.Opcode, nroPagina, marco)
+						MemoriaLee(direccionFisica, tamanio)
+					}
 				}
 
-			} else if tlbHabilitada && TlbHIT() {
-				//algorito por cuál cambiar
-			} else {
-				
+				if instruccion.Opcode == "WRITE" { // WRITE 0 EJEMPLO_DE_ENUNCIADO - WRITE (Dirección, Datos)
+					dato := instruccion.Parametros[1]
+					if cacheHabilitada {
+						if CacheHIT() {
+							if global.CACHE[indice].BitModificado == 0 {
+								global.CACHE[indice].Contenido = dato
+								global.CACHE[indice].BitModificado = 1
+							} else if global.CACHE[indice].BitModificado == 1 {
+								MemoriaEscribe(direccionFisica, dato) //!! VER, necesito saber la dirección fisica igual?
+								global.CACHE[indice].Contenido = dato
+							} else {
+								return fmt.Errorf("el bit de modificado no es 1 ni 0")
+							}
+						} else if tlbHabilitada {
+							if TlbHIT() {
+								//algorito por cuál cambiar
+							} else {
+
+							}
+						}
+					}
+				}
 			}
 		}
 	}
@@ -367,9 +405,10 @@ func ObtenerFrameDeMemoria(nroPagina int) {}
 func ActualizarTLB(nroPagina int, marco int) {}
 
 func CheckInterrupt() {
-	if(global.Interrupcion){
+	if global.Interrupcion {
 		global.PCB_Actual = global.PCB_Interrupcion
 		global.Interrupcion = false
+		global.Motivo = "READY"
 	}
 }
 
@@ -490,7 +529,7 @@ func Syscall_Exit() {
 /*
 LOGS:
 //Fetch Instrucción: “## PID: <PID> - FETCH - Program Counter: <PROGRAM_COUNTER>”.
-Interrupción Recibida: “## Llega interrupción al puerto Interrupt”.
+//Interrupción Recibida: “## Llega interrupción al puerto Interrupt”.
 //Instrucción Ejecutada: “## PID: <PID> - Ejecutando: <INSTRUCCION> - <PARAMETROS>”.
 Lectura/Escritura Memoria: “PID: <PID> - Acción: <LEER / ESCRIBIR> - Dirección Física: <DIRECCION_FISICA> - Valor: <VALOR LEIDO / ESCRITO>”.
 Obtener Marco: “PID: <PID> - OBTENER MARCO - Página: <NUMERO_PAGINA> - Marco: <NUMERO_MARCO>”.
