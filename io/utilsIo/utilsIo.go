@@ -52,7 +52,8 @@ func IniciarIo(solicitud estructuras.TareaDeIo) {
 
 func InformarFinalizacionDeIO(pid int) {
 	mensaje := FinDeIO{
-		Tipo: "FIN_IO",
+		Tipo: "FIN_IO",  
+		PID:  pid,
 	}
 
 	body, err := json.Marshal(mensaje)
