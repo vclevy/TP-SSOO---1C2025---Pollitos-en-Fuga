@@ -87,3 +87,14 @@ type PedidoWRITE struct {
 	DireccionFisica int    `json:"direccion_fisica"`
 	Datos string    `json:"datos"`
 }
+
+type DatoTLB struct {
+    NroPagina int
+    Marco  int
+}
+
+type DatoCACHE struct {
+    BitModificado int
+	NroPagina int
+    Contenido string
+}

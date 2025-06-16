@@ -14,11 +14,10 @@ import (
 var MemoriaUsuario []byte
 var MarcosLibres []bool
 
-//Memoria de kernel
 type EntradaTP struct {
-    Presente       bool //indica si esta en MP o en SWAP (solo para el ultimo nivel)
-    MarcoFisico    int //apunta al marco fisico de MP (solo para el ultimo nivel)
-    SiguienteNivel []*EntradaTP 
+	Presente       bool          // indica si está en MP o SWAP (último nivel)
+	MarcoFisico    int           // apunta al marco físico (último nivel)
+	SiguienteNivel []*EntradaTP  // apunta a la subtabla (intermedios)
 }
 
 var TablaDePaginasRaiz []*EntradaTP // una por proceso
@@ -28,27 +27,10 @@ var TablasPorProceso = make(map[int]*EntradaTP)
 var diccionarioProcesosMemoria map[int]*[]string
 
 //Datos del config
-var TamMemoria = global.ConfigMemoria.Memory_size
-var tamPagina = global.ConfigMemoria.Page_Size
-var cantNiveles = global.ConfigMemoria.Number_of_levels
-var cantEntradas = global.ConfigMemoria.Entries_per_page
-
-
-func InicializarMemoria() {
-	//la direccion fisica es un indice dentro del siguiente array
-	diccionarioProcesosMemoria = make(map[int]*[]string)
-
-    MemoriaUsuario = make([]byte, TamMemoria)
-
-    totalMarcos := TamMemoria / tamPagina
-    MarcosLibres = make([]bool, totalMarcos)
-
-    for i := range MarcosLibres {
-        MarcosLibres[i] = true
-    }
-
-	TablasPorProceso = make(map[int]*EntradaTP)
-}
+var TamMemoria int
+var TamPagina int
+var CantNiveles int
+var CantEntradas int
 
 //MERTRICAS
 // Se usan al momento de destruir un proceso para el
@@ -62,6 +44,35 @@ type MetricasProceso struct { //son todas cantidades
 	SubidasMemoPpal int
 	LecturasMemo int
 	EscriturasMemo int
+}
+
+func InicializarMemoria() {
+	TamMemoria = global.ConfigMemoria.Memory_size
+	TamPagina = global.ConfigMemoria.Page_Size
+	CantNiveles = global.ConfigMemoria.Number_of_levels
+	CantEntradas = global.ConfigMemoria.Entries_per_page
+
+	//la direccion fisica es un indice dentro del siguiente array
+	diccionarioProcesosMemoria = make(map[int]*[]string)
+
+    MemoriaUsuario = make([]byte, TamMemoria)
+
+	metricas = make(map[int]*MetricasProceso)
+
+    totalMarcos := TamMemoria / TamPagina
+    MarcosLibres = make([]bool, totalMarcos)
+
+    for i := range MarcosLibres {
+        MarcosLibres[i] = true
+    }
+
+	TablasPorProceso = make(map[int]*EntradaTP)
+}
+
+func InicializarMetricas (pid int) {
+	if metricas[pid] == nil {
+		metricas[pid] = &MetricasProceso{}
+	}	
 }
 
 //DICCIONARIO DE PROCESOS
@@ -101,13 +112,13 @@ func HayLugar(tamanio int)(bool){
 		}		
 	}
 	
-	cantMarcosNecesitados:= int(math.Ceil(float64(tamanio) / float64(tamPagina)))
+	cantMarcosNecesitados:= int(math.Ceil(float64(tamanio) / float64(TamPagina)))
 	return cantMarcosNecesitados <= cantMarcosLibres
 }
 
 //RESERVANDO MARCOS DEL PROCESO
 func ReservarMarcos(tamanio int) []int{
-		cantMarcos := int(math.Ceil(float64(tamanio) / float64(tamPagina)))
+		cantMarcos := int(math.Ceil(float64(tamanio) / float64(TamPagina)))
 		var reservados []int
 		for i := 0; i < len(MarcosLibres) && len(reservados) < cantMarcos; i++ {
 			if MarcosLibres[i] {
@@ -122,49 +133,49 @@ func ReservarMarcos(tamanio int) []int{
 //Cada índice de marco reservado (i) indica que los bytes de memoriaUsuario desde
 // i*tamPagina hasta (i+1)*tamPagina-1 están asignados a un proceso -> CPU
 
-//CREACION DE TABLA DE PAGINAS DEL PROCESO
-func CrearTablaPaginas(pid int, tamanio int){
-	paginas := int(math.Ceil(float64(tamanio) / float64(tamPagina)))
+
+
+func CrearTablaPaginas(pid int, tamanio int) {
+	paginas := int(math.Ceil(float64(tamanio) / float64(TamPagina)))
 	marcos := ReservarMarcos(tamanio) // slice con marcos reservados
-	idx := 0 // índice para saber qué marco usar
+	idx := 0                          // índice del próximo marco a asignar
 
 	raiz := &EntradaTP{
+		Presente:       false,
 		SiguienteNivel: CrearTablaNiveles(1, &paginas, &marcos, &idx),
 	}
 	TablasPorProceso[pid] = raiz
 }
 
-func CrearTablaNiveles(nivelActual int, paginasRestantes *int,marcosReservados *[]int,proximoMarco *int,) []*EntradaTP {
-	tabla := make([]*EntradaTP, cantEntradas)
+func CrearTablaNiveles(nivelActual int, paginasRestantes *int, marcosReservados *[]int, proximoMarco *int) []*EntradaTP {
+	tabla := make([]*EntradaTP, CantEntradas)
 
-	for i := 0; i < cantEntradas; i++ {
-		if nivelActual == cantNiveles {
-			if *paginasRestantes > 0 {
-				tabla[i] = &EntradaTP{
-					Presente:       true,
-					MarcoFisico:    (*marcosReservados)[*proximoMarco],
-					SiguienteNivel: nil,
-				}
-				*paginasRestantes--
-				*proximoMarco++
-			} else {
-				tabla[i] = nil
-			}
+	// Inicializar todas las entradas con Presente = false
+	for i := range tabla {
+		tabla[i] = &EntradaTP{
+			Presente:       false,
+			MarcoFisico:    -1,
+			SiguienteNivel: nil,
+		}
+	}
+
+	for i := 0; i < CantEntradas && *paginasRestantes > 0; i++ {
+		if nivelActual == CantNiveles {
+			tabla[i].Presente = true
+			tabla[i].MarcoFisico = (*marcosReservados)[*proximoMarco]
+			*paginasRestantes--
+			*proximoMarco++
 		} else {
-			tabla[i] = &EntradaTP{
-				SiguienteNivel: CrearTablaNiveles(
-					nivelActual+1,
-					paginasRestantes,
-					marcosReservados,
-					proximoMarco,
-				),
+			subtabla := CrearTablaNiveles(nivelActual+1, paginasRestantes, marcosReservados, proximoMarco)
+			if subtabla != nil {
+				tabla[i].Presente = true
+				tabla[i].SiguienteNivel = subtabla
 			}
 		}
 	}
 
 	return tabla
 }
-
 
 //ACCESO A TABLA DE PAGINAS
 func EncontrarMarco(pid int, entradas []int) int {
@@ -173,11 +184,23 @@ func EncontrarMarco(pid int, entradas []int) int {
 	if actual == nil {
 		return -1 // error: no hay raíz
 	}
+	fmt.Printf("Entradas: %v (len = %d), cantNiveles = %d\n", entradas, len(entradas),  CantNiveles)
 
 	for i := 0; i < len(entradas); i++ {
+
 		idx := entradas[i]
-		if actual.SiguienteNivel == nil || idx >= len(actual.SiguienteNivel) || idx < 0 {
-			return -1 // error: tabla inválida
+		
+		fmt.Printf("→ Nivel %d, idx %d, tabla len = %d\n", i+1, idx, len(actual.SiguienteNivel))
+		
+		//si esta fuera de rango
+		if idx < 0 || idx >= len(actual.SiguienteNivel) {
+			fmt.Printf("Nivel %d: índice %d fuera de rango (len = %d)\n", i+1, idx, len(actual.SiguienteNivel))
+			return -1
+		}
+		
+		//si estoy en un marco
+		if actual.SiguienteNivel == nil {
+			fmt.Printf("estoy en el ultimo nivel")
 		}
 
 		actual = actual.SiguienteNivel[idx]
@@ -220,32 +243,32 @@ func EscribirDatos(pid int, direccionFisica int, datos string) { //ACTUALIZADO 8
 
 func LeerPaginaCompleta (pid int, direccionFisica int) []byte{ //Hace lo mismo que Devolver Lectura memoria, solo que el tamaño es el de la pagina
 	// el Byte 0 no es el index 0, sería el offset=0
-	offset := direccionFisica%tamPagina
+	offset := direccionFisica%TamPagina
 	if(offset!=0){
 		fmt.Printf("Error: direccion física no alineada al byte 0 de la pagina \n")
 		return nil
 	}
-	return DevolverLecturaMemoria(pid, direccionFisica, tamPagina)
+	return DevolverLecturaMemoria(pid, direccionFisica, TamPagina)
 }
 
 func ActualizarPaginaCompleta (pid int, direccionFisica int, datos []byte) {
-	if len(datos) != tamPagina{
-		fmt.Printf("Error: se esperaban %d bytes \n", tamPagina)
+	if len(datos) != TamPagina{
+		fmt.Printf("Error: se esperaban %d bytes \n", TamPagina)
 		return 
 	}
 
-	offset := direccionFisica%tamPagina
+	offset := direccionFisica%TamPagina
 	if(offset!=0){
 		fmt.Printf("Error: direccion física no alineada al byte 0 de la pagina\n")
 		return 
 	}
 
-	if direccionFisica+tamPagina > len(MemoriaUsuario) {
+	if direccionFisica+TamPagina > len(MemoriaUsuario) {
         fmt.Printf("Error: intento de escritura fuera de los límites de memoria\n")
         return
     }
 
-    copy(MemoriaUsuario[direccionFisica:direccionFisica+tamPagina], datos)
+    copy(MemoriaUsuario[direccionFisica:direccionFisica+TamPagina], datos)
     metricas[pid].EscriturasMemo++
 }
 
@@ -264,4 +287,21 @@ func ImprimirTabla(tabla []*EntradaTP, nivel int, path string) {
 			ImprimirTabla(entrada.SiguienteNivel, nivel+1, fmt.Sprintf("%s->%d", path, i))
 		}
 	}
+}
+
+func ImprimirMetricas(pid int) {
+	metrica := metricas[pid]
+
+	if metrica == nil {
+		fmt.Printf("No hay métricas para el PID %d\n", pid)
+		return
+	}
+
+	fmt.Printf("Métricas para PID %d:\n", pid)
+	fmt.Printf("  AccesosTP: %d\n", metrica.AcesosTP)
+	fmt.Printf("  InstruccionesSolicitadas: %d\n", metrica.InstruccionesSolicitadas)
+	fmt.Printf("  BajadasSWAP: %d\n", metrica.BajadasSWAP)
+	fmt.Printf("  SubidasMemoPpal: %d\n", metrica.SubidasMemoPpal)
+	fmt.Printf("  LecturasMemo: %d\n", metrica.LecturasMemo)
+	fmt.Printf("  EscriturasMemo: %d\n", metrica.EscriturasMemo)
 }
