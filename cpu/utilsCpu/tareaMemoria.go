@@ -65,3 +65,31 @@ func MemoriaEscribe(direccionFisica int, datos string) error {
 
 	return nil
 }
+
+func MemoriaActualiza(direccionFisica int, datos string) error {
+	datosEnvio := estructuras.PedidoWRITE{
+		PID:             global.PCB_Actual.PID,
+		DireccionFisica: direccionFisica,
+		Datos:           datos,
+	}
+
+	jsonData, err := json.Marshal(datosEnvio)
+	if err != nil {
+		return fmt.Errorf("error codificando pedido: %w", err)
+	}
+	url := fmt.Sprintf("http://%s:%d/escribirMemoria", global.CpuConfig.Ip_Memoria, global.CpuConfig.Port_Memoria) //!!cambiar
+
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		global.LoggerCpu.Log("Error enviando pedido escritura a Memoria: "+err.Error(), log.ERROR)
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("pedido escritura fallido con status %d", resp.StatusCode)
+	}
+	global.LoggerCpu.Log("✅ Pedido escritura enviados a Memoria con éxito", log.INFO)
+
+	return nil
+}
