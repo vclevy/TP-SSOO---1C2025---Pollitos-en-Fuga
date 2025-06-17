@@ -65,7 +65,7 @@ func CalcularMarco() int {
 	return marco
 }
 
-func MMU(direccionLogica int, opcode string, nroPagina int, marco int) int {
+func MMU(desplazamiento int, marco int) int {
 	direccionFisica = marco*configMMU.Tamanio_pagina + desplazamiento
 	return direccionFisica
 }

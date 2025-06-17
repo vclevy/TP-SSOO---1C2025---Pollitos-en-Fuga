@@ -26,9 +26,8 @@ type Instruccion struct {
 
 var configMMU estructuras.ConfiguracionMMU
 var direccionFisica int
-var desplazamiento int
+
 var nroPagina int
-var Marco int
 var indice int
 var Rafaga int
 var tiempoInicio time.Time
@@ -201,6 +200,7 @@ func Execute(instruccion Instruccion, requiereMMU bool) error {
 
 	//todo INSTRUCCIONES MMU
 	if requiereMMU {
+		var desplazamiento int
 		tlbHabilitada := global.CpuConfig.TlbEntries > 0
 		cacheHabilitada := global.CpuConfig.CacheEntries > 0
 
@@ -215,33 +215,24 @@ func Execute(instruccion Instruccion, requiereMMU bool) error {
 		}
 
 		if instruccion.Opcode == "READ" { // READ 0 20 - READ (Dirección, Tamaño)
-			/* 			Read(instruccion, cacheHabilitada, tlbHabilitada, direccionLogica)
-			 */
-		}
+			READ(instruccion, cacheHabilitada, desplazamiento, tlbHabilitada, direccionLogica)
+	 	}
 
 		if instruccion.Opcode == "WRITE" { // WRITE 0 EJEMPLO_DE_ENUNCIADO - WRITE (Dirección, Datos)
-			WRITE(instruccion, cacheHabilitada, tlbHabilitada, direccionLogica)
+			WRITE(instruccion, cacheHabilitada, desplazamiento, tlbHabilitada)
 		}
 	}
 
 	return nil
 }
 
-/* func CacheHIT() bool {
-	for i := 0; i <= len(global.CACHE)-1; i++ {
-		if global.CACHE[i].NroPagina == nroPagina {
-			global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Cache Hit - Pagina: %d", global.PCB_Actual.PID, nroPagina), log.INFO) //!! CACHE HIT
-			indice = i
-			return true
-		}
-	}
-	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Cache Miss - Pagina: %d", global.PCB_Actual.PID, nroPagina), log.INFO) //!! CACHE MISS
-	return false
-}
-*/
-func TlbHIT() bool {
+
+	
+
+
+func TlbHIT(nro_pagina int) bool {
 	for i := 0; i <= len(global.TLB)-1; i++ {
-		if global.TLB[i].NroPagina == nroPagina {
+		if global.TLB[i].NroPagina == nro_pagina {
 			global.LoggerCpu.Log(fmt.Sprintf("PID: %d - TLB HIT - Pagina: %d", global.PCB_Actual.PID, nroPagina), log.INFO) //!! TLB HIT
 			indice = i
 			return true
@@ -249,7 +240,7 @@ func TlbHIT() bool {
 	}
 	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - TLB MISS - Pagina: %d", global.PCB_Actual.PID, nroPagina), log.INFO) //!!TLB MISS
 	return false
-} 
+}
 
 func CheckInterrupt() {
 	if global.Interrupcion {
@@ -260,68 +251,159 @@ func CheckInterrupt() {
 	}
 }
 
-
-func WRITE(instruccion Instruccion, cacheHabilitada bool, tlbHabilitada bool, direccionLogica int) {
+func WRITE(instruccion Instruccion, cacheHabilitada bool, desplazamiento int, tlbHabilitada bool) {
 	dato := instruccion.Parametros[1]
 	if cacheHabilitada {
-		actualizarCACHE(nroPagina, dato)
+		if(CacheHIT()){
+			indicePaginaEnCache(nroPagina)
+			global.CACHE[indice].Contenido = dato
+			global.CACHE[indice].BitModificado = 1
+		}else{
+			actualizarCACHE(nroPagina, dato)
+		}
 	} else {
 		if tlbHabilitada {
 			var marco int
-			if TlbHIT() {
+			if TlbHIT(nroPagina) {
 				marco = global.TLB[indice].Marco
 			} else {
 				marco = CalcularMarco()
 			}
-			direccionFisica = MMU(direccionLogica, instruccion.Opcode, nroPagina, marco)
+			direccionFisica = MMU(desplazamiento, marco)
 			MemoriaEscribe(direccionFisica, dato)
 			actualizarTLB(nroPagina, marco)
 		} else {
 			marco := CalcularMarco()
-			direccionFisica = MMU(direccionLogica, instruccion.Opcode, nroPagina, marco)
+			direccionFisica = MMU(desplazamiento, marco)
 			MemoriaEscribe(direccionFisica, dato)
 		}
 	}
 }
 
 func actualizarCACHE(pagina int, nuevoContenido string) {
-	indice := indicePagina(pagina)
-	if indice == -1 { 
-		global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Cache Miss - Pagina: %d", global.PCB_Actual.PID, nroPagina), log.INFO) //!! CACHE MISS
+	indice := indicePaginaEnCache(pagina)
+	if indice == -1 {
 		paginaPisar := AlgoritmoCACHE()
-		indicePisar := indicePagina(paginaPisar)
+		indicePisar := indicePaginaEnCache(paginaPisar)
 		if global.CACHE[indicePisar].BitModificado == 1 {
-			MemoriaEscribe(direccionFisica, global.CACHE[indicePisar].Contenido) //!! ver dirección fisica
+			desalojar(indicePisar)
 		}
 		global.CACHE[indicePisar].NroPagina = pagina
 		global.CACHE[indicePisar].Contenido = nuevoContenido
 		global.CACHE[indicePisar].BitModificado = 0
 	} else {
-		global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Cache Hit - Pagina: %d", global.PCB_Actual.PID, nroPagina), log.INFO) //!! CACHE HIT	
 		global.CACHE[indice].Contenido = nuevoContenido
 		global.CACHE[indice].BitModificado = 1
 	}
 }
 
 func actualizarTLB(pagina int, marco int) {
-	indice := indicePagina(pagina)
+	indice := indicePaginaEnTLB(pagina)
 	if indice == -1 { // no está la página
 		paginaPisar := AlgoritmoTLB()
-		indicePisar := indicePagina(paginaPisar)
+		indicePisar := indicePaginaEnTLB(paginaPisar)
 		global.TLB[indicePisar].Marco = marco
 		global.TLB[indicePisar].NroPagina = pagina
 	} else {
+		global.LoggerCpu.Log(fmt.Sprintf("PID: %d - TLB Hit - Pagina: %d", global.PCB_Actual.PID, nroPagina), log.INFO) //!! TLB HIT
 		global.TLB[indice].Marco = marco
 	}
 }
 
-func indicePagina(pagina int) int {
+func indicePaginaEnCache(pagina int) int {
 	for i := 0; i <= len(global.CACHE)-1; i++ {
 		if global.CACHE[i].NroPagina == pagina {
 			return i
 		}
 	}
 	return -1
+}
+
+func CacheHIT() bool {
+	for i := 0; i <= len(global.CACHE)-1; i++ {
+		if global.CACHE[i].NroPagina == nroPagina {
+			global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Cache Hit - Pagina: %d", global.PCB_Actual.PID, nroPagina), log.INFO) //!! CACHE HIT
+			indice = i
+			return true
+		}
+	}
+	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Cache Miss - Pagina: %d", global.PCB_Actual.PID, nroPagina), log.INFO) //!! CACHE MISS
+	return false
+}
+
+func indicePaginaEnTLB(pagina int) int {
+	for i := 0; i <= len(global.TLB)-1; i++ {
+		if global.TLB[i].NroPagina == pagina {
+			return i
+		}
+	}
+	return -1
+}
+
+func desalojar(indicePisar int) {
+	var marco int
+	if global.CpuConfig.TlbEntries > 0 && TlbHIT(global.CACHE[indicePisar].NroPagina) { // pagina en tlb
+		marco = global.TLB[indicePisar].Marco
+	} else {
+		marco = CalcularMarco()
+	}
+	direccionFisica =  marco*configMMU.Tamanio_pagina
+	MemoriaEscribe(direccionFisica, global.CACHE[indicePisar].Contenido)
+}
+
+func READ(instruccion Instruccion, cacheHabilitada bool, desplazamiento int, tlbHabilitada bool, direccionLogica int) {
+	var marco int
+	tamanioStr := instruccion.Parametros[1]
+	tamanio, err := strconv.Atoi(tamanioStr)
+	if err != nil {
+		global.LoggerCpu.Log("error al convertir tamanio",log.ERROR) 
+	}
+
+	if(cacheHabilitada){
+		if(CacheHIT()){
+			indice := indicePaginaEnCache(nroPagina)
+			global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: LEER - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, direccionFisica, global.CACHE[indice].Contenido), log.INFO) //!! CACHE MISS
+		}else{
+			if(tlbHabilitada){
+				if(TlbHIT()){
+					marco = global.TLB[indice].Marco
+					direccionFisica = MMU(desplazamiento, marco)
+					MemoriaLee(direccionFisica, tamanio)
+					actualizarTLB(nroPagina, marco)
+					actualizarCACHE(nroPagina,global.CACHE[indice].Contenido)
+				}else{
+					marco = CalcularMarco()
+					direccionFisica =  marco*configMMU.Tamanio_pagina
+					MemoriaLee(direccionFisica, tamanio)
+					actualizarTLB(nroPagina, marco)
+					actualizarCACHE(nroPagina,global.CACHE[indice].Contenido)
+				}
+			}else{
+				marco = CalcularMarco()
+				direccionFisica =  marco*configMMU.Tamanio_pagina
+				MemoriaLee(direccionFisica, tamanio)
+				actualizarCACHE(nroPagina,global.CACHE[indice].Contenido)
+			}
+		}
+	}else{
+		if (tlbHabilitada){
+			if(TlbHIT()){
+				marco = CalcularMarco()
+				direccionFisica =  marco*configMMU.Tamanio_pagina
+				MemoriaLee(direccionFisica, tamanio)
+				actualizarTLB(nroPagina, marco)
+			}else{
+				marco = CalcularMarco()
+				direccionFisica =  marco*configMMU.Tamanio_pagina
+				MemoriaLee(direccionFisica, tamanio)
+				actualizarTLB(nroPagina, marco)
+			}
+		}else{
+			marco = CalcularMarco()
+			direccionFisica =  marco*configMMU.Tamanio_pagina
+			MemoriaLee(direccionFisica, tamanio)
+		}
+	}
 }
 
 /* func Read(instruccion Instruccion, cacheHabilitada bool, tlbHabilitada bool, direccionLogica int) error {
@@ -344,7 +426,6 @@ func indicePagina(pagina int) int {
 	}
 	return nil
 } */
-
 
 /*
 LOGS:
