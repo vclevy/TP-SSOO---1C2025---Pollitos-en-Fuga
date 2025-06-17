@@ -76,6 +76,23 @@ func VerificarEspacioDisponible(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]bool{"espacioDisponible": espacioDisponible})
 }
 
+func Suspender(w http.ResponseWriter, r *http.Request){
+	pidStr := r.URL.Query().Get("suspension") 
+	pid,err := strconv.Atoi(pidStr)
+
+	if err != nil {
+		http.Error(w, "PID invalido", http.StatusBadRequest)
+		return
+	}
+
+	utilsMemoria.Suspender(pid)
+
+}
+
+func DesSuspender(w http.ResponseWriter, r *http.Request){
+	
+}
+
 //KERNEL notifica a memoria que finalizo
 func FinalizarProceso(w http.ResponseWriter, r *http.Request){
 	//libera su espacio en memoria y marcar como libres sus entradas en SWAP

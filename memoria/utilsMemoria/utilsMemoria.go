@@ -31,6 +31,7 @@ var TamMemoria int
 var TamPagina int
 var CantNiveles int
 var CantEntradas int
+var Delay int
 
 //MERTRICAS
 // Se usan al momento de destruir un proceso para el
@@ -51,6 +52,7 @@ func InicializarMemoria() {
 	TamPagina = global.ConfigMemoria.Page_Size
 	CantNiveles = global.ConfigMemoria.Number_of_levels
 	CantEntradas = global.ConfigMemoria.Entries_per_page
+	Delay = global.ConfigMemoria.Memory_delay
 
 	//la direccion fisica es un indice dentro del siguiente array
 	diccionarioProcesosMemoria = make(map[int]*[]string)
@@ -177,6 +179,12 @@ func CrearTablaNiveles(nivelActual int, paginasRestantes *int, marcosReservados 
 	return tabla
 }
 
+//separar logica de crear tabla y asignar marcos
+func AsignarMarcos(pid int) []int {
+	return []int{}
+}
+
+
 //ACCESO A TABLA DE PAGINAS
 func EncontrarMarco(pid int, entradas []int) int {
 	actual := TablasPorProceso[pid]
@@ -218,15 +226,27 @@ func EncontrarMarco(pid int, entradas []int) int {
 }
 
 //ACCESO A ESPACIO DE USUARIO
-func DevolverLecturaMemoria(pid int, direccionFisica int, tamanio int) []byte{
+func DevolverLecturaMemoria(pid int, direccionFisica int, tamanio int) string{
+	time.Sleep(time.Millisecond * time.Duration(Delay))
+
 	datos := MemoriaUsuario[direccionFisica : direccionFisica+tamanio] 
 	//Lee desde dirFisica hasta dirfisica+tamanio
 	metricas[pid].LecturasMemo++
 
-	return datos //ver si tenemos q devolvr un array
+	return ArrayBytesToString(datos)
+
 }
 
-func EscribirDatos(pid int, direccionFisica int, datos string) { //ACTUALIZADO 8-6-2025
+func ArrayBytesToString(data []byte) string {
+    // Primero lo convertís a string
+    str := string(data)
+    // Luego eliminás todos los espacios
+    return strings.ReplaceAll(str, " ", "")
+}
+
+func EscribirDatos(pid int, direccionFisica int, datos string) { 
+	
+	time.Sleep(time.Millisecond * time.Duration(Delay))
 	//se para en la posicion pedida y escribe de ahi en adelante
 	bytesDatos := []byte(datos)
     tamanioDatos := len(bytesDatos)
@@ -241,21 +261,19 @@ func EscribirDatos(pid int, direccionFisica int, datos string) { //ACTUALIZADO 8
     metricas[pid].EscriturasMemo++
 }
 
-func LeerPaginaCompleta (pid int, direccionFisica int) []byte{ //Hace lo mismo que Devolver Lectura memoria, solo que el tamaño es el de la pagina
-	// el Byte 0 no es el index 0, sería el offset=0
+func LeerPaginaCompleta (pid int, direccionFisica int) string{ //Hace lo mismo que Devolver Lectura memoria, solo que el tamaño es el de la pagina
+	time.Sleep(time.Millisecond * time.Duration(Delay))
+
 	offset := direccionFisica%TamPagina
 	if(offset!=0){
-		fmt.Printf("Error: direccion física no alineada al byte 0 de la pagina \n")
-		return nil
+		return "Direccion fisica no alineada al byte 0 de la pagina"
 	}
 	return DevolverLecturaMemoria(pid, direccionFisica, TamPagina)
 }
 
-func ActualizarPaginaCompleta (pid int, direccionFisica int, datos []byte) {
-	if len(datos) != TamPagina{
-		fmt.Printf("Error: se esperaban %d bytes \n", TamPagina)
-		return 
-	}
+//los datos on una cadena de strings
+func ActualizarPaginaCompleta (pid int, direccionFisica int, datos string) {
+	time.Sleep(time.Millisecond * time.Duration(Delay))
 
 	offset := direccionFisica%TamPagina
 	if(offset!=0){
@@ -272,6 +290,44 @@ func ActualizarPaginaCompleta (pid int, direccionFisica int, datos []byte) {
     metricas[pid].EscriturasMemo++
 }
 
+//SWAP
+func Suspender(pid int) {
+	marcosDelProceso := EncontrarMarcosDeProceso(pid)
+	dataMarcos := EncontrarDataMarcos(marcosDelProceso)
+	LiberarEspacioMemoria(pid, marcosDelProceso)
+	GuardarInfoSwap(pid, dataMarcos)
+}
+
+func DesSuspenderProceso(pid int) {
+	BuscarDataEnSwap(pid)
+	//marcosAginados := AsignarMarcos(pid)
+}
+
+func BuscarDataEnSwap(pid int) {
+
+}
+func GuardarInfoSwap(pid int, data string){
+	//pensar estructura de SWAP
+}
+
+func LiberarEspacioMemoria(pid int, marcosALiberar []int) {
+	for i := 0; i < len(marcosALiberar); i++ {
+		idx := marcosALiberar[i]
+		MarcosLibres[idx] = true
+	}
+
+	//borrar tabla de paginas
+
+}
+
+func EncontrarMarcosDeProceso(pid int) []int {
+	//devuelve un array de ints con los marcos
+	return []int{}
+}
+
+func EncontrarDataMarcos(marcos []int) string {
+	return ""
+}
 
 //----------PRUEBAS
 func ImprimirTabla(tabla []*EntradaTP, nivel int, path string) {
