@@ -56,11 +56,10 @@ func CalcularMarco() int {
 		PID:      global.PCB_Actual.PID,
 		Entradas: listaEntradas,
 	}
-	
+
 	marco := pedirMarco(accederTabla)
 
 	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - OBTENER MARCO - Página: %d - Marco: %d", global.PCB_Actual.PID, nroPagina, marco), log.INFO)
-
 
 	return marco
 }
