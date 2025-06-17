@@ -91,6 +91,7 @@ type PedidoWRITE struct {
 type DatoTLB struct {
     NroPagina int
     Marco  int
+	UltimoUso int 
 }
 
 type DatoCACHE struct {

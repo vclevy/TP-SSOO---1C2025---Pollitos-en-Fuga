@@ -12,6 +12,9 @@ import (
 	"time"
 )
 
+var lruCounter int
+var lruValues []int // lruValues tiene el timestamp de cada marco de TLB
+
 var instruccionesConMMU = map[string]bool{
 	"WRITE": true,
 	"READ":  true,
@@ -157,9 +160,8 @@ func CacheHIT(pagina int) bool {
 
 func actualizarCACHE(pagina int, nuevoContenido string) {
 	indice := indicePaginaEnCache(pagina)
-	if indice == -1 {
-		paginaPisar := AlgoritmoCACHE()
-		indicePisar := indicePaginaEnCache(paginaPisar)
+	if indice == -2 { // no está la página en cache
+		indicePisar := AlgoritmoCACHE()
 		if global.CACHE[indicePisar].BitModificado == 1 {
 			global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Cache Add - Pagina: %d", global.PCB_Actual.PID, pagina), log.INFO)
 			desalojar(indicePisar)
@@ -175,9 +177,10 @@ func actualizarCACHE(pagina int, nuevoContenido string) {
 
 func actualizarTLB(pagina int, marco int) {
 	indice := indicePaginaEnTLB(pagina)
-	if indice == -1 { // no está la página
-		paginaPisar := AlgoritmoTLB()
-		indicePisar := indicePaginaEnTLB(paginaPisar)
+	if indice == -2 { // no está la página
+		indicePisar := AlgoritmoTLB()
+		lruCounter++
+		global.TLB[indicePisar].UltimoUso = lruCounter
 		global.TLB[indicePisar].Marco = marco
 		global.TLB[indicePisar].NroPagina = pagina
 	} else {
@@ -191,16 +194,18 @@ func indicePaginaEnCache(pagina int) int {
 			return i
 		}
 	}
-	return -1
+	return -2
 }
 
 func indicePaginaEnTLB(pagina int) int {
 	for i := 0; i <= len(global.TLB)-1; i++ {
 		if global.TLB[i].NroPagina == pagina {
+			global.TLB[i].UltimoUso = lruCounter
+
 			return i
 		}
 	}
-	return -1
+	return -2
 }
 
 func desalojar(indicePisar int) {
@@ -211,18 +216,17 @@ func desalojar(indicePisar int) {
 		marco = CalcularMarco()
 	}
 	direccionFisica = marco * configMMU.Tamanio_pagina
-	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Memory Update - Página: %d - Frame: %d", global.PCB_Actual.PID, global.CACHE[indicePisar].NroPagina,marco), log.INFO) //?? la pagina que se desaloja, según el algoritmo
+	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Memory Update - Página: %d - Frame: %d", global.PCB_Actual.PID, global.CACHE[indicePisar].NroPagina, marco), log.INFO) //?? la pagina que se desaloja, según el algoritmo
 
 	MemoriaEscribe(direccionFisica, global.CACHE[indicePisar].Contenido)
 }
-
 
 /*
 LOGS:
 //Fetch Instrucción: “## PID: <PID> - FETCH - Program Counter: <PROGRAM_COUNTER>”.
 //Interrupción Recibida: “## Llega interrupción al puerto Interrupt”.
 //Instrucción Ejecutada: “## PID: <PID> - Ejecutando: <INSTRUCCION> - <PARAMETROS>”.
-Lectura/Escritura Memoria: “PID: <PID> - Acción: <LEER / ESCRIBIR> - Dirección Física: <DIRECCION_FISICA> - Valor: <VALOR LEIDO / ESCRITO>”.
+//Lectura/Escritura Memoria: “PID: <PID> - Acción: <LEER / ESCRIBIR> - Dirección Física: <DIRECCION_FISICA> - Valor: <VALOR LEIDO / ESCRITO>”.
 //Obtener Marco: “PID: <PID> - OBTENER MARCO - Página: <NUMERO_PAGINA> - Marco: <NUMERO_MARCO>”.
 //TLB Hit: “PID: <PID> - TLB HIT - Pagina: <NUMERO_PAGINA>”
 //TLB Miss: “PID: <PID> - TLB MISS - Pagina: <NUMERO_PAGINA>”

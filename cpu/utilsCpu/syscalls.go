@@ -1,4 +1,5 @@
 package utilsIo
+
 import (
 	"bytes"
 	"encoding/json"
@@ -9,7 +10,6 @@ import (
 	"net/http"
 	"strconv"
 )
-
 
 func Syscall_IO(instruccion Instruccion) {
 	tiempo, err := strconv.Atoi(instruccion.Parametros[1])
