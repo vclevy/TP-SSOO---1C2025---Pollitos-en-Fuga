@@ -26,7 +26,8 @@ func CrearServer() *server.Server {
 			"POST /pedirMarco": handlers.AccederTablaPaginas,
 			"POST /leerMemoria": handlers.LeerMemoria,
 			"POST /escribirMemoria": handlers.EscribirMemoria,
-			
+			"POST /leerPaginaCompleta": handlers.LeerPaginaCompleta,
+			"POST /actualizarPaginaCompleta": handlers.EscribirPaginaCompleta,
 		},
 	}
 	fmt.Printf("🟢 Memoria prendida en http://localhost:%d\n", global.ConfigMemoria.Port_Memory)

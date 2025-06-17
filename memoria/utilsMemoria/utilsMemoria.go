@@ -218,15 +218,22 @@ func EncontrarMarco(pid int, entradas []int) int {
 }
 
 //ACCESO A ESPACIO DE USUARIO
-func DevolverLecturaMemoria(pid int, direccionFisica int, tamanio int) []byte{
+func DevolverLecturaMemoria(pid int, direccionFisica int, tamanio int) string{
 	datos := MemoriaUsuario[direccionFisica : direccionFisica+tamanio] 
 	//Lee desde dirFisica hasta dirfisica+tamanio
 	metricas[pid].LecturasMemo++
-
-	return datos //ver si tenemos q devolvr un array
+//como me aseguro q siempre sean caracteres?
+	return ArrayBytesToString(datos)
 }
 
-func EscribirDatos(pid int, direccionFisica int, datos string) { //ACTUALIZADO 8-6-2025
+func ArrayBytesToString(data []byte) string {
+    // Primero lo convertís a string
+    str := string(data)
+    // Luego eliminás todos los espacios
+    return strings.ReplaceAll(str, " ", "")
+}
+
+func EscribirDatos(pid int, direccionFisica int, datos string) { 
 	//se para en la posicion pedida y escribe de ahi en adelante
 	bytesDatos := []byte(datos)
     tamanioDatos := len(bytesDatos)
@@ -241,21 +248,17 @@ func EscribirDatos(pid int, direccionFisica int, datos string) { //ACTUALIZADO 8
     metricas[pid].EscriturasMemo++
 }
 
-func LeerPaginaCompleta (pid int, direccionFisica int) []byte{ //Hace lo mismo que Devolver Lectura memoria, solo que el tamaño es el de la pagina
+func LeerPaginaCompleta (pid int, direccionFisica int) string{ //Hace lo mismo que Devolver Lectura memoria, solo que el tamaño es el de la pagina
 	// el Byte 0 no es el index 0, sería el offset=0
 	offset := direccionFisica%TamPagina
 	if(offset!=0){
-		fmt.Printf("Error: direccion física no alineada al byte 0 de la pagina \n")
-		return nil
+		return "Direccion fisica no alineada al byte 0 de la pagina"
 	}
 	return DevolverLecturaMemoria(pid, direccionFisica, TamPagina)
 }
 
-func ActualizarPaginaCompleta (pid int, direccionFisica int, datos []byte) {
-	if len(datos) != TamPagina{
-		fmt.Printf("Error: se esperaban %d bytes \n", TamPagina)
-		return 
-	}
+//los datos on una cadena de strings
+func ActualizarPaginaCompleta (pid int, direccionFisica int, datos string) {
 
 	offset := direccionFisica%TamPagina
 	if(offset!=0){
@@ -278,6 +281,9 @@ func GuardarInfoSwap(pid int){
 	//no hay que guardar literalmente la tabla de paginas
 	//habria q poner en la tabla de paginas q los marcos estan en swap P=0
 	//habria que guardar todos los datos en el swap file bin
+
+
+
 }
 func LiberarEspacioMemoria(pid int) {
 	//como encuentro los marcos que tiene asignado un proceso?
