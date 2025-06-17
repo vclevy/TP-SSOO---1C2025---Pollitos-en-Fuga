@@ -76,7 +76,7 @@ func VerificarEspacioDisponible(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]bool{"espacioDisponible": espacioDisponible})
 }
 
-func SuspenderProceso(w http.ResponseWriter, r *http.Request){
+func Suspender(w http.ResponseWriter, r *http.Request){
 	pidStr := r.URL.Query().Get("suspension") 
 	pid,err := strconv.Atoi(pidStr)
 
@@ -85,12 +85,11 @@ func SuspenderProceso(w http.ResponseWriter, r *http.Request){
 		return
 	}
 
-	utilsMemoria.GuardarInfoSwap(pid)
-	utilsMemoria.LiberarEspacioMemoria(pid)
+	utilsMemoria.Suspender(pid)
 
 }
 
-func DesSuspenderProceso(w http.ResponseWriter, r *http.Request){
+func DesSuspender(w http.ResponseWriter, r *http.Request){
 	
 }
 
