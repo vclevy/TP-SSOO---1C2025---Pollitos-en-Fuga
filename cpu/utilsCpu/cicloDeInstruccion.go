@@ -1,0 +1,112 @@
+package utilsIo
+
+import (
+	"fmt"
+	"github.com/sisoputnfrba/tp-golang/cpu/global"
+	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
+	log "github.com/sisoputnfrba/tp-golang/utils/logger"
+	"strconv"
+	"strings"
+)
+
+func Fetch() string {
+	pidActual := global.PCB_Actual.PID
+	pcActual := global.PCB_Actual.PC
+
+	global.LoggerCpu.Log(fmt.Sprintf(" ## PID: %d - FETCH - Program Counter: %d", pidActual, pcActual), log.INFO)
+
+	solicitudInstruccion := estructuras.PCB{
+		PID: pidActual,
+		PC:  pcActual,
+	}
+
+	var instruccionAEjecutar = instruccionAEjecutar(solicitudInstruccion)
+
+	global.LoggerCpu.Log(fmt.Sprintf("Memoria respondió con la instrucción: %s", instruccionAEjecutar), log.INFO)
+
+	return instruccionAEjecutar
+}
+
+func Decode(instruccionAEjecutar string) (Instruccion, bool) {
+	instruccionPartida := strings.Fields(instruccionAEjecutar) //?  "MOV AX BX" --> []string{"MOV", "AX", "BX"}
+
+	instruccion := Instruccion{
+		Opcode:     instruccionPartida[0],
+		Parametros: instruccionPartida[1:],
+	}
+
+	_, requiereMMU := instruccionesConMMU[instruccion.Opcode]
+
+	return instruccion, requiereMMU
+}
+
+func Execute(instruccion Instruccion, requiereMMU bool) error {
+
+	global.LoggerCpu.Log(fmt.Sprintf("## PID: %d - Ejecutando: %s - %s", global.PCB_Actual.PID, instruccion.Opcode, instruccion.Parametros), log.INFO)
+
+	//todo INSTRUCCIONES SYSCALLS
+	if instruccion.Opcode == "IO" {
+		global.Motivo = "BLOCKED"
+		cortoProceso()
+		Syscall_IO(instruccion)
+	}
+	if instruccion.Opcode == "INIT_PROC" {
+		Syscall_Init_Proc(instruccion)
+	}
+	if instruccion.Opcode == "DUMP_MEMORY" {
+		Syscall_Dump_Memory()
+	}
+	if instruccion.Opcode == "EXIT" {
+		global.Motivo = "EXIT"
+		cortoProceso()
+		Syscall_Exit()
+	}
+
+	//todo OTRAS INSTRUCCIONES
+	if instruccion.Opcode == "NOOP" {
+	}
+
+	if instruccion.Opcode == "GOTO" {
+		pcNuevo, err := strconv.Atoi(instruccion.Parametros[1])
+		if err != nil {
+			return fmt.Errorf("error al convertir tiempo estimado")
+		}
+		global.PCB_Actual.PC = pcNuevo
+	}
+
+	//todo INSTRUCCIONES MMU
+	if requiereMMU {
+		var desplazamiento int
+		tlbHabilitada := global.CpuConfig.TlbEntries > 0
+		cacheHabilitada := global.CpuConfig.CacheEntries > 0
+
+		direccionLogicaStr := instruccion.Parametros[0]
+		direccionLogica, err := strconv.Atoi(direccionLogicaStr)
+		if err != nil {
+			return fmt.Errorf("error al convertir dirección logica")
+		} else {
+			ConfigMMU()
+			desplazamiento = direccionLogica % configMMU.Tamanio_pagina
+			nroPagina = direccionLogica / configMMU.Tamanio_pagina
+		}
+
+		if instruccion.Opcode == "READ" { // READ 0 20 - READ (Dirección, Tamaño)
+			READ(instruccion, cacheHabilitada, desplazamiento, tlbHabilitada, direccionLogica)
+		}
+
+		if instruccion.Opcode == "WRITE" { // WRITE 0 EJEMPLO_DE_ENUNCIADO - WRITE (Dirección, Datos)
+			WRITE(instruccion, cacheHabilitada, desplazamiento, tlbHabilitada)
+		}
+	}
+
+	return nil
+}
+
+func CheckInterrupt() {
+	if global.Interrupcion {
+		global.Motivo = "READY"
+		cortoProceso()
+		global.PCB_Actual = global.PCB_Interrupcion
+		global.Interrupcion = false
+	}
+}

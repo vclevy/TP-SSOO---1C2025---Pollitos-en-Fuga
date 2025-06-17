@@ -9,8 +9,6 @@ import (
 	log "github.com/sisoputnfrba/tp-golang/utils/logger"
 	"io"
 	"net/http"
-	"strconv"
-	"strings"
 	"time"
 )
 
@@ -133,151 +131,28 @@ func CicloDeInstruccion() {
 	CheckInterrupt()
 }
 
-func Fetch() string {
-	pidActual := global.PCB_Actual.PID
-	pcActual := global.PCB_Actual.PC
-
-	global.LoggerCpu.Log(fmt.Sprintf(" ## PID: %d - FETCH - Program Counter: %d", pidActual, pcActual), log.INFO)
-
-	solicitudInstruccion := estructuras.PCB{
-		PID: pidActual,
-		PC:  pcActual,
-	}
-
-	var instruccionAEjecutar = instruccionAEjecutar(solicitudInstruccion)
-
-	global.LoggerCpu.Log(fmt.Sprintf("Memoria respondió con la instrucción: %s", instruccionAEjecutar), log.INFO)
-
-	return instruccionAEjecutar
-}
-
-func Decode(instruccionAEjecutar string) (Instruccion, bool) {
-	instruccionPartida := strings.Fields(instruccionAEjecutar) //?  "MOV AX BX" --> []string{"MOV", "AX", "BX"}
-
-	instruccion := Instruccion{
-		Opcode:     instruccionPartida[0],
-		Parametros: instruccionPartida[1:],
-	}
-
-	_, requiereMMU := instruccionesConMMU[instruccion.Opcode]
-
-	return instruccion, requiereMMU
-}
-
-func Execute(instruccion Instruccion, requiereMMU bool) error {
-
-	global.LoggerCpu.Log(fmt.Sprintf("## PID: %d - Ejecutando: %s - %s", global.PCB_Actual.PID, instruccion.Opcode, instruccion.Parametros), log.INFO)
-
-	//todo INSTRUCCIONES SYSCALLS
-	if instruccion.Opcode == "IO" {
-		global.Motivo = "BLOCKED"
-		cortoProceso()
-		Syscall_IO(instruccion)
-	}
-	if instruccion.Opcode == "INIT_PROC" {
-		Syscall_Init_Proc(instruccion)
-	}
-	if instruccion.Opcode == "DUMP_MEMORY" {
-		Syscall_Dump_Memory()
-	}
-	if instruccion.Opcode == "EXIT" {
-		global.Motivo = "EXIT"
-		cortoProceso()
-		Syscall_Exit()
-	}
-
-	//todo OTRAS INSTRUCCIONES
-	if instruccion.Opcode == "NOOP" {
-	}
-
-	if instruccion.Opcode == "GOTO" {
-		pcNuevo, err := strconv.Atoi(instruccion.Parametros[1])
-		if err != nil {
-			return fmt.Errorf("error al convertir tiempo estimado")
-		}
-		global.PCB_Actual.PC = pcNuevo
-	}
-
-	//todo INSTRUCCIONES MMU
-	if requiereMMU {
-		var desplazamiento int
-		tlbHabilitada := global.CpuConfig.TlbEntries > 0
-		cacheHabilitada := global.CpuConfig.CacheEntries > 0
-
-		direccionLogicaStr := instruccion.Parametros[0]
-		direccionLogica, err := strconv.Atoi(direccionLogicaStr)
-		if err != nil {
-			return fmt.Errorf("error al convertir dirección logica")
-		} else {
-			ConfigMMU()
-			desplazamiento = direccionLogica % configMMU.Tamanio_pagina
-			nroPagina = direccionLogica / configMMU.Tamanio_pagina
-		}
-
-		if instruccion.Opcode == "READ" { // READ 0 20 - READ (Dirección, Tamaño)
-			READ(instruccion, cacheHabilitada, desplazamiento, tlbHabilitada, direccionLogica)
-	 	}
-
-		if instruccion.Opcode == "WRITE" { // WRITE 0 EJEMPLO_DE_ENUNCIADO - WRITE (Dirección, Datos)
-			WRITE(instruccion, cacheHabilitada, desplazamiento, tlbHabilitada)
-		}
-	}
-
-	return nil
-}
-
-
-	
-
-
-func TlbHIT(nro_pagina int) bool {
+func TlbHIT(pagina int) bool {
 	for i := 0; i <= len(global.TLB)-1; i++ {
-		if global.TLB[i].NroPagina == nro_pagina {
-			global.LoggerCpu.Log(fmt.Sprintf("PID: %d - TLB HIT - Pagina: %d", global.PCB_Actual.PID, nroPagina), log.INFO) //!! TLB HIT
+		if global.TLB[i].NroPagina == pagina {
+			global.LoggerCpu.Log(fmt.Sprintf("PID: %d - TLB HIT - Pagina: %d", global.PCB_Actual.PID, pagina), log.INFO) //todo TLB HIT
 			indice = i
 			return true
 		}
 	}
-	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - TLB MISS - Pagina: %d", global.PCB_Actual.PID, nroPagina), log.INFO) //!!TLB MISS
+	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - TLB MISS - Pagina: %d", global.PCB_Actual.PID, pagina), log.INFO) //todo TLB MISS
 	return false
 }
 
-func CheckInterrupt() {
-	if global.Interrupcion {
-		global.Motivo = "READY"
-		cortoProceso()
-		global.PCB_Actual = global.PCB_Interrupcion
-		global.Interrupcion = false
-	}
-}
-
-func WRITE(instruccion Instruccion, cacheHabilitada bool, desplazamiento int, tlbHabilitada bool) {
-	dato := instruccion.Parametros[1]
-	if cacheHabilitada {
-		if(CacheHIT()){
-			indicePaginaEnCache(nroPagina)
-			global.CACHE[indice].Contenido = dato
-			global.CACHE[indice].BitModificado = 1
-		}else{
-			actualizarCACHE(nroPagina, dato)
-		}
-	} else {
-		if tlbHabilitada {
-			var marco int
-			if TlbHIT(nroPagina) {
-				marco = global.TLB[indice].Marco
-			} else {
-				marco = CalcularMarco()
-			}
-			direccionFisica = MMU(desplazamiento, marco)
-			MemoriaEscribe(direccionFisica, dato)
-			actualizarTLB(nroPagina, marco)
-		} else {
-			marco := CalcularMarco()
-			direccionFisica = MMU(desplazamiento, marco)
-			MemoriaEscribe(direccionFisica, dato)
+func CacheHIT(pagina int) bool {
+	for i := 0; i <= len(global.CACHE)-1; i++ {
+		if global.CACHE[i].NroPagina == pagina {
+			global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Cache Hit - Pagina: %d", global.PCB_Actual.PID, pagina), log.INFO) //todo CACHE HIT
+			indice = i
+			return true
 		}
 	}
+	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Cache Miss - Pagina: %d", global.PCB_Actual.PID, pagina), log.INFO) //todo CACHE MISS
+	return false
 }
 
 func actualizarCACHE(pagina int, nuevoContenido string) {
@@ -286,6 +161,7 @@ func actualizarCACHE(pagina int, nuevoContenido string) {
 		paginaPisar := AlgoritmoCACHE()
 		indicePisar := indicePaginaEnCache(paginaPisar)
 		if global.CACHE[indicePisar].BitModificado == 1 {
+			global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Cache Add - Pagina: %d", global.PCB_Actual.PID, pagina), log.INFO)
 			desalojar(indicePisar)
 		}
 		global.CACHE[indicePisar].NroPagina = pagina
@@ -305,7 +181,6 @@ func actualizarTLB(pagina int, marco int) {
 		global.TLB[indicePisar].Marco = marco
 		global.TLB[indicePisar].NroPagina = pagina
 	} else {
-		global.LoggerCpu.Log(fmt.Sprintf("PID: %d - TLB Hit - Pagina: %d", global.PCB_Actual.PID, nroPagina), log.INFO) //!! TLB HIT
 		global.TLB[indice].Marco = marco
 	}
 }
@@ -317,18 +192,6 @@ func indicePaginaEnCache(pagina int) int {
 		}
 	}
 	return -1
-}
-
-func CacheHIT() bool {
-	for i := 0; i <= len(global.CACHE)-1; i++ {
-		if global.CACHE[i].NroPagina == nroPagina {
-			global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Cache Hit - Pagina: %d", global.PCB_Actual.PID, nroPagina), log.INFO) //!! CACHE HIT
-			indice = i
-			return true
-		}
-	}
-	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Cache Miss - Pagina: %d", global.PCB_Actual.PID, nroPagina), log.INFO) //!! CACHE MISS
-	return false
 }
 
 func indicePaginaEnTLB(pagina int) int {
@@ -347,85 +210,12 @@ func desalojar(indicePisar int) {
 	} else {
 		marco = CalcularMarco()
 	}
-	direccionFisica =  marco*configMMU.Tamanio_pagina
+	direccionFisica = marco * configMMU.Tamanio_pagina
+	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Memory Update - Página: %d - Frame: %d", global.PCB_Actual.PID, global.CACHE[indicePisar].NroPagina,marco), log.INFO) //?? la pagina que se desaloja, según el algoritmo
+
 	MemoriaEscribe(direccionFisica, global.CACHE[indicePisar].Contenido)
 }
 
-func READ(instruccion Instruccion, cacheHabilitada bool, desplazamiento int, tlbHabilitada bool, direccionLogica int) {
-	var marco int
-	tamanioStr := instruccion.Parametros[1]
-	tamanio, err := strconv.Atoi(tamanioStr)
-	if err != nil {
-		global.LoggerCpu.Log("error al convertir tamanio",log.ERROR) 
-	}
-
-	if(cacheHabilitada){
-		if(CacheHIT()){
-			indice := indicePaginaEnCache(nroPagina)
-			global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: LEER - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, direccionFisica, global.CACHE[indice].Contenido), log.INFO) //!! CACHE MISS
-		}else{
-			if(tlbHabilitada){
-				if(TlbHIT()){
-					marco = global.TLB[indice].Marco
-					direccionFisica = MMU(desplazamiento, marco)
-					MemoriaLee(direccionFisica, tamanio)
-					actualizarTLB(nroPagina, marco)
-					actualizarCACHE(nroPagina,global.CACHE[indice].Contenido)
-				}else{
-					marco = CalcularMarco()
-					direccionFisica =  marco*configMMU.Tamanio_pagina
-					MemoriaLee(direccionFisica, tamanio)
-					actualizarTLB(nroPagina, marco)
-					actualizarCACHE(nroPagina,global.CACHE[indice].Contenido)
-				}
-			}else{
-				marco = CalcularMarco()
-				direccionFisica =  marco*configMMU.Tamanio_pagina
-				MemoriaLee(direccionFisica, tamanio)
-				actualizarCACHE(nroPagina,global.CACHE[indice].Contenido)
-			}
-		}
-	}else{
-		if (tlbHabilitada){
-			if(TlbHIT()){
-				marco = CalcularMarco()
-				direccionFisica =  marco*configMMU.Tamanio_pagina
-				MemoriaLee(direccionFisica, tamanio)
-				actualizarTLB(nroPagina, marco)
-			}else{
-				marco = CalcularMarco()
-				direccionFisica =  marco*configMMU.Tamanio_pagina
-				MemoriaLee(direccionFisica, tamanio)
-				actualizarTLB(nroPagina, marco)
-			}
-		}else{
-			marco = CalcularMarco()
-			direccionFisica =  marco*configMMU.Tamanio_pagina
-			MemoriaLee(direccionFisica, tamanio)
-		}
-	}
-}
-
-/* func Read(instruccion Instruccion, cacheHabilitada bool, tlbHabilitada bool, direccionLogica int) error {
-	tamanioStr := instruccion.Parametros[1]
-	tamanio, err := strconv.Atoi(tamanioStr)
-	if err != nil {
-		return fmt.Errorf("error al convertir tamanio")
-	}
-
-	if cacheHabilitada && CacheHIT(){
-		global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: %s - Dirección Física: %d - Valor: %s.", global.PCB_Actual.PID, instruccion.Opcode, direccionFisica, global.CACHE[indice].Contenido), log.INFO)
-	}else if  tlbHabilitada && TlbHIT() {
-			marco := global.TLB[indice].Marco
-			direccionFisica = MMU(direccionLogica, instruccion.Opcode, nroPagina, marco)
-			MemoriaLee(direccionFisica, tamanio)
-	} else {
-		marco := CalcularMarco()
-		direccionFisica = MMU(direccionLogica, instruccion.Opcode, nroPagina, marco)
-		MemoriaLee(direccionFisica, tamanio)
-	}
-	return nil
-} */
 
 /*
 LOGS:
@@ -438,6 +228,6 @@ Lectura/Escritura Memoria: “PID: <PID> - Acción: <LEER / ESCRIBIR> - Direcci�
 //TLB Miss: “PID: <PID> - TLB MISS - Pagina: <NUMERO_PAGINA>”
 //Página encontrada en Caché: “PID: <PID> - Cache Hit - Pagina: <NUMERO_PAGINA>”
 //Página faltante en Caché: “PID: <PID> - Cache Miss - Pagina: <NUMERO_PAGINA>”
-Página ingresada en Caché: “PID: <PID> - Cache Add - Pagina: <NUMERO_PAGINA>” //?? la pagina que reemplaza a otra, según el algoritmo
-Página Actualizada de Caché a Memoria: “PID: <PID> - Memory Update - Página: <NUMERO_PAGINA> - Frame: <FRAME_EN_MEMORIA_PRINCIPAL>” //?? la pagina que se desaloja, según el algoritmo
+//Página ingresada en Caché: “PID: <PID> - Cache Add - Pagina: <NUMERO_PAGINA>” //?? la pagina que reemplaza a otra, según el algoritmo
+//Página Actualizada de Caché a Memoria: “PID: <PID> - Memory Update - Página: <NUMERO_PAGINA> - Frame: <FRAME_EN_MEMORIA_PRINCIPAL>” //?? la pagina que se desaloja, según el algoritmo
 */
