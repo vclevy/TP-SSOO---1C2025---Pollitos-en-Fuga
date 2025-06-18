@@ -31,10 +31,8 @@ func main() {
 	if err != nil {
 		panic(fmt.Sprintf("Tamaño de memoria inválido: %s", tamMemoriaString))
 	}
-	//planificacion.CrearProceso(tamMemoria, archivo) 
-
-	procesoDummy := planificacion.CrearProceso(tamMemoria, archivo) 
-	global.ColaBlocked = append(global.ColaBlocked, procesoDummy)
+	
+	planificacion.CrearProceso(tamMemoria, archivo) 
 
 	s := api.CrearServer()
 	go func() {

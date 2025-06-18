@@ -93,7 +93,6 @@ func AgregarASuspReady(p *Proceso) {
     ColaSuspReady = append(ColaSuspReady, p)
     MutexSuspReady.Unlock()
 
-    // Avisar al planificador que hay un proceso en SuspReady
     select {
     case NotifySuspReady <- struct{}{}:
     default: // si ya había señal pendiente, no bloquear
@@ -105,7 +104,6 @@ func AgregarANew(p *Proceso) {
 	ColaNew = append(ColaNew, p)
 	MutexNew.Unlock()
 
-	// Avisar al planificador que hay un proceso en New
 	select {
 	case NotifyNew <- struct{}{}:
 	default: // si ya había señal pendiente, no bloquear
@@ -119,7 +117,6 @@ func AgregarAReady(p *Proceso) {
 	ColaReady = append(ColaReady, p)
 	MutexReady.Unlock()
 
-	// Avisar al planificador que hay un proceso en Ready
 	select {
 	case NotifyReady <- struct{}{}:
 	default: // si ya había señal pendiente, no bloquear

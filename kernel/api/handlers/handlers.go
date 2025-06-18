@@ -81,8 +81,7 @@ func INIT_PROC(w http.ResponseWriter, r *http.Request) {
 	//el log ya lo hace crearProceso
 }
 
-
-func HandshakeConCPU(w http.ResponseWriter, r *http.Request) { //Solo conexion inicial
+func HandshakeConCPU(w http.ResponseWriter, r *http.Request) { 
 	var nuevoHandshake estructuras.HandshakeConCPU
 	if r.Method != http.MethodPost {
 		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
@@ -164,7 +163,6 @@ func IO(w http.ResponseWriter, r *http.Request) {
 		dispositivo.Mutex.Unlock()
 	}
 
-	// Todos ocupados, encolarlo
 	procesoEncolado := &global.ProcesoIO{
 		Proceso:   proceso,
 		TiempoUso: tiempoUso,
@@ -180,7 +178,7 @@ func IO(w http.ResponseWriter, r *http.Request) {
 
 func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
 
-	// Si NO hay body → desconexión
+	// Si NO hay body desconexión
 	if r.ContentLength == 0 {
 		fmt.Println("Desconexión recibida")
 		
@@ -286,12 +284,11 @@ func DUMP_MEMORY(w http.ResponseWriter, r *http.Request) {
 	global.AgregarABlocked(proceso)
 	global.LoggerKernel.Log("## ("+strconv.Itoa(pid)+") - Solicitó syscall: <INIT_PROC>", log.INFO)
 
-	// 2. Enviar solicitud a memoria
+
 	err := utilsKernel.SolicitarDumpAMemoria(pid)
 	if err != nil {
 		global.LoggerKernel.Log(fmt.Sprintf("Error en dump de memoria para PID %d: %s", pid, err.Error()), log.ERROR)
 
-		// Eliminar de BLOCKED (ya que no saldrá por vía normal)
 		global.EliminarProcesoDeCola(&global.ColaBlocked, pid)
 		planificacion.FinalizarProceso(proceso)
 
@@ -299,7 +296,6 @@ func DUMP_MEMORY(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 3. Si el dump fue exitoso, desbloquear
 	global.EliminarProcesoDeCola(&global.ColaBlocked, pid)
 	planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.READY)
 	global.AgregarAReady(proceso)
