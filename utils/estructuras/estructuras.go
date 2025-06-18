@@ -98,4 +98,6 @@ type DatoCACHE struct {
     BitModificado int
 	NroPagina int
     Contenido string
+	BitUso    int // 0 o 1
+
 }

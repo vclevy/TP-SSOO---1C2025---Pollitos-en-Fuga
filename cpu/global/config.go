@@ -32,12 +32,12 @@ var Interrupcion bool
 var PCB_Actual estructuras.PCB
 var Motivo string
 var Rafaga float64
-var lruCounter int = 0
 
 var PCB_Interrupcion estructuras.PCB
 
 var TLB []estructuras.DatoTLB
 var CACHE []estructuras.DatoCACHE
+
 
 func InitGlobal(idCPU string) {	
 	CpuID = idCPU

@@ -6,6 +6,8 @@ import (
 	/* 	"fmt" */)
 
 var fifoIndice int = 0
+var indiceLRU int = 0
+var punteroClock int = 0
 
 func AlgoritmoTLB() int { // la página no está en la tlb
 	if indiceVacio() == -1 { // no hay indice vacio
@@ -18,7 +20,6 @@ func AlgoritmoTLB() int { // la página no está en la tlb
 			return indice
 
 		} else if global.CpuConfig.TlbReplacement == "LRU" {
-			indiceLRU := 0
 			minUso := global.TLB[0].UltimoUso
 			for i := 1; i < len(global.TLB); i++ {
 				if global.TLB[i].UltimoUso < minUso {
@@ -36,12 +37,23 @@ func AlgoritmoTLB() int { // la página no está en la tlb
 }
 
 func AlgoritmoCACHE() int { //CACHE: CLOCK o CLOCK-M
-	/* if(global.CpuConfig.CacheReplacement == "CLOCK"){
-
-	}else if(global.CpuConfig.CacheReplacement == "CLOCK-M"){
-
-	} */
-	return 0
+	if indiceVacio() == -1 {
+    if(global.CpuConfig.CacheReplacement == "CLOCK") {
+		for {
+        if global.CACHE[punteroClock].BitUso == 0 {
+            indice := punteroClock
+            punteroClock = (punteroClock + 1) % len(global.CACHE)
+            return indice
+        } else {
+            global.CACHE[punteroClock].BitUso = 0
+            punteroClock = (punteroClock + 1) % len(global.CACHE)
+        }
+	}
+    } else if(global.CpuConfig.CacheReplacement == "CLOCK-M"){
+		return 0
+	}
+	}
+	return indiceVacio()
 }
 
 func indiceVacio() int {
