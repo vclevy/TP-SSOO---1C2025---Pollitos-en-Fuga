@@ -56,7 +56,7 @@ func main() {
 	lecturaIndividual := utilsMemoria.MemoriaUsuario[258]//deberia devolver B
 	fmt.Println("Dato posicion 258: " + string(lecturaIndividual)) 
 	
-	lecturaCPU := utilsMemoria.DevolverLecturaMemoria(pid, 257, 3) //deberia devolver XB3
+	lecturaCPU := utilsMemoria.LeerMemoria(pid, 257, 3) //deberia devolver XB3
 	fmt.Println("Datos leidos desde 257 + 3: " + lecturaCPU)
 
 	lecturaPaginaCompleta := utilsMemoria.LeerPaginaCompleta(pid, 256)

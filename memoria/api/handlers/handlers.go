@@ -93,11 +93,18 @@ func DesSuspender(w http.ResponseWriter, r *http.Request){
 	
 }
 
-//KERNEL notifica a memoria que finalizo
 func FinalizarProceso(w http.ResponseWriter, r *http.Request){
-	//libera su espacio en memoria y marcar como libres sus entradas en SWAP
-	//genera log con las metricas
+	pidStr := r.URL.Query().Get("finalizarProceso") 
+	pid,err := strconv.Atoi(pidStr)
+	if err != nil {
+		http.Error(w, "PID invalido", http.StatusBadRequest)
+		return
+	}
 
+	stringMetricas := utilsMemoria.FinalizarProceso(pid)
+
+	global.LoggerMemoria.Log(stringMetricas,log.INFO)
+	
 }
 
 //la CPU pide una instruccion del diccionario de procesos
@@ -192,7 +199,7 @@ func LeerMemoria(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Dirección física invalida", http.StatusBadRequest)
 		return
 	}
-	datos := utilsMemoria.DevolverLecturaMemoria(pid, direccionFisica, tamanio)
+	datos := utilsMemoria.LeerMemoria(pid, direccionFisica, tamanio)
 	
 	if err := json.NewEncoder(w).Encode(datos); err != nil {
 		http.Error(w, "Error al enviar la instrucción", http.StatusInternalServerError)
@@ -228,11 +235,41 @@ func EscribirMemoria(w http.ResponseWriter, r *http.Request) {
 }
 
 func LeerPaginaCompleta(w http.ResponseWriter, r *http.Request){
+	if r.Method != http.MethodPost {
+        http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+        return
+    }
+
+    var paquete PedidoREAD
+    if err := json.NewDecoder(r.Body).Decode(&paquete); err != nil {
+        http.Error(w, "Error al decodificar JSON", http.StatusBadRequest)
+        return
+    }
+
+	pid := paquete.PID
+	direccionFisica := paquete.DireccionFisica
 	
+	utilsMemoria.LeerPaginaCompleta(pid, direccionFisica)
+
 }
 
 func EscribirPaginaCompleta(w http.ResponseWriter, r *http.Request){
+	if r.Method != http.MethodPost {
+        http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+        return
+    }
+
+    var paquete PedidoWRITE
+    if err := json.NewDecoder(r.Body).Decode(&paquete); err != nil {
+        http.Error(w, "Error al decodificar JSON", http.StatusBadRequest)
+        return
+    }
+
+	pid := paquete.PID
+	direccionFisica := paquete.DireccionFisica
+	datos := paquete.Datos
 	
+	utilsMemoria.ActualizarPaginaCompleta(pid, direccionFisica, datos)
 }
 
 
