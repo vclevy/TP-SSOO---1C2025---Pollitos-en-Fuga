@@ -1,13 +1,13 @@
 package utilsIo
 
 import (
-	/* "github.com/sisoputnfrba/tp-golang/utils/estructuras" */
 	"github.com/sisoputnfrba/tp-golang/cpu/global"
-	/* 	"fmt" */)
+)
 
 var fifoIndice int = 0
 var indiceLRU int = 0
 var punteroClock int = 0
+var punteroClockModificado int = 0
 
 func AlgoritmoTLB() int { // la página no está en la tlb
 	if indiceVacio() == -1 { // no hay indice vacio
@@ -50,8 +50,36 @@ func AlgoritmoCACHE() int { //CACHE: CLOCK o CLOCK-M
         }
 	}
     } else if(global.CpuConfig.CacheReplacement == "CLOCK-M"){
-		return 0
-	}
+		// Paso 1: Buscar (U=0, M=0) sin modificar ningún bit
+			for i := 0; i < len(global.CACHE); i++ {
+				pos := (punteroClockModificado + i) % len(global.CACHE)
+				if global.CACHE[pos].BitUso == 0 && global.CACHE[pos].BitModificado == 0 {
+					punteroClockModificado = (pos + 1) % len(global.CACHE)
+					return pos
+				}
+			}
+
+			// Paso 2: Buscar (U=0, M=1) y poner U=0 mientras se recorre
+			for i := 0; i < len(global.CACHE); i++ {
+				pos := (punteroClockModificado + i) % len(global.CACHE)
+				if global.CACHE[pos].BitUso == 0 && global.CACHE[pos].BitModificado == 1 {
+					punteroClockModificado = (pos + 1) % len(global.CACHE)
+					return pos
+				}
+				// Mientras recorro, pongo BitUso en 0
+				global.CACHE[pos].BitUso = 0
+			}
+
+			// Paso 3: Volver al paso 1
+			for i := 0; i < len(global.CACHE); i++ {
+				pos := (punteroClockModificado + i) % len(global.CACHE)
+				if global.CACHE[pos].BitUso == 0 && global.CACHE[pos].BitModificado == 0 {
+					punteroClockModificado = (pos + 1) % len(global.CACHE)
+					return pos
+				}
+			}
+		
+	}	
 	}
 	return indiceVacio()
 }

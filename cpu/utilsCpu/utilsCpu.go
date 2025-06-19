@@ -13,7 +13,6 @@ import (
 )
 
 var lruCounter int
-var lruValues []int // lruValues tiene el timestamp de cada marco de TLB
 
 var instruccionesConMMU = map[string]bool{
 	"WRITE": true,
