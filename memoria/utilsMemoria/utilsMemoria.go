@@ -2,12 +2,14 @@ package utilsMemoria
 
 import (
 	"fmt"
-	"os"
-	"strings"
-	"github.com/sisoputnfrba/tp-golang/memoria/global"
+	"io"
 	"math"
-	"time"
+	"os"
 	"strconv"
+	"strings"
+	"time"
+
+	"github.com/sisoputnfrba/tp-golang/memoria/global"
 )
 
 //ESTRUCTURAS
@@ -25,7 +27,7 @@ type EntradaTP struct {
 var TablaDePaginasRaiz []*EntradaTP // una por proceso
 var TablasPorProceso = make(map[int]*EntradaTP)
 
-//Diccionario de procesos
+//Instrucciones de procesos
 var instruccionesProcesos map[int]*[]string
 
 //MERTRICAS
@@ -39,18 +41,28 @@ type MetricasProceso struct { //son todas cantidades
 	EscriturasMemo int
 }
 
+//SWAP
+var SWAP = make(map[int]*Gorda)
+type Gorda struct {
+	Inicio int64
+	Fin int64
+}
+
 func InicializarMemoria() {
 	TamMemoria = global.ConfigMemoria.Memory_size
 	TamPagina = global.ConfigMemoria.Page_Size
 	CantNiveles = global.ConfigMemoria.Number_of_levels
 	CantEntradas = global.ConfigMemoria.Entries_per_page
 	Delay = global.ConfigMemoria.Memory_delay
+	SwapPath = global.ConfigMemoria.Swapfile_path
 
 	instruccionesProcesos = make(map[int]*[]string)
 
     MemoriaUsuario = make([]byte, TamMemoria)
 
 	metricas = make(map[int]*MetricasProceso)
+
+	SWAP = make(map[int]*Gorda)
 
 	TablasPorProceso = make(map[int]*EntradaTP)
 
@@ -223,9 +235,6 @@ func ActualizarPaginaCompleta (pid int, direccionFisica int, datos string) {
 }
 
 
-
-
-
 //OBTENER INSTRUCCIONES
 func ObtenerInstruccion(pid int, pc int) (string, error) { //ESTO SIRVE PARA CPU
 	instrucciones := ListaDeInstrucciones(pid)
@@ -294,20 +303,70 @@ func Suspender(pid int) {
 	GuardarInfoSwap(pid, dataMarcos)
 }
 
+func EncontrarDataMarcos(marcos []int) []byte {
+	return []byte{}
+}
+
 func DesSuspenderProceso(pid int) {
-	BuscarDataEnSwap(pid)
+	info := BuscarDataEnSwap(pid)
+	var marcosAsignados []int
 	//marcosAginados := AsignarMarcos(pid)
+	idx := 0
+	cantPaginas := len(info)/TamPagina
+	for i:=0 ; i < cantPaginas; i++{
+		dirFisica := marcosAsignados[idx] * TamPagina
+		
+		//MemoriaUsuario.marcosAsignados[idx] = 
+		inicio := i * TamPagina
+		fin := inicio + TamPagina
+		pagina := info[inicio:fin]
+
+		copy(MemoriaUsuario[dirFisica:], pagina)
+	}
 }
 
-func BuscarDataEnSwap(pid int) {
+func BuscarDataEnSwap(pid int) []byte{
+	file, err := os.Open(SwapPath) //O_APPEND: Todo se agrega al final, no sobreescribe; O_CREATE: Si no existe lo crea; O_WORNLY Se abre solo para escritura, no lectura
+	if err != nil{
+		fmt.Printf("Error al abrir el archivo swap %v", err)
+		return nil
+	}
+	defer file.Close()
+
+	inicio := SWAP[pid].Inicio
+	fin := SWAP[pid].Fin
+
+	tamanio := fin - inicio
+	buffer := make([]byte, tamanio) //buffer: tamaño de memoria temp
+
+	file.ReadAt(buffer, inicio)
+
+	return buffer
+}
+
+func GuardarInfoSwap(pid int, data []byte){
+
+	//GPT ¿Como abrir archivo? 
+	// 0644 => octal, dueño, grupo, otros => -rw-r--r--
+	file, err := os.OpenFile(SwapPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644) //O_APPEND: Todo se agrega al final, no sobreescribe; O_CREATE: Si no existe lo crea; O_WORNLY Se abre solo para escritura, no lectura
+	if err != nil{
+		fmt.Printf("Error al abrir el archivo swap %v", err)
+		return
+	}
+	defer file.Close()
+	
+	inicio, err := file.Seek(0, io.SeekEnd) //posicion del ultimo
+	if err != nil{
+		fmt.Printf("Error al ir a la ultima posición del archivo %v", err)
+		return
+	}
+
+	file.Write(data)
+
+	SWAP[pid].Inicio = inicio
+	SWAP[pid].Fin = inicio + int64(len(data))
 
 }
-func GuardarInfoSwap(pid int, data string){
-	//pensar estructura de SWAP
-}
-
-
-
 
 
 //OTROS
@@ -333,13 +392,35 @@ func LiberarEspacioMemoria(pid int, marcosALiberar []int) {
 }
 
 func EncontrarMarcosDeProceso(pid int) []int {
-	//devuelve un array de ints con los marcos
-	return []int{}
+	raiz := TablasPorProceso[pid]
+	if raiz == nil {
+		return nil
+	}
+
+	var marcos []int
+
+	var recorrerTabla func(tabla []*EntradaTP)
+	recorrerTabla = func(tabla []*EntradaTP) {
+		for _, entrada := range tabla {
+			if entrada == nil || !entrada.Presente {
+				continue
+			}
+			if entrada.SiguienteNivel == nil {
+				// Último nivel: tiene marco
+				marcos = append(marcos, entrada.MarcoFisico)
+			} else {
+				// Nivel intermedio: seguir bajando
+				recorrerTabla(entrada.SiguienteNivel)
+			}
+		}
+	}
+
+	// Comenzar desde la tabla raíz del proceso
+	recorrerTabla(raiz.SiguienteNivel)
+	return marcos
 }
 
-func EncontrarDataMarcos(marcos []int) string {
-	return ""
-}
+
 
 //VERIFICAR ESPACIO DISPONIBLE
 func HayLugar(tamanio int)(bool){
@@ -371,7 +452,7 @@ var TamPagina int
 var CantNiveles int
 var CantEntradas int
 var Delay int
-
+var SwapPath string
 
 
 
@@ -407,4 +488,12 @@ func ImprimirMetricas(pid int) {
 	fmt.Printf("  SubidasMemoPpal: %d\n", metrica.SubidasMemoPpal)
 	fmt.Printf("  LecturasMemo: %d\n", metrica.LecturasMemo)
 	fmt.Printf("  EscriturasMemo: %d\n", metrica.EscriturasMemo)
+}
+
+func FormatearMarcos(marcos []int) string {
+	strs := make([]string, len(marcos))
+	for i, m := range marcos {
+		strs[i] = strconv.Itoa(m)
+	}
+	return strings.Join(strs, "-")
 }
