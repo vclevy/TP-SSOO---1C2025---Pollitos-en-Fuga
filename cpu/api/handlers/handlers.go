@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"github.com/sisoputnfrba/tp-golang/cpu/global"
+	"github.com/sisoputnfrba/tp-golang/cpu/utilsCpu"
 	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
 	log "github.com/sisoputnfrba/tp-golang/utils/logger"
 )
@@ -68,5 +69,7 @@ func NuevoPCB(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
+
+	utilsIo.CicloDeInstruccion()
 }
 
