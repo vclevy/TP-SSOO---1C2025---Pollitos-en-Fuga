@@ -50,19 +50,20 @@ func CrearProceso(tamanio int, archivoPseudoCodigo string) *Proceso {
 
 func ActualizarEstadoPCB(pcb *PCB, nuevoEstado string) {
 	ahora := time.Now()
-	// Si ya tenía un estado previo, calculamos tiempo en ese estado
+	
 	if pcb.UltimoEstado != "" {
 		duracion := int(ahora.Sub(pcb.InicioEstado).Milliseconds())
 		pcb.MT[pcb.UltimoEstado] += duracion
 	}
-	// Log antes de actualizar el último estado
-	global.LoggerKernel.Log(
-		fmt.Sprintf("## (%d) Pasa del estado %s al estado %s", pcb.PID, pcb.UltimoEstado, nuevoEstado),
-		log.INFO,
-	)
-	// Aumenta contador de veces en el nuevo estado
+	
+	if(nuevoEstado != NEW){
+		global.LoggerKernel.Log(
+			fmt.Sprintf("## (%d) Pasa del estado %s al estado %s", pcb.PID, pcb.UltimoEstado, nuevoEstado),
+			log.INFO,
+		)
+	}
+	
 	pcb.ME[nuevoEstado] += 1
-	// Actualiza último estado y momento de entrada
 	pcb.UltimoEstado = nuevoEstado
 	pcb.InicioEstado = ahora
 }
@@ -151,16 +152,6 @@ func IniciarPlanificadorLargoPlazo() {
 					case global.NotifyNew <- struct{}{}:
 					default:
 					}
-				}
-
-				global.MutexExit.Lock()
-				if len(global.ColaExit) > 0 {
-					p := global.ColaExit[0]
-					global.ColaExit = global.ColaExit[1:]
-					global.MutexExit.Unlock()
-					FinalizarProceso(p)
-				} else {
-					global.MutexExit.Unlock()
 				}
 			}
 		}
@@ -334,7 +325,7 @@ func ManejarDevolucionDeCPU(pid int, nuevoPC int, motivo string, rafagaReal floa
 func IniciarPlanificadorMedioPlazo() {
 	go func() {
 		for {
-			// Recolectar procesos a suspender
+			
 			global.MutexBlocked.Lock()
 			var nuevaColaBlocked []*global.Proceso
 			var procesosASuspender []*global.Proceso
@@ -413,10 +404,12 @@ func FinalizarProceso(p *Proceso) {
 	global.AgregarAExit(p)
 	global.MutexExit.Unlock()
 
+	global.LoggerKernel.Log(fmt.Sprintf("## (%d) - Finaliza el proceso", p.PID), log.INFO)
+
 	liberarPCB(p)
 	LoguearMetricas(p)
 
-	// Intentar cargar desde SuspReady primero
+
 	if !IntentarCargarDesdeSuspReady() {
 		// Si no había ninguno para mover desde SuspReady, notificar NEW
 		select {
@@ -447,17 +440,16 @@ func liberarPCB(p *Proceso) {
 }
 
 func LoguearMetricas(p *Proceso) {
-	global.LoggerKernel.Log(fmt.Sprintf("## (%d) - Finaliza el proceso", p.PID), log.INFO) //! LOG OBLIGATORIO: Fin de Proceso
 	msg := fmt.Sprintf("## (%d) - Métricas de estado:", p.PID)
 	for _, unEstado := range estado {
 		count := p.ME[unEstado]
 		tiempo := p.MT[unEstado]
 		msg += fmt.Sprintf(" %s (%d) (%d),", unEstado, count, tiempo)
 	}
-	// Eliminar la coma final
+	
 	msg = msg[:len(msg)-1]
 
-	global.LoggerKernel.Log(msg, log.INFO) //! LOG OBLIGATORIO: Metricas de Estado
+	global.LoggerKernel.Log(msg, log.INFO)
 }
 
 func seleccionarProcesoSJF(usandoRestante bool) *global.Proceso {
@@ -500,7 +492,6 @@ func EvaluarDesalojo(nuevo *global.Proceso) {
 	}
 
 	if procesoADesalojar != nil && nuevo.EstimacionRafaga < maxRafaga {
-		global.LoggerKernel.Log(fmt.Sprintf("Desalojando proceso %d por nuevo proceso %d", procesoADesalojar.PCB.PID, nuevo.PCB.PID), log.INFO)
 		cpu := utilskernel.BuscarCPUPorPID(procesoADesalojar.PCB.PID)
 		if cpu == nil {
 			global.LoggerKernel.Log(fmt.Sprintf("No se encontró CPU ejecutando proceso %d para interrupción", procesoADesalojar.PCB.PID), log.ERROR)
@@ -509,6 +500,7 @@ func EvaluarDesalojo(nuevo *global.Proceso) {
 		if err := utilskernel.EnviarInterrupcionCPU(cpu, procesoADesalojar.PCB.PID, procesoADesalojar.PCB.PC); err != nil {
 			global.LoggerKernel.Log(fmt.Sprintf("Error enviando interrupción: %v", err), log.ERROR)
 		}
+		global.LoggerKernel.Log(fmt.Sprintf("## (%d) - Desalojado por algoritmo SJF/SRT", procesoADesalojar.PCB.PID), log.INFO) 
 	}
 }
 

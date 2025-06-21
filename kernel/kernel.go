@@ -31,7 +31,7 @@ func main() {
 	if err != nil {
 		panic(fmt.Sprintf("Tamaño de memoria inválido: %s", tamMemoriaString))
 	}
-
+	
 	planificacion.CrearProceso(tamMemoria, archivo) 
 
 	s := api.CrearServer()
@@ -42,13 +42,11 @@ func main() {
 		}
 	}()
 
-	// 3. Iniciar la planificación de largo plazo (esperando que se libere)
 	planificacion.IniciarPlanificadorLargoPlazo()
 
-	// 4. Espera el ingreso de Enter para liberar la planificación
 	fmt.Println("Planificador de Largo Plazo en STOP. Presione Enter para iniciar...")
 	fmt.Scanln()  // Bloquea hasta que el usuario presione Enter
-	close(global.InicioPlanificacionLargoPlazo)  // Liberamos la planificación
+	close(global.InicioPlanificacionLargoPlazo)  
 
 	go planificacion.IniciarPlanificadorMedioPlazo()
 	go planificacion.IniciarPlanificadorCortoPlazo()

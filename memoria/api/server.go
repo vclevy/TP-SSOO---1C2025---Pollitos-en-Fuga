@@ -17,6 +17,8 @@ func CrearServer() *server.Server {
 			"POST /inicializarProceso": handlers.InicializarProceso,
 			"POST /verificarEspacioDisponible": handlers.VerificarEspacioDisponible,
 			"POST /finalizarProceso": handlers.FinalizarProceso,
+			"POST /suspension": handlers.Suspender,
+			"POST /dessuspension": handlers.DesSuspender,
 
 			//usadas por la CPU
 			"POST /solicitudInstruccion": handlers.DevolverInstruccion,
@@ -24,7 +26,8 @@ func CrearServer() *server.Server {
 			"POST /pedirMarco": handlers.AccederTablaPaginas,
 			"POST /leerMemoria": handlers.LeerMemoria,
 			"POST /escribirMemoria": handlers.EscribirMemoria,
-			
+			"POST /leerPaginaCompleta": handlers.LeerPaginaCompleta,
+			"POST /actualizarPaginaCompleta": handlers.EscribirPaginaCompleta,
 		},
 	}
 	fmt.Printf("🟢 Memoria prendida en http://localhost:%d\n", global.ConfigMemoria.Port_Memory)

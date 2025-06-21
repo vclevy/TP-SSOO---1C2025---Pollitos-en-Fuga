@@ -3,7 +3,6 @@ package utilskernel
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -48,16 +47,28 @@ func EnviarAIO(dispositivo *IODevice, pid int, tiempoUso int) {
 
 }
 
-func BuscarDispositivo(host string, port int) (*global.IODevice, error) {
+func BuscarDispositivoPorPID(pid int) *global.IODevice {
 	global.IOListMutex.RLock()
 	defer global.IOListMutex.RUnlock()
+	for _, disp := range global.IOConectados {
+		if disp.ProcesoEnUso != nil && disp.ProcesoEnUso.Proceso.PID == pid {
+			return disp
+		}
+	}
+	return nil
+}
+
+func BuscarDispositivo(ip string, puerto int) (*global.IODevice, error) {
+	global.IOListMutex.Lock()
+	defer global.IOListMutex.Unlock()
 
 	for _, dispositivo := range global.IOConectados {
-		if dispositivo.IP == host && dispositivo.Puerto == port {
+		if dispositivo.IP == ip && dispositivo.Puerto == puerto {
 			return dispositivo, nil
 		}
 	}
-	return nil, errors.New("dispositivo no encontrado")
+
+	return nil, fmt.Errorf("No se encontró dispositivo con IP %s y puerto %d", ip, puerto)
 }
 
 func FiltrarColaIO(cola []*ProcesoIO, target *ProcesoIO) []*ProcesoIO {

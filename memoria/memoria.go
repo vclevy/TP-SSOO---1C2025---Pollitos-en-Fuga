@@ -32,8 +32,8 @@ func main() {
 	//TESTING
 	//probando creacion de TABLA DE PAGINAS y encontrar MARCO
 	pid := 35
-	tamanio := 869
-	dirLogica := []int{0, 0, 0, 2, 1} //devuelve marco 9
+	tamanio := 400
+	dirLogica := []int{0, 0, 3, 2, 1} //devuelve marco 57
 	
 	utilsMemoria.InicializarMetricas(pid)
 	utilsMemoria.CrearTablaPaginas(pid,tamanio)
@@ -48,6 +48,31 @@ func main() {
 	utilsMemoria.ImprimirMetricas(pid)
 
 
+	//-------------probando escritura y lectura memoria
+	utilsMemoria.InicializarMetricas(pid)
+
+	utilsMemoria.EscribirDatos(pid,256,"AXB3")
+
+	lecturaIndividual := utilsMemoria.MemoriaUsuario[258]//deberia devolver B
+	fmt.Println("Dato posicion 258: " + string(lecturaIndividual)) 
+	
+	lecturaCPU := utilsMemoria.DevolverLecturaMemoria(pid, 257, 3) //deberia devolver XB3
+	fmt.Println("Datos leidos desde 257 + 3: " + lecturaCPU)
+
+	lecturaPaginaCompleta := utilsMemoria.LeerPaginaCompleta(pid, 256)
+	fmt.Println("Leyendo pagina completa a partir de 256: " + lecturaPaginaCompleta)
+
+	utilsMemoria.ActualizarPaginaCompleta(pid, 256, "JH9")
+	lecturaPaginaCompleta2 := utilsMemoria.LeerPaginaCompleta(pid, 256)
+	fmt.Println("Leyendo pagina completa actualizada a partir de 256: " + lecturaPaginaCompleta2)
+	
+	//probando los casos en los que los datos son incorrectos
+	lecturaIndividualVacia := utilsMemoria.MemoriaUsuario[267]//devuelve un string vacio
+	fmt.Println("Dato posicion 267 vacia: " + string(lecturaIndividualVacia)) 
+	
+	lecturaPaginaCompletaDesalineada := utilsMemoria.LeerPaginaCompleta(pid, 258)
+	fmt.Println("Leyendo pagina completa a partir de 258 que no es el principio: " + lecturaPaginaCompletaDesalineada)
+	
 
 	select{}
 }

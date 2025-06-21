@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"strconv"
 
@@ -77,13 +76,12 @@ func INIT_PROC(w http.ResponseWriter, r *http.Request) {
 	}
 
 	procesoCreado := planificacion.CrearProceso(syscall.Tamanio, syscall.ArchivoInstrucciones)
-
-    global.LoggerKernel.Log(fmt.Sprintf("Proceso creado: %+v", procesoCreado), log.DEBUG)
+	global.LoggerKernel.Log("## ("+strconv.Itoa(procesoCreado.PID)+") - Solicitó syscall: <INIT_PROC>", log.INFO)
+	global.LoggerKernel.Log(fmt.Sprintf("Proceso creado: %+v", procesoCreado), log.DEBUG)
 	//el log ya lo hace crearProceso
 }
 
-
-func HandshakeConCPU(w http.ResponseWriter, r *http.Request) { //Solo conexion inicial
+func HandshakeConCPU(w http.ResponseWriter, r *http.Request) { 
 	var nuevoHandshake estructuras.HandshakeConCPU
 	if r.Method != http.MethodPost {
 		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
@@ -123,24 +121,26 @@ func IO(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error al parsear la syscall", http.StatusBadRequest)
 		return
 	}
+
 	nombre := syscall.IoSolicitada
 	tiempoUso := syscall.TiempoEstimado
 	pid := syscall.PIDproceso
+	
+	global.LoggerKernel.Log("## ("+strconv.Itoa(pid)+") - Solicitó syscall: <IO>", log.INFO)
 
 	global.IOListMutex.RLock()
 	dispositivos := utilsKernel.ObtenerDispositivoIO(nombre)
 	global.IOListMutex.RUnlock()
 
-	proceso := utilsKernel.BuscarProcesoPorPID(global.ColaExecuting, pid)
-	if proceso == nil {
-		http.Error(w, "No se pudo obtener el proceso actual", http.StatusInternalServerError)
+	if len(dispositivos) == 0 {
+		global.LoggerKernel.Log(fmt.Sprintf("Dispositivo IO %s no existe", nombre), log.ERROR)
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
-	if len(dispositivos) == 0 {
-		planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.EXIT)
-		global.AgregarAExit(proceso)
-		w.WriteHeader(http.StatusNotFound)
-		fmt.Fprintf(w, "Dispositivo %s no existe", nombre)
+
+	proceso := utilsKernel.BuscarProcesoPorPID(global.ColaBlocked, pid)
+	if proceso == nil {
+		http.Error(w, "No se pudo obtener el proceso en BLOCKED", http.StatusInternalServerError)
 		return
 	}
 
@@ -154,14 +154,15 @@ func IO(w http.ResponseWriter, r *http.Request) {
 			}
 			dispositivo.Mutex.Unlock()
 
+			global.LoggerKernel.Log("## ("+strconv.Itoa(dispositivo.ProcesoEnUso.Proceso.PID)+") - Bloqueado por IO: <"+dispositivo.Nombre+">", log.INFO)
 			go utilsKernel.EnviarAIO(dispositivo, proceso.PCB.PID, tiempoUso)
-			planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.BLOCKED)
+
+			w.WriteHeader(http.StatusOK)
 			return
 		}
 		dispositivo.Mutex.Unlock()
 	}
 
-	// Si todos están ocupados, se encola en el primero
 	procesoEncolado := &global.ProcesoIO{
 		Proceso:   proceso,
 		TiempoUso: tiempoUso,
@@ -169,41 +170,44 @@ func IO(w http.ResponseWriter, r *http.Request) {
 
 	primero := dispositivos[0]
 	primero.Mutex.Lock()
-	planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.BLOCKED)
 	primero.ColaEspera = append(primero.ColaEspera, procesoEncolado)
 	primero.Mutex.Unlock()
+
+	w.WriteHeader(http.StatusOK)
 }
 
-func FinalizacionIO(w http.ResponseWriter, r *http.Request){
+func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
 
-	// Extraer IP y puerto del remitente
-    host, portStr, err := net.SplitHostPort(r.RemoteAddr)
-    if err != nil {
-        http.Error(w, "Error al parsear dirección remota", http.StatusBadRequest)
-        return
-    }
-    
-    port, err := strconv.Atoi(portStr)
-    if err != nil {
-        http.Error(w, "Puerto inválido", http.StatusBadRequest)
-        return
-    }
-
-	dispositivo, err := utilsKernel.BuscarDispositivo(host, port)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
-		return
-	}
-
-	// Verificamos si hay body. Si NO hay, es desconexión
+	// Si NO hay body desconexión
 	if r.ContentLength == 0 {
+		fmt.Println("Desconexión recibida")
+		
+		r.Header.Get("X-IO-Nombre")
+		ip := r.Header.Get("X-IO-IP")
+		puertoStr := r.Header.Get("X-IO-Puerto")
+
+		puerto, err := strconv.Atoi(puertoStr)
+		if err != nil {
+			http.Error(w, "Puerto inválido en header", http.StatusBadRequest)
+			return
+		}
+
+		dispositivo, err := utilsKernel.BuscarDispositivo(ip, puerto)
+		if err != nil {
+			http.Error(w, "Dispositivo no encontrado en desconexión", http.StatusNotFound)
+			return
+		}
+
 		proc := dispositivo.ProcesoEnUso.Proceso
+
 		global.MutexBlocked.Lock()
 		global.EliminarProcesoDeCola(&global.ColaBlocked, proc.PID)
 		global.MutexBlocked.Unlock()
+
 		global.IOListMutex.Lock()
 		global.IOConectados = utilsKernel.FiltrarIODevice(global.IOConectados, dispositivo)
 		global.IOListMutex.Unlock()
+
 		planificacion.FinalizarProceso(proc)
 
 		w.WriteHeader(http.StatusOK)
@@ -211,40 +215,63 @@ func FinalizacionIO(w http.ResponseWriter, r *http.Request){
 		return
 	}
 
-	// Caso normal: Fin de IO
-	if dispositivo.ProcesoEnUso != nil {
-		fmt.Fprintf(w, "Proceso %d completó E/S. Verificando cola...\n", dispositivo.ProcesoEnUso.Proceso.PID)
+	// Caso normal: finalización de IO
+	var mensaje estructuras.FinDeIO
+	if err := json.NewDecoder(r.Body).Decode(&mensaje); err != nil {
+		http.Error(w, "Error al decodificar mensaje de finalización", http.StatusBadRequest)
+		return
+	}
 
-		// Liberamos proceso actual
+	pid := mensaje.PID
+	fmt.Printf("Finalizó IO del PID: %d\n", pid)
+
+	dispositivo := utilsKernel.BuscarDispositivoPorPID(pid)
+	if dispositivo == nil {
+		http.Error(w, "No se encontró dispositivo para el PID", http.StatusNotFound)
+		return
+	}
+
+	if dispositivo.ProcesoEnUso != nil && dispositivo.ProcesoEnUso.Proceso.PID == pid {
+		proceso := dispositivo.ProcesoEnUso.Proceso
 		dispositivo.ProcesoEnUso = nil
 
+		global.MutexBlocked.Lock()
+		global.EliminarProcesoDeCola(&global.ColaBlocked, proceso.PID)
+		global.MutexBlocked.Unlock()
+
+		global.AgregarAReady(proceso)
+		planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.READY)
+
+		global.LoggerKernel.Log(fmt.Sprintf("## (%d) finalizó IO y pasa a READY", proceso.PID), log.INFO)
+
+		// Ver si hay proceso esperando en el dispositivo
+		dispositivo.Mutex.Lock()
 		if len(dispositivo.ColaEspera) > 0 {
-			dispositivo.Mutex.Lock()
 			nuevo := dispositivo.ColaEspera[0]
 			dispositivo.ColaEspera = utilsKernel.FiltrarColaIO(dispositivo.ColaEspera, nuevo)
-			dispositivo.Mutex.Unlock()
 			dispositivo.ProcesoEnUso = nuevo
+			dispositivo.Mutex.Unlock()
 
 			utilsKernel.EnviarAIO(dispositivo, nuevo.Proceso.PID, nuevo.TiempoUso)
 		} else {
 			dispositivo.Ocupado = false
+			dispositivo.Mutex.Unlock()
 		}
-	}
 
-	w.WriteHeader(http.StatusOK)
-}
-
-func EXIT(w http.ResponseWriter, r *http.Request){
-	pidStr := r.URL.Query().Get("pid")
-
-	PID,_ := strconv.Atoi(pidStr)
-	proceso := utilsKernel.BuscarProcesoPorPID(global.ColaExecuting, PID) //! está en exec necesariamente??
-
-	if proceso == nil {
-		http.Error(w, "Proceso no encontrado", http.StatusNotFound)
+		w.WriteHeader(http.StatusOK)
 		return
 	}
-	planificacion.FinalizarProceso(proceso)
+
+	http.Error(w, "No se encontró proceso en uso para este PID", http.StatusNotFound)
+}
+
+func EXIT(w http.ResponseWriter, r *http.Request) {
+	pidStr := r.URL.Query().Get("pid")
+	PID, _ := strconv.Atoi(pidStr)
+
+	global.LoggerKernel.Log("## ("+strconv.Itoa(PID)+") - Solicitó syscall: <EXIT>", log.INFO)
+
+	w.WriteHeader(http.StatusOK)
 }
 
 func DUMP_MEMORY(w http.ResponseWriter, r *http.Request) {
@@ -255,13 +282,13 @@ func DUMP_MEMORY(w http.ResponseWriter, r *http.Request) {
 
 	planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.BLOCKED)
 	global.AgregarABlocked(proceso)
+	global.LoggerKernel.Log("## ("+strconv.Itoa(pid)+") - Solicitó syscall: <INIT_PROC>", log.INFO)
 
-	// 2. Enviar solicitud a memoria
+
 	err := utilsKernel.SolicitarDumpAMemoria(pid)
 	if err != nil {
 		global.LoggerKernel.Log(fmt.Sprintf("Error en dump de memoria para PID %d: %s", pid, err.Error()), log.ERROR)
 
-		// Eliminar de BLOCKED (ya que no saldrá por vía normal)
 		global.EliminarProcesoDeCola(&global.ColaBlocked, pid)
 		planificacion.FinalizarProceso(proceso)
 
@@ -269,7 +296,6 @@ func DUMP_MEMORY(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 3. Si el dump fue exitoso, desbloquear
 	global.EliminarProcesoDeCola(&global.ColaBlocked, pid)
 	planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.READY)
 	global.AgregarAReady(proceso)

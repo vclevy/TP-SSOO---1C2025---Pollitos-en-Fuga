@@ -50,6 +50,7 @@ type TareaDeIo struct {
 }
 type FinDeIO struct {
 	Tipo string `json:"tipo"`
+	PID int	`json:"PID"`
 }
 type HandshakeConCPU struct {
 	ID     string

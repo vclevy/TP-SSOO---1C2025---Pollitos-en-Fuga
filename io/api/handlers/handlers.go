@@ -58,7 +58,7 @@ func ProcesoRecibidoHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	utilsIo.IniciarIo(tarea)
 	fmt.Printf("IO: Recibí PID %d con tiempo %d\n", tarea.PID, tarea.TiempoEstimado)
+	utilsIo.IniciarIo(tarea)
 	w.WriteHeader(http.StatusOK)
 }
