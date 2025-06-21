@@ -77,7 +77,7 @@ func INIT_PROC(w http.ResponseWriter, r *http.Request) {
 
 	procesoCreado := planificacion.CrearProceso(syscall.Tamanio, syscall.ArchivoInstrucciones)
 	global.LoggerKernel.Log("## ("+strconv.Itoa(procesoCreado.PID)+") - Solicitó syscall: <INIT_PROC>", log.INFO)
-	global.LoggerKernel.Log(fmt.Sprintf("Proceso creado: %+v", procesoCreado), log.DEBUG)
+	//global.LoggerKernel.Log(fmt.Sprintf("Proceso creado: %+v", procesoCreado), log.DEBUG)
 	//el log ya lo hace crearProceso
 }
 

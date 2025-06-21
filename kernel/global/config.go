@@ -32,15 +32,18 @@ type Proceso struct {
 
 func NuevoPCB() *PCB {
 	pid := UltimoPID
-	UltimoPID++
-
+	UltimoPID++;
+	
 	return &PCB{
-		PID: pid,
-		PC:  0,
-		ME:  make(map[string]int),
-		MT:  make(map[string]int),
+		PID:          pid,
+		PC:           0,
+		ME:           make(map[string]int),
+		MT:           make(map[string]int),
+		UltimoEstado: "",
+		InicioEstado: time.Now(),
 	}
 }
+
 type Config struct {
 	IPMemory              string  `json:"ip_memory"`
 	Port_Memory           int     `json:"port_memory"`

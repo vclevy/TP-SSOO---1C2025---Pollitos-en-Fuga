@@ -13,6 +13,8 @@ import (
 var tiempoInicio time.Time
 
 func CicloDeInstruccion() {
+	global.LoggerCpu.Log(fmt.Sprintf("Comienza ciclo instruccion"), log.INFO) 
+
 	var instruccionAEjecutar = Fetch()
 
 	instruccion, requiereMMU := Decode(instruccionAEjecutar)
@@ -21,6 +23,7 @@ func CicloDeInstruccion() {
 	Execute(instruccion, requiereMMU)
 
 	CheckInterrupt()
+	global.LoggerCpu.Log(fmt.Sprintf("Termina ciclo instruccion"), log.INFO) 
 }
 
 func Fetch() string {
@@ -126,5 +129,9 @@ func CheckInterrupt() {
 		cortoProceso()
 		global.PCB_Actual = global.PCB_Interrupcion
 		global.Interrupcion = false
+	}else{
+		global.LoggerCpu.Log(fmt.Sprintf("No hay interrupción"), log.INFO) 
+		global.PCB_Actual.PC = global.PCB_Actual.PC + 1
+		CicloDeInstruccion()
 	}
 }

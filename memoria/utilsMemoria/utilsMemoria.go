@@ -183,7 +183,7 @@ func FinalizarProceso(pid int) string{
 
 //LECTURA
 func LeerMemoria(pid int, direccionFisica int, tamanio int) string{
-	time.Sleep(time.Millisecond * time.Duration(Delay))
+	time.Sleep(time.Millisecond * time.Duration(Delay)) 
 
 	datos := MemoriaUsuario[direccionFisica : direccionFisica+tamanio] 
 	//Lee desde dirFisica hasta dirfisica+tamanio
