@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
+"log"
 	"github.com/sisoputnfrba/tp-golang/memoria/global"
 )
 
@@ -82,18 +82,23 @@ func InicializarMetricas (pid int) {
 
 //---------------------------------------------------------------------CASOS DE USO---------------------------------------------------------------------
 //INICIALIZAR PROCESO
-func CargarProceso(pid int, ruta string) error { //en intruccionesProcesos
+func CargarProceso(pid int, ruta string) error {
+	
 	contenidoArchivo, err := os.ReadFile(ruta)
 	if err != nil {
+		log.Printf("Error leyendo pseudocódigo del PID %d en ruta '%s': %v", pid, ruta, err)
 		return err
 	}
 
-	lineas := strings.Split(strings.TrimSpace(string(contenidoArchivo)), "\n") //Splitea las lineas del archivo segun un salto de linea y el TrimSpace elimina espacios en blanco (al principio y al final del archivo)
+	lineas := strings.Split(strings.TrimSpace(string(contenidoArchivo)), "\n")
+
+	// Log de ayuda para debug
+	log.Printf("PID %d - %d instrucciones cargadas desde '%s'\n", pid, len(lineas), ruta)
 
 	instruccionesProcesos[pid] = &lineas
-
 	return nil
 }
+
 
 func CrearTablaPaginas(pid int, tamanio int) {
 	paginas := int(math.Ceil(float64(tamanio) / float64(TamPagina)))
@@ -249,7 +254,6 @@ func ObtenerInstruccion(pid int, pc int) (string, error) { //ESTO SIRVE PARA CPU
 
 
 
-
 //ACCESO A TABLA DE PAGINAS
 func EncontrarMarco(pid int, entradas []int) int {
 	actual := TablasPorProceso[pid]
@@ -309,19 +313,19 @@ func EncontrarDataMarcos(marcos []int) []byte {
 
 func DesSuspenderProceso(pid int) {
 	info := BuscarDataEnSwap(pid)
-	var marcosAsignados []int
+//	var marcosAsignados []int
 	//marcosAginados := AsignarMarcos(pid)
-	idx := 0
+	//idx := 0
 	cantPaginas := len(info)/TamPagina
 	for i:=0 ; i < cantPaginas; i++{
-		dirFisica := marcosAsignados[idx] * TamPagina
+		//dirFisica := marcosAsignados[idx] * TamPagina
 		
 		//MemoriaUsuario.marcosAsignados[idx] = 
-		inicio := i * TamPagina
-		fin := inicio + TamPagina
-		pagina := info[inicio:fin]
+		//inicio := i * TamPagina
+	//	fin := inicio + TamPagina
+		//pagina := info[inicio:fin]
 
-		copy(MemoriaUsuario[dirFisica:], pagina)
+	//	copy(MemoriaUsuario[dirFisica:], pagina)
 	}
 }
 
@@ -425,7 +429,7 @@ func EncontrarMarcosDeProceso(pid int) []int {
 //VERIFICAR ESPACIO DISPONIBLE
 func HayLugar(tamanio int)(bool){
 	var cantMarcosLibres int
-	for i := 0; i < TamMemoria; i++ {
+	for i := 0; i < len(MarcosLibres); i++ {
 		if MarcosLibres[i] {
 			cantMarcosLibres++
 		}		

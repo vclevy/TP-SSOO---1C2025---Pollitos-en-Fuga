@@ -20,7 +20,8 @@ type Config struct {
 	Log_Level        string   `json:"log_level"`
 	Dump_path		 string   `json:"dump_path"`
 	Log_file         string   `json:"log_file"`
-	Scripts_Path	 string	  `json:"scripts_path`
+	Scripts_Path string `json:"scripts_path"`
+	//"scripts_file": "/home/utnso/scripts/" LO CAMBIE PARA PRUEBAS
 }
 
 func InitGlobal() {

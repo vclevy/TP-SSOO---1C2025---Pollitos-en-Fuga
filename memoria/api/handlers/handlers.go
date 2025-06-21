@@ -4,13 +4,12 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
-
+	"path/filepath"
 	"github.com/sisoputnfrba/tp-golang/memoria/global"
 	utilsMemoria"github.com/sisoputnfrba/tp-golang/memoria/utilsMemoria"
-	"github.com/sisoputnfrba/tp-golang/utils/logger"
+	myLogger "github.com/sisoputnfrba/tp-golang/utils/logger"
 	estructuras "github.com/sisoputnfrba/tp-golang/utils/estructuras"
-	
-
+	"log"
 )
 
 type PaqueteMemoria = estructuras.PaqueteMemoria
@@ -22,7 +21,7 @@ type PedidoWRITE = estructuras.PedidoWRITE
 
 //el KERNEL manda un proceso para inicializar con la estrcutura de PaqueteMemoria
 func InicializarProceso(w http.ResponseWriter, r *http.Request) {
-	
+
     if r.Method != http.MethodPost {
         http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
         return
@@ -37,18 +36,21 @@ func InicializarProceso(w http.ResponseWriter, r *http.Request) {
 	pid := paquete.PID
 	tamanio := paquete.TamanioProceso
     archivoPseudocodigo := paquete.ArchivoPseudocodigo
-	
+	ruta := filepath.Join(global.ConfigMemoria.Scripts_Path, archivoPseudocodigo)
+
+	log.Printf("PID %d - archivo: '%s' - ruta: '%s'\n", pid, archivoPseudocodigo, ruta)
+
 	espacioDisponible := utilsMemoria.HayLugar(tamanio)
 	if !espacioDisponible {
 		http.Error(w, "No hay suficiente espacio", http.StatusConflict)
 	}
 
 	w.WriteHeader(http.StatusOK)
-
+	
 	utilsMemoria.CrearTablaPaginas(pid, tamanio)
-	utilsMemoria.CargarProceso(pid, archivoPseudocodigo)
+	utilsMemoria.CargarProceso(pid, ruta)
 	utilsMemoria.InicializarMetricas(pid)
-	global.LoggerMemoria.Log("## PID: "+ strconv.Itoa(pid) +"> - Proceso Creado - Tamaño: <"+strconv.Itoa(tamanio)+">", log.INFO)
+	global.LoggerMemoria.Log("## PID: "+ strconv.Itoa(pid) +"> - Proceso Creado - Tamaño: <"+strconv.Itoa(tamanio)+">", myLogger.INFO)
 }
 
 //KERNEL comprueba que haya espacio disponible en memoria antes de inicializar
@@ -103,7 +105,7 @@ func FinalizarProceso(w http.ResponseWriter, r *http.Request){
 
 	stringMetricas := utilsMemoria.FinalizarProceso(pid)
 
-	global.LoggerMemoria.Log(stringMetricas,log.INFO)
+	global.LoggerMemoria.Log(stringMetricas, myLogger.INFO)
 	
 }
 
@@ -135,7 +137,7 @@ func DevolverInstruccion(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	global.LoggerMemoria.Log("## PID: "+ strconv.Itoa(pid) +">  - Obtener instrucción: <"+ strconv.Itoa(pc) +"> - Instrucción: <"+ instruccion +"> <...ARGS>", log.INFO)
+	global.LoggerMemoria.Log("## PID: "+ strconv.Itoa(pid) +">  - Obtener instrucción: <"+ strconv.Itoa(pc) +"> - Instrucción: <"+ instruccion +"> <...ARGS>",  myLogger.INFO)
 }
 
 //CPU lo pide
@@ -206,7 +208,7 @@ func LeerMemoria(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	global.LoggerMemoria.Log("## PID: <"+ strconv.Itoa(pid) +">- <Lectura> - Dir. Física: <"+ 
-	strconv.Itoa(direccionFisica) +"> - Tamaño: <"+ strconv.Itoa(tamanio)+ "> ", log.INFO)
+	strconv.Itoa(direccionFisica) +"> - Tamaño: <"+ strconv.Itoa(tamanio)+ "> ",  myLogger.INFO)
 
 }
 
@@ -231,7 +233,7 @@ func EscribirMemoria(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	global.LoggerMemoria.Log("## PID: <"+ strconv.Itoa(pid) +">- <Escritura> - Dir. Física: <"+ 
-	strconv.Itoa(direccionFisica) +"> - Datos: <"+ datos + "> ", log.INFO)
+	strconv.Itoa(direccionFisica) +"> - Datos: <"+ datos + "> ",  myLogger.INFO)
 }
 
 func LeerPaginaCompleta(w http.ResponseWriter, r *http.Request){

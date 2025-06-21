@@ -6,7 +6,6 @@ import (
 	"github.com/sisoputnfrba/tp-golang/memoria/utilsMemoria"
 	"github.com/sisoputnfrba/tp-golang/utils/logger"
 	//"github.com/sisoputnfrba/tp-golang/utils/paquetes"
-	"fmt"
 )
 
 //CONEXIÓN;
@@ -18,6 +17,7 @@ func main() {
 	global.InitGlobal()
 	defer global.LoggerMemoria.CloseLogger()	
 	
+	utilsMemoria.InicializarMemoria()
 	// configurar logger e inicializar config
 	s := api.CrearServer()
 	go func() {
@@ -27,7 +27,6 @@ func main() {
 		}
 		}()
 
-	utilsMemoria.InicializarMemoria()
 
 	//TESTING
 	//probando creacion de TABLA DE PAGINAS y encontrar MARCO
@@ -74,26 +73,26 @@ func main() {
 	// fmt.Println("Leyendo pagina completa a partir de 258 que no es el principio: " + lecturaPaginaCompletaDesalineada)
 	
 	//----------creando mas de un proceso
-	pid1 := 1
-	tamanio1 := 500
+	// pid1 := 1
+	// tamanio1 := 500
 
-	pid2 := 2
-	tamanio2 := 420
+	// pid2 := 2
+	// tamanio2 := 420
 
-	pid3 := 3
-	tamanio3 := 857
+	// pid3 := 3
+	// tamanio3 := 857
 
-	pid4 := 4
-	tamanio4 := 1050
+	// pid4 := 4
+	// tamanio4 := 1050
 
-	utilsMemoria.InicializarMetricas(pid1)
-	utilsMemoria.InicializarMetricas(pid2)
-	utilsMemoria.InicializarMetricas(pid3)
-	utilsMemoria.InicializarMetricas(pid4)
+	// utilsMemoria.InicializarMetricas(pid1)
+	// utilsMemoria.InicializarMetricas(pid2)
+	// utilsMemoria.InicializarMetricas(pid3)
+	// utilsMemoria.InicializarMetricas(pid4)
 
-	utilsMemoria.CrearTablaPaginas(pid1,tamanio1)
-	utilsMemoria.CrearTablaPaginas(pid2,tamanio2)
-	utilsMemoria.CrearTablaPaginas(pid3,tamanio3)
+	// utilsMemoria.CrearTablaPaginas(pid1,tamanio1)
+	// utilsMemoria.CrearTablaPaginas(pid2,tamanio2)
+	// utilsMemoria.CrearTablaPaginas(pid3,tamanio3)
 
 
 	// fmt.Printf("Tablas de páginas del proceso PID %d:\n", pid1)
@@ -109,12 +108,12 @@ func main() {
 	// utilsMemoria.FormatearMarcos(marcos)	
 	// fmt.Printf("Marcos asignados %d:\n", marcos)
 	
-	fmt.Println("--------------finalizo uno")
-	utilsMemoria.FinalizarProceso(pid2)
-	utilsMemoria.CrearTablaPaginas(pid4,tamanio4)
+	// fmt.Println("--------------finalizo uno")
+	// utilsMemoria.FinalizarProceso(pid2)
+	// utilsMemoria.CrearTablaPaginas(pid4,tamanio4)
 
-	fmt.Printf("Tablas de páginas del proceso PID %d:\n", pid4)
-	utilsMemoria.ImprimirTabla(utilsMemoria.TablasPorProceso[pid4].SiguienteNivel, 1, "")
+	// fmt.Printf("Tablas de páginas del proceso PID %d:\n", pid4)
+	// utilsMemoria.ImprimirTabla(utilsMemoria.TablasPorProceso[pid4].SiguienteNivel, 1, "")
 	
 
 	select{}
