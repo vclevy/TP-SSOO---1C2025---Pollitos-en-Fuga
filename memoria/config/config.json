@@ -11,5 +11,5 @@
     "log_level": "DEBUG",
     "dump_path": "/home/utnso/dump_files/",
     "log_file": "memoria.log",
-    "scripts_path": "./scripts/"
+    "scripts_path": "/home/utnso/scripts/"
 }
