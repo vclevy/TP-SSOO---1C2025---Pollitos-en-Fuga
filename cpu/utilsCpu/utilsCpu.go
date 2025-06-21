@@ -131,7 +131,7 @@ func desalojar(indicePisar int) {
 		marco = CalcularMarco()
 	}
 	direccionFisica = marco * configMMU.Tamanio_pagina
-	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Memory Update - Página: %d - Frame: %d", global.PCB_Actual.PID, global.CACHE[indicePisar].NroPagina, marco), log.INFO) //?? la pagina que se desaloja, según el algoritmo
+	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Memory Update - Página: %d - Frame: %d", global.PCB_Actual.PID, global.CACHE[indicePisar].NroPagina, marco), log.INFO) //!! Página Actualizada de Caché a Memoria - LogObligatorio
 
 	MemoriaEscribePaginaCompleta(direccionFisica, global.CACHE[indicePisar].Contenido)
 }
@@ -187,17 +187,3 @@ func InicializarCACHE() {
 		}
 	}
 }
-/*
-LOGS:
-//Fetch Instrucción: “## PID: <PID> - FETCH - Program Counter: <PROGRAM_COUNTER>”.
-//Interrupción Recibida: “## Llega interrupción al puerto Interrupt”.
-//Instrucción Ejecutada: “## PID: <PID> - Ejecutando: <INSTRUCCION> - <PARAMETROS>”.
-//Lectura/Escritura Memoria: “PID: <PID> - Acción: <LEER / ESCRIBIR> - Dirección Física: <DIRECCION_FISICA> - Valor: <VALOR LEIDO / ESCRITO>”.
-//Obtener Marco: “PID: <PID> - OBTENER MARCO - Página: <NUMERO_PAGINA> - Marco: <NUMERO_MARCO>”.
-//TLB Hit: “PID: <PID> - TLB HIT - Pagina: <NUMERO_PAGINA>”
-//TLB Miss: “PID: <PID> - TLB MISS - Pagina: <NUMERO_PAGINA>”
-//Página encontrada en Caché: “PID: <PID> - Cache Hit - Pagina: <NUMERO_PAGINA>”
-//Página faltante en Caché: “PID: <PID> - Cache Miss - Pagina: <NUMERO_PAGINA>”
-//Página ingresada en Caché: “PID: <PID> - Cache Add - Pagina: <NUMERO_PAGINA>” //?? la pagina que reemplaza a otra, según el algoritmo
-//Página Actualizada de Caché a Memoria: “PID: <PID> - Memory Update - Página: <NUMERO_PAGINA> - Frame: <FRAME_EN_MEMORIA_PRINCIPAL>” //?? la pagina que se desaloja, según el algoritmo
-*/

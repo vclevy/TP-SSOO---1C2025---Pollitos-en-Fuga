@@ -27,7 +27,7 @@ func Fetch() string {
 	pidActual := global.PCB_Actual.PID
 	pcActual := global.PCB_Actual.PC
 
-	global.LoggerCpu.Log(fmt.Sprintf(" ## PID: %d - FETCH - Program Counter: %d", pidActual, pcActual), log.INFO)
+	global.LoggerCpu.Log(fmt.Sprintf(" ## PID: %d - FETCH - Program Counter: %d", pidActual, pcActual), log.INFO) //!! Fetch Instrucción - logObligatorio
 
 	solicitudInstruccion := estructuras.PCB{
 		PID: pidActual,
@@ -56,7 +56,7 @@ func Decode(instruccionAEjecutar string) (Instruccion, bool) {
 
 func Execute(instruccion Instruccion, requiereMMU bool) error {
 
-	global.LoggerCpu.Log(fmt.Sprintf("## PID: %d - Ejecutando: %s - %s", global.PCB_Actual.PID, instruccion.Opcode, instruccion.Parametros), log.INFO)
+	global.LoggerCpu.Log(fmt.Sprintf("## PID: %d - Ejecutando: %s - %s", global.PCB_Actual.PID, instruccion.Opcode, instruccion.Parametros), log.INFO) //!! Instrucción Ejecutada - logObligatorio
 
 	//todo INSTRUCCIONES SYSCALLS
 	if instruccion.Opcode == "IO" {

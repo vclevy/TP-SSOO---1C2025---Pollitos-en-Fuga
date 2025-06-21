@@ -29,7 +29,8 @@ func Interrupcion(w http.ResponseWriter, r *http.Request) {
 
 	global.Interrupcion = true
 /* 	global.LoggerCpu.Log(fmt.Sprintf("Interrupción recibida para PID %d (PC: %d)", global.PCB_Actual.PID, global.PCB_Actual.PC), log.DEBUG) */
-	global.LoggerCpu.Log(("## Llega interrupción al puerto Interrupt"), log.DEBUG) //!! INTERRUPCIÓN RECIBIDA
+	
+	global.LoggerCpu.Log(("## Llega interrupción al puerto Interrupt"), log.DEBUG) //!! Interrupción Recibida
 
 	/* response := estructuras.PCB{
 		PID : pid,

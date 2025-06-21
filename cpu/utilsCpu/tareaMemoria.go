@@ -45,7 +45,7 @@ func MemoriaLee(direccionFisica int, tamanio int) (string ,error) {
 		return "" , err
 	}
 
-	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: LEER - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, direccionFisica, contenido), log.INFO) 
+	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: LEER - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, direccionFisica, contenido), log.INFO) //!! Lectura/Escritura Memoria - logObligatorio
 
 
 	return contenido , nil
@@ -76,6 +76,8 @@ func MemoriaEscribe(direccionFisica int, datos string) error {
 	}
 	global.LoggerCpu.Log("✅ Pedido escritura enviados a Memoria con éxito", log.INFO)
 
+	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: ESCRIBIR - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, direccionFisica, datos), log.INFO) //!! Lectura/Escritura Memoria - logObligatorio
+
 	return nil
 }
 
@@ -104,6 +106,9 @@ func MemoriaEscribePaginaCompleta(direccionFisica int, datos string) error {
 	}
 	global.LoggerCpu.Log("✅ Pedido escritura enviados a Memoria con éxito", log.INFO)
 
+	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: ESCRIBIR - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, direccionFisica, datos), log.INFO) //!! Lectura/Escritura Memoria (página completa) - logObligatorio
+
+
 	return nil
 }
 
@@ -118,7 +123,7 @@ func MemoriaLeePaginaCompleta(direccionFisica int) (string ,error) {
 	if err != nil {
 		return "" , fmt.Errorf("error codificando pedido: %w", err)
 	}
-	url := fmt.Sprintf("http://%s:%d/leerPaginaCompleta", global.CpuConfig.Ip_Memoria, global.CpuConfig.Port_Memoria) //!!cambiar al otro handler
+	url := fmt.Sprintf("http://%s:%d/leerPaginaCompleta", global.CpuConfig.Ip_Memoria, global.CpuConfig.Port_Memoria)
 
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
@@ -141,7 +146,7 @@ func MemoriaLeePaginaCompleta(direccionFisica int) (string ,error) {
 		return "" , err
 	}
 
-	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: LEER - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, direccionFisica, contenido), log.INFO) 
+	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: LEER - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, direccionFisica, contenido), log.INFO)  //!! Lectura/Escritura Memoria (página completa) - logObligatorio
 
 
 	return contenido , nil
