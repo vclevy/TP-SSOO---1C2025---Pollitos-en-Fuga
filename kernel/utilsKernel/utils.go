@@ -273,19 +273,13 @@ func BuscarProcesoPorPID(cola []*global.Proceso, pid int) (*global.Proceso) {
 	}
 	return nil
 }
-type PaqueteMemoria struct {
-		PID                 int    `json:"PID"`
-		TamanioProceso      int    `json:"TamanioProceso"`
-		ArchivoPseudocodigo string `json:"ArchivoPseudo"`
-}
 
 func InicializarProceso(proceso *global.Proceso) bool {
-	paquete := PaqueteMemoria{
+	paquete := estructuras.PaqueteMemoria{
 		PID:                proceso.PID,
 		TamanioProceso:     proceso.MemoriaRequerida,
 		ArchivoPseudocodigo: proceso.ArchivoPseudo,
 	}
-
 	jsonData, err := json.Marshal(paquete)
 	if err != nil {
 		global.LoggerKernel.Log(fmt.Sprintf("Error al serializar paquete para PID %d: %v", proceso.PID, err), log.ERROR)

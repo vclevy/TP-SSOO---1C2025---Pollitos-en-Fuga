@@ -294,7 +294,7 @@ func DUMP_MEMORY(w http.ResponseWriter, r *http.Request) {
 
 	planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.BLOCKED)
 	global.AgregarABlocked(proceso)
-	global.LoggerKernel.Log("## ("+strconv.Itoa(pid)+") - Solicitó syscall: <INIT_PROC>", log.INFO)
+	global.LoggerKernel.Log("## ("+strconv.Itoa(pid)+") - Solicitó syscall: <DUMP_MEMORY>", log.INFO)
 
 
 	err := utilsKernel.SolicitarDumpAMemoria(pid)

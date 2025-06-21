@@ -5,7 +5,7 @@ import (
 	"os"
 	"github.com/sisoputnfrba/tp-golang/cpu/api"
 	"github.com/sisoputnfrba/tp-golang/cpu/global"
-
+	utilsCpu "github.com/sisoputnfrba/tp-golang/cpu/utilsCpu"
 	log "github.com/sisoputnfrba/tp-golang/utils/logger"
 )
 
@@ -17,18 +17,22 @@ func main() {
 
 	idCPU := os.Args[1]
 	global.InitGlobal(idCPU)
-
 	defer global.LoggerCpu.CloseLogger()
-	s := api.CrearServer()
 
+	if err := utilsCpu.HandshakeKernel(); err != nil {
+		global.LoggerCpu.Log("Fallo el handshake con el Kernel: "+err.Error(), log.ERROR)
+		os.Exit(1)
+	}
+
+	s := api.CrearServer()
 	go func() {
 		err_server := s.Iniciar()
 		if err_server != nil {
 			global.LoggerCpu.Log("Error al iniciar el servidor: "+err_server.Error(), log.ERROR)
 			os.Exit(1)
 		}
-		
 	}()
-	
+
 	select {}
 }
+

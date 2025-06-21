@@ -158,8 +158,7 @@ func IniciarPlanificadorLargoPlazo() {
 	}()
 }
 
-
-func IniciarPlanificadorCortoPlazo() {
+func IniciarPlanificadorCortoPlazo() { 
 	go func() {
 		for {
 			<-global.NotifyReady

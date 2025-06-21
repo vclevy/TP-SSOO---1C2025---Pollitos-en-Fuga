@@ -48,8 +48,8 @@ func main() {
 	fmt.Scanln()  // Bloquea hasta que el usuario presione Enter
 	close(global.InicioPlanificacionLargoPlazo)  
 
-	go planificacion.IniciarPlanificadorMedioPlazo()
 	go planificacion.IniciarPlanificadorCortoPlazo()
+	go planificacion.IniciarPlanificadorMedioPlazo()
 
 	select {}
 }
