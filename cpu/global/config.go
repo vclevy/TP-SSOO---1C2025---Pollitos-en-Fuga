@@ -6,6 +6,7 @@ import (
 	utils "github.com/sisoputnfrba/tp-golang/utils/config"
 	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
 	logger "github.com/sisoputnfrba/tp-golang/utils/logger"
+	"os"
 )
 
 var CpuConfig *Config
@@ -44,6 +45,8 @@ func InitGlobal(idCPU string) {
 	CpuID = idCPU
 	// 1. Cargar configuración desde archivo
 	CpuConfig = utils.CargarConfig[Config]("config/config.json")
+
+	os.MkdirAll("logs", os.ModePerm)
 
 	// 2. Crear el archivo Log correspondiente a la CPU
 	logFileName := fmt.Sprintf("logs/%s.log", idCPU)
