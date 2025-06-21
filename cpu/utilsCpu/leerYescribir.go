@@ -120,6 +120,8 @@ func CacheHIT(pagina int) bool {
 }
 
 func actualizarCACHE(pagina int, nuevoContenido string) {
+	global.LoggerCpu.Log(fmt.Sprintf("actualizar cache"), log.INFO) //
+
 	time.Sleep(global.CpuConfig.CacheDelay)
 	var indicePisar int
 	indice := indicePaginaEnCache(pagina)

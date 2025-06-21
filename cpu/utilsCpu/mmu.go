@@ -14,13 +14,13 @@ import (
 
 func ConfigMMU() error {
 	url := fmt.Sprintf("http://%s:%d/configuracionMMU", global.CpuConfig.Ip_Memoria, global.CpuConfig.Port_Memoria)
-	resp, err := http.Get(url)
 
+	resp, err := http.Post(url, "application/json", nil)
 	if err != nil {
 		global.LoggerCpu.Log("Error al conectar con Memoria:", log.ERROR)
 		return err
 	}
-	defer resp.Body.Close() //cierra automáticamente el cuerpo de la respuesta HTTP
+	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -28,9 +28,11 @@ func ConfigMMU() error {
 		return err
 	}
 
-	err = json.Unmarshal(body, &configMMU) // convierto el JSON que recibi de Memoria y lo guardo en el struct configMMU.
+	global.LoggerCpu.Log("JSON recibido de Memoria: "+string(body), log.DEBUG)
+
+	err = json.Unmarshal(body, &configMMU)
 	if err != nil {
-		global.LoggerCpu.Log("Error parseando JSON de configuración:", log.ERROR)
+		global.LoggerCpu.Log("Error parseando JSON de configuracion: "+err.Error(), log.ERROR)
 		return err
 	}
 
@@ -44,6 +46,8 @@ func armarListaEntradas(nroPagina int) []int {
 	entradas := make([]int, cantNiveles)
 
 	for i := 1; i <= cantNiveles; i++ {
+		global.LoggerCpu.Log("Intenta dividir para conseguir la entrada de paginas", log.ERROR)
+
 		entradas[i-1] = int(math.Floor(float64(nroPagina)/math.Pow(float64(cantEntradas), float64(cantNiveles-i)))) % cantEntradas
 	}
 	return entradas

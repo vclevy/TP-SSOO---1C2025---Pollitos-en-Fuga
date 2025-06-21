@@ -124,10 +124,11 @@ func BuscarCPUPorPID(pid int) *global.CPU {
 func EnviarADispatch(cpu *global.CPU, pid int, pc int) error {
 	url := fmt.Sprintf("http://%s:%d/dispatch", cpu.IP, cpu.Puerto)
 
-	payload := map[string]interface{}{
-		"pid": pid,
-		"pc":  pc,
+	payload := estructuras.PCB{
+		PID: pid,
+		PC:  pc,
 	}
+
 	jsonData, err := json.Marshal(payload)
 	if err != nil {
 		return fmt.Errorf("error serializando payload: %w", err)
@@ -145,6 +146,7 @@ func EnviarADispatch(cpu *global.CPU, pid int, pc int) error {
 
 	return nil
 }
+
 
 func EnviarInterrupcionCPU(cpu *global.CPU, pid int, pc int) (error) {
 	url := fmt.Sprintf("http://%s:%d/interrupt", cpu.IP, cpu.Puerto)
@@ -196,7 +198,7 @@ func VerificarEspacioDisponible(tamanio int) bool {
 	endpoint := "verificarEspacioDisponible"
 	url := fmt.Sprintf("http://%s:%d/%s?tamanio=%d", global.ConfigKernel.IPMemory, global.ConfigKernel.Port_Memory, endpoint, tamanio)
 
-	req, err := http.NewRequest("POST", url, nil)
+	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		global.LoggerKernel.Log(fmt.Sprintf("Error creando request para solicitar memoria: %v", err), log.ERROR)
 		return false

@@ -99,7 +99,11 @@ func Execute(instruccion Instruccion, requiereMMU bool) error {
 		if err != nil {
 			return fmt.Errorf("error al convertir dirección logica")
 		} else {
-			ConfigMMU()
+			err := ConfigMMU()
+			if err != nil {
+				    global.LoggerCpu.Log("Error en ConfigMMU: "+err.Error(), log.ERROR)
+
+			}
 			desplazamiento = direccionLogica % configMMU.Tamanio_pagina
 			nroPagina = direccionLogica / configMMU.Tamanio_pagina
 		}

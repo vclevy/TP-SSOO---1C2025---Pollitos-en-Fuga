@@ -92,7 +92,7 @@ func IniciarPlanificadorLargoPlazo() {
 				global.MutexNew.Unlock()
 
 				if colaNewLen > 0 {
-					switch global.ConfigKernel.SchedulerAlgorithm {
+					switch global.ConfigKernel.ReadyIngressALgorithm {
 					case "FIFO":
 						global.MutexNew.Lock()
 						if len(global.ColaNew) == 0 {
@@ -112,7 +112,7 @@ func IniciarPlanificadorLargoPlazo() {
 							EvaluarDesalojo(proceso)
 						}
 
-					case "CHICO":
+					case "PMCP":
 						global.MutexNew.Lock()
 						ordenada := make([]*global.Proceso, len(global.ColaNew))
 						copy(ordenada, global.ColaNew)
@@ -197,8 +197,9 @@ func IniciarPlanificadorCortoPlazo() {
 						break
 					}
 				}
-
+				
 				AsignarCPU(nuevoProceso)
+				
 			}
 		}
 	}()
@@ -231,6 +232,7 @@ func evaluarDesalojoSRTF(nuevoProceso *global.Proceso) bool {
 	return false
 }
 
+
 func AsignarCPU(proceso *global.Proceso) {
 	global.MutexCPUs.Lock()
 
@@ -256,6 +258,7 @@ func AsignarCPU(proceso *global.Proceso) {
 	ActualizarEstadoPCB(&proceso.PCB, EXEC)
 	global.AgregarAExecuting(proceso)
 
+	
 	go func(cpu *global.CPU, proceso *global.Proceso) {
 		err := utilskernel.EnviarADispatch(cpu, proceso.PCB.PID, proceso.PCB.PC)
 		if err != nil {
