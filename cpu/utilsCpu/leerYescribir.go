@@ -71,8 +71,8 @@ func READ(instruccion Instruccion, cacheHabilitada bool, desplazamiento int, tlb
 				}
 			} else {
 				marco = CalcularMarco()
-				direccionFisica = marco * configMMU.Tamanio_pagina
-				contenidoLeido,_ := MemoriaLee(direccionFisica, tamanio)
+				direccionFisica = marco * configMMU.Tamanio_pagina + 0
+				contenidoLeido,_ := MemoriaLeePaginaCompleta(direccionFisica)
 				actualizarCACHE(nroPagina, contenidoLeido)
 			}
 		}
@@ -91,8 +91,8 @@ func READ(instruccion Instruccion, cacheHabilitada bool, desplazamiento int, tlb
 			}
 		} else {
 			marco = CalcularMarco()
-			direccionFisica = marco * configMMU.Tamanio_pagina
-			MemoriaLee(direccionFisica, tamanio)
+			direccionFisica = marco * configMMU.Tamanio_pagina + 0
+			MemoriaLeePaginaCompleta(direccionFisica)
 		}
 	}
 }

@@ -2,9 +2,7 @@ package global
 
 import (
 	"fmt"
-
 	"time"
-
 	utils "github.com/sisoputnfrba/tp-golang/utils/config"
 	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
 	logger "github.com/sisoputnfrba/tp-golang/utils/logger"

@@ -90,7 +90,7 @@ func MemoriaEscribePaginaCompleta(direccionFisica int, datos string) error {
 	if err != nil {
 		return fmt.Errorf("error codificando pedido: %w", err)
 	}
-	url := fmt.Sprintf("http://%s:%d/actualizarPaginaCompleta", global.CpuConfig.Ip_Memoria, global.CpuConfig.Port_Memoria) //!!cambiar al otro handler
+	url := fmt.Sprintf("http://%s:%d/actualizarPaginaCompleta", global.CpuConfig.Ip_Memoria, global.CpuConfig.Port_Memoria)
 
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
