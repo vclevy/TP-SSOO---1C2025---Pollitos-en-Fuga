@@ -165,25 +165,3 @@ func DevolucionPID() error {
 	return nil
 }
 
-func InicializarTLB() {
-	global.TLB = make([]estructuras.DatoTLB, global.CpuConfig.TlbEntries)
-	for i := range global.TLB {
-		global.TLB[i] = estructuras.DatoTLB{
-			NroPagina: -1,
-			Marco:     -1,
-			UltimoUso: -1,
-		}
-	}
-}
-
-func InicializarCACHE() {
-	global.CACHE = make([]estructuras.DatoCACHE, global.CpuConfig.CacheEntries)
-	for i := range global.CACHE {
-		global.CACHE[i] = estructuras.DatoCACHE{
-			BitModificado: -1,
-			NroPagina:     -1,
-			Contenido:     "",
-			BitUso:        -1,
-		}
-	}
-}
