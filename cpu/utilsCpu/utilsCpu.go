@@ -11,11 +11,16 @@ import (
 	"net/http"
 )
 
-var lruCounter int
-
 var instruccionesConMMU = map[string]bool{
 	"WRITE": true,
 	"READ":  true,
+	"IO": false,
+	"BLOCKED": false,
+	"INIT_PROC": false,
+	"DUMP_MEMORY": false,
+	"EXIT": false,
+	"NOOP": false,
+	"GOTO": false,
 }
 
 type Instruccion struct {

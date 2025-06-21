@@ -83,7 +83,7 @@ func MemoriaEscribePaginaCompleta(direccionFisica int, datos string) error {
 	datosEnvio := estructuras.PedidoWRITE{
 		PID:             global.PCB_Actual.PID,
 		DireccionFisica: direccionFisica,
-		Datos:        	 "",
+		Datos:         "",
 	}
 
 	jsonData, err := json.Marshal(datosEnvio)
@@ -118,7 +118,7 @@ func MemoriaLeePaginaCompleta(direccionFisica int, tamanio int) (string ,error) 
 	if err != nil {
 		return "" , fmt.Errorf("error codificando pedido: %w", err)
 	}
-	url := fmt.Sprintf("http://%s:%d/leerMemoria", global.CpuConfig.Ip_Memoria, global.CpuConfig.Port_Memoria)
+	url := fmt.Sprintf("http://%s:%d/leerMemoria", global.CpuConfig.Ip_Memoria, global.CpuConfig.Port_Memoria) //!!cambiar al otro handler
 
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {

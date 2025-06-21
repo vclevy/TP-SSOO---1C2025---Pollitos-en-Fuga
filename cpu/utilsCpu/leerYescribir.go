@@ -8,6 +8,8 @@ import (
 	"time"
 )
 
+var lruCounter int
+
 func WRITE(instruccion Instruccion, cacheHabilitada bool, desplazamiento int, tlbHabilitada bool) {
 	dato := instruccion.Parametros[1]
 	if cacheHabilitada {
