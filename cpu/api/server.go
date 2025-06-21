@@ -12,7 +12,7 @@ func CrearServer() *server.Server {
 		Port: global.CpuConfig.Port_Cpu,
 		Handlers: map[string]http.HandlerFunc{
 			"POST /interrupt": handlers.Interrupcion,
-			"POST /asignacion": handlers.NuevoPCB,
+			"POST /dispatch": handlers.NuevoPCB,
  		},
 	}
 	fmt.Printf("🟢 CPU prendido en http://localhost:%d\n", global.CpuConfig.Port_Cpu)

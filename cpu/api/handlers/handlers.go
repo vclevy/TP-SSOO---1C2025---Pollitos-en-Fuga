@@ -22,24 +22,12 @@ func Interrupcion(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error al leer el cuerpo de la solicitud", http.StatusBadRequest)
 		return
 	}
-/* 
-	pid := global.PCB_Actual.PID
-	pc := global.PCB_Actual.PC */
 
 	global.PCB_Interrupcion = data
 
 	global.Interrupcion = true
-/* 	global.LoggerCpu.Log(fmt.Sprintf("Interrupción recibida para PID %d (PC: %d)", global.PCB_Actual.PID, global.PCB_Actual.PC), log.DEBUG) */
 	
-	global.LoggerCpu.Log(("## Llega interrupción al puerto Interrupt"), log.DEBUG) //!! Interrupción Recibida
-
-	/* response := estructuras.PCB{
-		PID : pid,
-		PC:  pc,
-	} */
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(global.PCB_Actual.PID)
+	global.LoggerCpu.Log(("## Llega interrupción al puerto Interrupt"), log.DEBUG) //!! Interrupción Recibida - logObligatorio
 }
 
 func NuevoPCB(w http.ResponseWriter, r *http.Request) {
@@ -57,19 +45,7 @@ func NuevoPCB(w http.ResponseWriter, r *http.Request) {
 
 	global.PCB_Actual = data
 
-	global.Interrupcion = true
 	global.LoggerCpu.Log(fmt.Sprintf("Fue asignado un nuevo proceso con PID %d y PC: %d", global.PCB_Actual.PID, global.PCB_Actual.PC), log.DEBUG)
-
-	response := estructuras.RespuestaCPU{
-		PID : global.PCB_Actual.PID,
-		PC:  global.PCB_Actual.PC,
-		Motivo: global.Motivo,
-		RafagaReal: global.Rafaga,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
 
 	utilsIo.CicloDeInstruccion()
 }
-

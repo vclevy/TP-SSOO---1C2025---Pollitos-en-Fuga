@@ -112,7 +112,6 @@ func Execute(instruccion Instruccion, requiereMMU bool) error {
 			WRITE(instruccion, global.CacheHabilitada, desplazamiento, global.TlbHabilitada)
 		}
 	}
-
 	return nil
 }
 
