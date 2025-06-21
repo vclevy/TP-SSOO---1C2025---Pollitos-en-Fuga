@@ -2,6 +2,7 @@ package utilsIo
 
 import (
 	"github.com/sisoputnfrba/tp-golang/cpu/global"
+	log "github.com/sisoputnfrba/tp-golang/utils/logger"
 )
 
 var fifoIndice int = 0
@@ -9,88 +10,61 @@ var punteroClock int = 0
 var punteroClockModificado int = 0
 var indiceLRU int = 0
 
-func AlgoritmoTLB() int { // la página no está en la tlb
-	if indiceVacioTLB() == -1 { // no hay indice vacio
-		if global.CpuConfig.TlbReplacement == "FIFO" {
-
-			indice := fifoIndice
-
-			fifoIndice = (fifoIndice + 1) % len(global.TLB)
-
-			return indice
-
-		} else if global.CpuConfig.TlbReplacement == "LRU" {
-			
-			minUso := global.TLB[0].UltimoUso
-			for i := 1; i < len(global.TLB); i++ {
-				if global.TLB[i].UltimoUso < minUso {
-					minUso = global.TLB[i].UltimoUso
-					indiceLRU = i
-				}
+func AlgoritmoTLB() int { // la página no está en la tlb y no hay indice vacio
+	if global.CpuConfig.TlbReplacement == "FIFO" {
+		indice := fifoIndice
+		fifoIndice = (fifoIndice + 1) % len(global.TLB)
+		return indice
+	} else if global.CpuConfig.TlbReplacement == "LRU" {
+		minUso := global.TLB[0].UltimoUso
+		for i := 1; i < len(global.TLB); i++ {
+			if global.TLB[i].UltimoUso < minUso {
+				minUso = global.TLB[i].UltimoUso
+				indiceLRU = i
 			}
-			
-			lruCounter++
-			global.TLB[indiceLRU].UltimoUso = lruCounter
-			return indiceLRU
 		}
+		lruCounter++
+		global.TLB[indiceLRU].UltimoUso = lruCounter
+		return indiceLRU
+	} else {
+		global.LoggerCpu.Log("El algoritmo no es FIFO ni LRU", log.ERROR)
+		return -1
 	}
-	return indiceVacioTLB()
 }
 
 func AlgoritmoCACHE() int { //CACHE: CLOCK o CLOCK-M
-	if indiceVacioCACHE() == -1 {
-    if(global.CpuConfig.CacheReplacement == "CLOCK") {
+	if global.CpuConfig.CacheReplacement == "CLOCK" {
 		for {
-        if global.CACHE[punteroClock].BitUso == 0 {
-            indice := punteroClock
-            punteroClock = (punteroClock + 1) % len(global.CACHE)
-            return indice
-        } else {
-            global.CACHE[punteroClock].BitUso = 0
-            punteroClock = (punteroClock + 1) % len(global.CACHE)
-        }
-	}
-    } else if(global.CpuConfig.CacheReplacement == "CLOCK-M"){
-		for {
-				// Paso 1: Buscar página con U=0, M=0
-				for i := 0; i < len(global.CACHE); i++ {
-					pos := (punteroClockModificado + i) % len(global.CACHE)
-					if global.CACHE[pos].BitUso == 0 && global.CACHE[pos].BitModificado == 0 {
-						punteroClockModificado = (pos + 1) % len(global.CACHE)
-						return pos
-					}
-				}
-
-				// Paso 2: Buscar página con U=0, M=1 y poner U=0 mientras se recorre
-				for i := 0; i < len(global.CACHE); i++ {
-					pos := (punteroClockModificado + i) % len(global.CACHE)
-					
-					if global.CACHE[pos].BitUso == 0 && global.CACHE[pos].BitModificado == 1 {
-						punteroClockModificado = (pos + 1) % len(global.CACHE)
-						return pos
-					}
-					global.CACHE[pos].BitUso = 0 // Poner BitUso en 0 mientras se recorre
-				}
+			if global.CACHE[punteroClock].BitUso == 0 {
+				indice := punteroClock
+				punteroClock = (punteroClock + 1) % len(global.CACHE)
+				return indice
+			} else {
+				global.CACHE[punteroClock].BitUso = 0
+				punteroClock = (punteroClock + 1) % len(global.CACHE)
 			}
 		}
-	}
-	return indiceVacioCACHE()
-}
+	} else if global.CpuConfig.CacheReplacement == "CLOCK-M" {
+		for {
+			for i := 0; i < len(global.CACHE); i++ { // Busco página con U=0, M=0
+				pos := (punteroClockModificado + i) % len(global.CACHE)
+				if global.CACHE[pos].BitUso == 0 && global.CACHE[pos].BitModificado == 0 {
+					punteroClockModificado = (pos + 1) % len(global.CACHE)
+					return pos
+				}
+			}
+			for i := 0; i < len(global.CACHE); i++ { // Busco página con U=0, M=1 y poner U=0 mientras se recorre
+				pos := (punteroClockModificado + i) % len(global.CACHE)
 
-func indiceVacioTLB() int {
-	for i := 0; i <= len(global.TLB)-1; i++ {
-		if global.TLB[i].NroPagina == -1 {
-			return i
+				if global.CACHE[pos].BitUso == 0 && global.CACHE[pos].BitModificado == 1 {
+					punteroClockModificado = (pos + 1) % len(global.CACHE)
+					return pos
+				}
+				global.CACHE[pos].BitUso = 0 // Pongo BitUso en 0 mientras se recorre
+			}
 		}
+	} else {
+		global.LoggerCpu.Log("El algoritmo no es CLOCK ni CLOCK-M", log.ERROR)
+		return -1
 	}
-	return -1
-}
-
-func indiceVacioCACHE() int {
-	for i := 0; i <= len(global.CACHE)-1; i++ {
-		if global.CACHE[i].NroPagina == -1 {
-			return i
-		}
-	}
-	return -1
 }

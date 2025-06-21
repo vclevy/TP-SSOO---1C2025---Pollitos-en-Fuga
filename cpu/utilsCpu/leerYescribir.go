@@ -5,6 +5,7 @@ import (
 	"github.com/sisoputnfrba/tp-golang/cpu/global"
 	log "github.com/sisoputnfrba/tp-golang/utils/logger"
 	"strconv"
+	"time"
 )
 
 func WRITE(instruccion Instruccion, cacheHabilitada bool, desplazamiento int, tlbHabilitada bool) {
@@ -94,4 +95,109 @@ func READ(instruccion Instruccion, cacheHabilitada bool, desplazamiento int, tlb
 			MemoriaLee(direccionFisica, tamanio)
 		}
 	}
+}
+
+func TlbHIT(pagina int) bool {
+	for i := 0; i <= len(global.TLB)-1; i++ {
+		if global.TLB[i].NroPagina == pagina {
+			global.LoggerCpu.Log(fmt.Sprintf("PID: %d - TLB HIT - Pagina: %d", global.PCB_Actual.PID, pagina), log.INFO) //todo TLB HIT
+			indice = i
+			return true
+		}
+	}
+	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - TLB MISS - Pagina: %d", global.PCB_Actual.PID, pagina), log.INFO) //todo TLB MISS
+	return false
+}
+
+func CacheHIT(pagina int) bool {
+	time.Sleep(global.CpuConfig.CacheDelay)
+	for i := 0; i <= len(global.CACHE)-1; i++ {
+		if global.CACHE[i].NroPagina == pagina {
+			global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Cache Hit - Pagina: %d", global.PCB_Actual.PID, pagina), log.INFO) //todo CACHE HIT
+			indice = i
+			return true
+		}
+	}
+	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Cache Miss - Pagina: %d", global.PCB_Actual.PID, pagina), log.INFO) //todo CACHE MISS
+	return false
+}
+
+func actualizarCACHE(pagina int, nuevoContenido string) {
+	time.Sleep(global.CpuConfig.CacheDelay)
+	var indicePisar int
+	indice := indicePaginaEnCache(pagina)
+	if indice == -1 { // no está la página en cache
+		if indiceVacioCACHE() == -1 { // no hay espacio vacio en cachce
+			indicePisar = AlgoritmoCACHE()
+		} else {
+			indicePisar = indiceVacioCACHE()
+		}
+		if global.CACHE[indicePisar].BitModificado == 1 {
+			global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Cache Add - Pagina: %d", global.PCB_Actual.PID, pagina), log.INFO)
+			desalojar(indicePisar)
+		}
+		global.CACHE[indicePisar].NroPagina = pagina
+		global.CACHE[indicePisar].Contenido = nuevoContenido
+		global.CACHE[indicePisar].BitModificado = 0
+	} else {
+		global.CACHE[indice].Contenido = nuevoContenido
+		global.CACHE[indice].BitModificado = 1
+	}
+}
+
+func actualizarTLB(pagina int, marco int) {
+	var indicePisar int
+	indice := indicePaginaEnTLB(pagina)
+	if indice == -1 { // no está la página
+		if indiceVacioTLB() == -1 {
+			indicePisar = AlgoritmoTLB()
+			lruCounter++
+		} else {
+			indicePisar = indiceVacioTLB()
+		}
+		global.TLB[indicePisar].UltimoUso = lruCounter
+		global.TLB[indicePisar].Marco = marco
+		global.TLB[indicePisar].NroPagina = pagina
+
+	} else {
+		global.TLB[indice].Marco = marco
+	}
+}
+
+func indicePaginaEnCache(pagina int) int {
+	for i := 0; i <= len(global.CACHE)-1; i++ {
+		if global.CACHE[i].NroPagina == pagina {
+			return i
+		}
+	}
+	return -1
+}
+
+func indicePaginaEnTLB(pagina int) int {
+	for i := 0; i <= len(global.TLB)-1; i++ {
+		if global.TLB[i].NroPagina == pagina {
+			global.TLB[i].UltimoUso = lruCounter
+
+			return i
+		}
+	}
+	return -1
+}
+
+func indiceVacioTLB() int {
+	for i := 0; i <= len(global.TLB)-1; i++ {
+		if global.TLB[i].NroPagina == -1 {
+			return i
+		}
+	}
+	return -1
+}
+
+func indiceVacioCACHE() int {
+	for i := 0; i <= len(global.CACHE)-1; i++ {
+		if global.CACHE[i].NroPagina == -1 {
+			return i
+		}
+	}
+	return -1
 }

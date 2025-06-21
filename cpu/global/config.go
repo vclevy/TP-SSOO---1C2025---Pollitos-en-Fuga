@@ -5,6 +5,7 @@ import (
 
 	utils "github.com/sisoputnfrba/tp-golang/utils/config"
 	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
+	"time"
 	logger "github.com/sisoputnfrba/tp-golang/utils/logger"
 )
 
@@ -22,7 +23,7 @@ type Config struct {
     TlbReplacement      string 	`json:"tlb_replacement"`
 	CacheEntries        int 	`json:"cache_entries"`
 	CacheReplacement	string		`json:"cache_replacement"`
-	CacheDelay			int		`json:"cache_delay"`
+	CacheDelay			time.Duration	`json:"cache_delay"`
 	LogLevel			string	`json:"log_level"`
 	LogFile				string  `json:"log_file"`
 }

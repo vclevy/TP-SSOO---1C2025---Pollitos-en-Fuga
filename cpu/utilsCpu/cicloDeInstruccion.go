@@ -7,7 +7,21 @@ import (
 	log "github.com/sisoputnfrba/tp-golang/utils/logger"
 	"strconv"
 	"strings"
+	"time"
 )
+
+var tiempoInicio time.Time
+
+func CicloDeInstruccion() {
+	var instruccionAEjecutar = Fetch()
+
+	instruccion, requiereMMU := Decode(instruccionAEjecutar)
+
+	tiempoInicio = time.Now()
+	Execute(instruccion, requiereMMU)
+
+	CheckInterrupt()
+}
 
 func Fetch() string {
 	pidActual := global.PCB_Actual.PID
@@ -47,6 +61,7 @@ func Execute(instruccion Instruccion, requiereMMU bool) error {
 	//todo INSTRUCCIONES SYSCALLS
 	if instruccion.Opcode == "IO" {
 		global.Motivo = "BLOCKED"
+		global.Rafaga = time.Since(tiempoInicio).Seconds()
 		cortoProceso()
 		Syscall_IO(instruccion)
 	}
@@ -58,7 +73,8 @@ func Execute(instruccion Instruccion, requiereMMU bool) error {
 	}
 	if instruccion.Opcode == "EXIT" {
 		global.Motivo = "EXIT"
-		cortoProceso()
+		global.Rafaga = time.Since(tiempoInicio).Seconds()		
+		DevolucionPID()
 		Syscall_Exit()
 	}
 
@@ -105,6 +121,7 @@ func Execute(instruccion Instruccion, requiereMMU bool) error {
 func CheckInterrupt() {
 	if global.Interrupcion {
 		global.Motivo = "READY"
+		global.Rafaga = time.Since(tiempoInicio).Seconds()
 		cortoProceso()
 		global.PCB_Actual = global.PCB_Interrupcion
 		global.Interrupcion = false

@@ -9,7 +9,6 @@ import (
 	log "github.com/sisoputnfrba/tp-golang/utils/logger"
 	"io"
 	"net/http"
-	"time"
 )
 
 var lruCounter int
@@ -21,7 +20,7 @@ var instruccionesConMMU = map[string]bool{
 
 type Instruccion struct {
 	Opcode     string   `json:"opcode"`     // El tipo de operación (e.g. WRITE, READ, GOTO, etc.)
-	Parametros []string `json:"parametros"` // Los parámetros de la instrucción, de tipo variable
+	Parametros []string `json:"parametros"` // Los parámetros de la instrucción
 }
 
 var configMMU estructuras.ConfiguracionMMU
@@ -30,7 +29,6 @@ var direccionFisica int
 var nroPagina int
 var indice int
 var Rafaga int
-var tiempoInicio time.Time
 
 func HandshakeKernel() error {
 	datosEnvio := estructuras.HandshakeConCPU{
@@ -93,8 +91,6 @@ func instruccionAEjecutar(estructuras.PCB) string {
 }
 
 func cortoProceso() error {
-	global.Rafaga = time.Since(tiempoInicio).Seconds()
-
 	datosEnvio := estructuras.RespuestaCPU{
 		PID:        global.PCB_Actual.PID,
 		PC:         global.PCB_Actual.PC,
@@ -122,91 +118,6 @@ func cortoProceso() error {
 	return nil
 }
 
-func CicloDeInstruccion() {
-	var instruccionAEjecutar = Fetch()
-
-	instruccion, requiereMMU := Decode(instruccionAEjecutar)
-
-	tiempoInicio = time.Now()
-	Execute(instruccion, requiereMMU)
-
-	CheckInterrupt()
-}
-
-func TlbHIT(pagina int) bool {
-	for i := 0; i <= len(global.TLB)-1; i++ {
-		if global.TLB[i].NroPagina == pagina {
-			global.LoggerCpu.Log(fmt.Sprintf("PID: %d - TLB HIT - Pagina: %d", global.PCB_Actual.PID, pagina), log.INFO) //todo TLB HIT
-			indice = i
-			return true
-		}
-	}
-	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - TLB MISS - Pagina: %d", global.PCB_Actual.PID, pagina), log.INFO) //todo TLB MISS
-	return false
-}
-
-func CacheHIT(pagina int) bool {
-	for i := 0; i <= len(global.CACHE)-1; i++ {
-		if global.CACHE[i].NroPagina == pagina {
-			global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Cache Hit - Pagina: %d", global.PCB_Actual.PID, pagina), log.INFO) //todo CACHE HIT
-			indice = i
-			return true
-		}
-	}
-	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Cache Miss - Pagina: %d", global.PCB_Actual.PID, pagina), log.INFO) //todo CACHE MISS
-	return false
-}
-
-func actualizarCACHE(pagina int, nuevoContenido string) {
-	indice := indicePaginaEnCache(pagina)
-	if indice == -2 { // no está la página en cache
-		indicePisar := AlgoritmoCACHE()
-		if global.CACHE[indicePisar].BitModificado == 1 {
-			global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Cache Add - Pagina: %d", global.PCB_Actual.PID, pagina), log.INFO)
-			desalojar(indicePisar)
-		}
-		global.CACHE[indicePisar].NroPagina = pagina
-		global.CACHE[indicePisar].Contenido = nuevoContenido
-		global.CACHE[indicePisar].BitModificado = 0
-	} else {
-		global.CACHE[indice].Contenido = nuevoContenido
-		global.CACHE[indice].BitModificado = 1
-	}
-}
-
-func actualizarTLB(pagina int, marco int) {
-	indice := indicePaginaEnTLB(pagina)
-	if indice == -2 { // no está la página
-		indicePisar := AlgoritmoTLB()
-		lruCounter++
-		global.TLB[indicePisar].UltimoUso = lruCounter
-		global.TLB[indicePisar].Marco = marco
-		global.TLB[indicePisar].NroPagina = pagina
-	} else {
-		global.TLB[indice].Marco = marco
-	}
-}
-
-func indicePaginaEnCache(pagina int) int {
-	for i := 0; i <= len(global.CACHE)-1; i++ {
-		if global.CACHE[i].NroPagina == pagina {
-			return i
-		}
-	}
-	return -2
-}
-
-func indicePaginaEnTLB(pagina int) int {
-	for i := 0; i <= len(global.TLB)-1; i++ {
-		if global.TLB[i].NroPagina == pagina {
-			global.TLB[i].UltimoUso = lruCounter
-
-			return i
-		}
-	}
-	return -2
-}
-
 func desalojar(indicePisar int) {
 	var marco int
 	if global.CpuConfig.TlbEntries > 0 && TlbHIT(global.CACHE[indicePisar].NroPagina) { // pagina en tlb
@@ -218,6 +129,56 @@ func desalojar(indicePisar int) {
 	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Memory Update - Página: %d - Frame: %d", global.PCB_Actual.PID, global.CACHE[indicePisar].NroPagina, marco), log.INFO) //?? la pagina que se desaloja, según el algoritmo
 
 	MemoriaEscribe(direccionFisica, global.CACHE[indicePisar].Contenido)
+}
+
+func DevolucionPID() error {
+	response := estructuras.RespuestaCPU{
+		PID:        global.PCB_Actual.PID,
+		PC:         global.PCB_Actual.PC,
+		Motivo:     global.Motivo,
+		RafagaReal: global.Rafaga,
+	}
+
+	jsonData, err := json.Marshal(response)
+	if err != nil {
+		return fmt.Errorf("error codificando pedido: %w", err)
+	}
+	url := fmt.Sprintf("http://%s:%d/devolucion", global.CpuConfig.Ip_Kernel, global.CpuConfig.Port_Kernel)
+
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		global.LoggerCpu.Log("Error enviando devolucióna Kernel: "+err.Error(), log.ERROR)
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("devolución a kernel fallida con status %d", resp.StatusCode)
+	}
+	global.LoggerCpu.Log("✅ Devolución de PID enviado a Kernel con éxito", log.INFO)
+
+	return nil
+}
+
+func InicializarEstructuras() {
+	global.TLB = make([]estructuras.DatoTLB, global.CpuConfig.TlbEntries)
+	for i := range global.TLB {
+		global.TLB[i] = estructuras.DatoTLB{
+			NroPagina: -1,
+			Marco:     -1,
+			UltimoUso: -1,
+		}
+	}
+
+	global.CACHE = make([]estructuras.DatoCACHE, global.CpuConfig.CacheEntries)
+	for i := range global.CACHE {
+		global.CACHE[i] = estructuras.DatoCACHE{
+			BitModificado: -1,
+			NroPagina:     -1,
+			Contenido:     "",
+			BitUso:        -1,
+		}
+	}
 }
 
 /*

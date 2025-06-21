@@ -5,6 +5,7 @@ import (
 	"os"
 	"github.com/sisoputnfrba/tp-golang/cpu/api"
 	"github.com/sisoputnfrba/tp-golang/cpu/global"
+	"github.com/sisoputnfrba/tp-golang/cpu/utilsCpu"
 	log "github.com/sisoputnfrba/tp-golang/utils/logger"
 )
 
@@ -26,7 +27,8 @@ func main() {
 			global.LoggerCpu.Log("Error al iniciar el servidor: "+err_server.Error(), log.ERROR)
 			os.Exit(1)
 		}
+		utilsIo.InicializarEstructuras()
 	}()
 	
-	select {}	
+	select {}
 }
