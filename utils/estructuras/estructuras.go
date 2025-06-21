@@ -3,7 +3,7 @@ package estructuras
 //esto se lo manda el kernel a memoria cuando quiere inicializar un proceso
 type PaqueteMemoria struct {
 	PID                 int    `json:"pid"`
-	ArchivoPseudocodigo string `json:"archivo_codigo"`
+	ArchivoPseudocodigo string `json:"archivoPseudocodigo"`
 	TamanioProceso      int    `json:"tamanioProceso"`
 }
 
