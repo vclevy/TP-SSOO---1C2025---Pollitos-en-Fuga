@@ -27,7 +27,6 @@ func main() {
 		}
 		}()
 
-
 	//TESTING
 	//probando creacion de TABLA DE PAGINAS y encontrar MARCO
 	// pid := 35

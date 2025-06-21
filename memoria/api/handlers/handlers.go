@@ -39,10 +39,9 @@ func InicializarProceso(w http.ResponseWriter, r *http.Request) {
 	ruta := filepath.Join(global.ConfigMemoria.Scripts_Path, archivoPseudocodigo)
 
 	log.Printf("PID %d - archivo: '%s' - ruta: '%s'\n", pid, archivoPseudocodigo, ruta)
-
 	espacioDisponible := utilsMemoria.HayLugar(tamanio)
 	if !espacioDisponible {
-		http.Error(w, "No hay suficiente espacio", http.StatusConflict)
+	http.Error(w, "No hay suficiente espacio", http.StatusConflict)
 	}
 
 	w.WriteHeader(http.StatusOK)
@@ -55,15 +54,12 @@ func InicializarProceso(w http.ResponseWriter, r *http.Request) {
 
 //KERNEL comprueba que haya espacio disponible en memoria antes de inicializar
 func VerificarEspacioDisponible(w http.ResponseWriter, r *http.Request) {
-	tamanioStr := r.URL.Query().Get("tamanio") // http/ip:puerto/verificarEspacioDisponoble?verificarEspacioDisponoble=432
-	
-	// Intentamos convertir el parámetro a entero
-	tamanio, err := strconv.Atoi(tamanioStr)
+	tamanioStr := r.URL.Query().Get("tamanio")
+	tamanio,err := strconv.Atoi(tamanioStr)
 	if err != nil {
-		http.Error(w, "Tamaño de proceso inválido", http.StatusBadRequest)
-		return
-	}
-	// Verificamos si hay suficiente espacio en la memoria
+		http.Error(w, "Tamano invalido", http.StatusConflict)
+		}
+		
 	espacioDisponible := utilsMemoria.HayLugar(tamanio)
 	if espacioDisponible {
 		// Si hay espacio, respondemos con un OK
