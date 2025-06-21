@@ -27,7 +27,11 @@ func main() {
 			global.LoggerCpu.Log("Error al iniciar el servidor: "+err_server.Error(), log.ERROR)
 			os.Exit(1)
 		}
-		utilsIo.InicializarEstructuras()
+		if(global.CacheHabilitada){
+			utilsIo.InicializarCACHE()
+		}else if(global.TlbHabilitada){
+			utilsIo.InicializarTLB()
+		}		
 	}()
 	
 	select {}

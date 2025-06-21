@@ -8,8 +8,6 @@ import (
 	"time"
 )
 
-var lruCounter int
-
 func WRITE(instruccion Instruccion, cacheHabilitada bool, desplazamiento int, tlbHabilitada bool) {
 	dato := instruccion.Parametros[1]
 	if cacheHabilitada {
@@ -52,7 +50,7 @@ func READ(instruccion Instruccion, cacheHabilitada bool, desplazamiento int, tlb
 	}
 
 	if cacheHabilitada {
-		if CacheHIT(nroPagina) {  //!! CACHE HIT
+		if CacheHIT(nroPagina) {
 			indice := indicePaginaEnCache(nroPagina)
 			global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: LEER - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, direccionFisica, global.CACHE[indice].Contenido), log.INFO)
 		} else {
@@ -150,19 +148,20 @@ func actualizarCACHE(pagina int, nuevoContenido string) {
 func actualizarTLB(pagina int, marco int) {
 	var indicePisar int
 	indice := indicePaginaEnTLB(pagina)
+	lruCounter ++
 	if indice == -1 { // no está la página
 		if indiceVacioTLB() == -1 {
 			indicePisar = AlgoritmoTLB()
-			lruCounter++
 		} else {
 			indicePisar = indiceVacioTLB()
 		}
-		global.TLB[indicePisar].UltimoUso = lruCounter
 		global.TLB[indicePisar].Marco = marco
 		global.TLB[indicePisar].NroPagina = pagina
+		global.TLB[indicePisar].UltimoUso = lruCounter
 
 	} else {
 		global.TLB[indice].Marco = marco
+		global.TLB[indice].UltimoUso = lruCounter
 	}
 }
 

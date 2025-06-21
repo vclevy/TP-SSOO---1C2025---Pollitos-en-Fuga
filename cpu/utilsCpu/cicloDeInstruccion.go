@@ -93,8 +93,6 @@ func Execute(instruccion Instruccion, requiereMMU bool) error {
 	//todo INSTRUCCIONES MMU
 	if requiereMMU {
 		var desplazamiento int
-		tlbHabilitada := global.CpuConfig.TlbEntries > 0
-		cacheHabilitada := global.CpuConfig.CacheEntries > 0
 
 		direccionLogicaStr := instruccion.Parametros[0]
 		direccionLogica, err := strconv.Atoi(direccionLogicaStr)
@@ -107,11 +105,11 @@ func Execute(instruccion Instruccion, requiereMMU bool) error {
 		}
 
 		if instruccion.Opcode == "READ" { // READ 0 20 - READ (Dirección, Tamaño)
-			READ(instruccion, cacheHabilitada, desplazamiento, tlbHabilitada, direccionLogica)
+			READ(instruccion, global.CacheHabilitada, desplazamiento, global.TlbHabilitada, direccionLogica)
 		}
 
 		if instruccion.Opcode == "WRITE" { // WRITE 0 EJEMPLO_DE_ENUNCIADO - WRITE (Dirección, Datos)
-			WRITE(instruccion, cacheHabilitada, desplazamiento, tlbHabilitada)
+			WRITE(instruccion, global.CacheHabilitada, desplazamiento, global.TlbHabilitada)
 		}
 	}
 

@@ -165,7 +165,7 @@ func DevolucionPID() error {
 	return nil
 }
 
-func InicializarEstructuras() {
+func InicializarTLB() {
 	global.TLB = make([]estructuras.DatoTLB, global.CpuConfig.TlbEntries)
 	for i := range global.TLB {
 		global.TLB[i] = estructuras.DatoTLB{
@@ -174,7 +174,9 @@ func InicializarEstructuras() {
 			UltimoUso: -1,
 		}
 	}
+}
 
+func InicializarCACHE() {
 	global.CACHE = make([]estructuras.DatoCACHE, global.CpuConfig.CacheEntries)
 	for i := range global.CACHE {
 		global.CACHE[i] = estructuras.DatoCACHE{
@@ -185,7 +187,6 @@ func InicializarEstructuras() {
 		}
 	}
 }
-
 /*
 LOGS:
 //Fetch Instrucción: “## PID: <PID> - FETCH - Program Counter: <PROGRAM_COUNTER>”.
