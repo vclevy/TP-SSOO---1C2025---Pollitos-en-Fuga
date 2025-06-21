@@ -125,7 +125,7 @@ func IO(w http.ResponseWriter, r *http.Request) {
 	nombre := syscall.IoSolicitada
 	tiempoUso := syscall.TiempoEstimado
 	pid := syscall.PIDproceso
-	
+
 	global.LoggerKernel.Log("## ("+strconv.Itoa(pid)+") - Solicitó syscall: <IO>", log.INFO)
 
 	global.IOListMutex.RLock()
@@ -144,18 +144,33 @@ func IO(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	procesoEncolado := &global.ProcesoIO{
+		Proceso:   proceso,
+		TiempoUso: tiempoUso,
+	}
+
+	// Paso 1: Ver si alguna cola de espera ya tiene procesos
+	for _, dispositivo := range dispositivos {
+		dispositivo.Mutex.Lock()
+		if len(dispositivo.ColaEspera) > 0 {
+			dispositivo.ColaEspera = append(dispositivo.ColaEspera, procesoEncolado)
+			dispositivo.Mutex.Unlock()
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		dispositivo.Mutex.Unlock()
+	}
+
+	// Paso 2: Si no hay colas, buscar un dispositivo libre
 	for _, dispositivo := range dispositivos {
 		dispositivo.Mutex.Lock()
 		if !dispositivo.Ocupado {
 			dispositivo.Ocupado = true
-			dispositivo.ProcesoEnUso = &global.ProcesoIO{
-				Proceso:   proceso,
-				TiempoUso: tiempoUso,
-			}
+			dispositivo.ProcesoEnUso = procesoEncolado
 			dispositivo.Mutex.Unlock()
 
-			global.LoggerKernel.Log("## ("+strconv.Itoa(dispositivo.ProcesoEnUso.Proceso.PID)+") - Bloqueado por IO: <"+dispositivo.Nombre+">", log.INFO)
-			go utilsKernel.EnviarAIO(dispositivo, proceso.PCB.PID, tiempoUso)
+			global.LoggerKernel.Log("## ("+strconv.Itoa(pid)+") - Bloqueado por IO: <"+dispositivo.Nombre+">", log.INFO)
+			go utilsKernel.EnviarAIO(dispositivo, pid, tiempoUso)
 
 			w.WriteHeader(http.StatusOK)
 			return
@@ -163,11 +178,7 @@ func IO(w http.ResponseWriter, r *http.Request) {
 		dispositivo.Mutex.Unlock()
 	}
 
-	procesoEncolado := &global.ProcesoIO{
-		Proceso:   proceso,
-		TiempoUso: tiempoUso,
-	}
-
+	// Paso 3: Si nadie tiene cola pero tampoco hay libres, encolar en el primero
 	primero := dispositivos[0]
 	primero.Mutex.Lock()
 	primero.ColaEspera = append(primero.ColaEspera, procesoEncolado)
@@ -175,6 +186,7 @@ func IO(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 }
+
 
 func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
 
@@ -223,7 +235,7 @@ func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
 	}
 
 	pid := mensaje.PID
-	fmt.Printf("Finalizó IO del PID: %d\n", pid)
+	global.LoggerKernel.Log(fmt.Sprintf("Finalizó IO del PID: %d\n", pid), log.DEBUG)
 
 	dispositivo := utilsKernel.BuscarDispositivoPorPID(pid)
 	if dispositivo == nil {
