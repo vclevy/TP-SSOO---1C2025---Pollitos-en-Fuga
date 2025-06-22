@@ -73,8 +73,7 @@ func MMU(desplazamiento int, marco int) int {
 	return direccionFisica
 }
 
-func pedirMarco(estructuras.AccesoTP) int {
-	var accesoTP estructuras.AccesoTP
+func pedirMarco(accesoTP estructuras.AccesoTP) int {
 
 	jsonData, err := json.Marshal(accesoTP)
 	if err != nil {

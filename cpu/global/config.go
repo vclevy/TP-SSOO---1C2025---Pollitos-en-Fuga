@@ -33,6 +33,7 @@ var Interrupcion bool
 var PCB_Actual estructuras.PCB
 var Motivo string
 var Rafaga float64
+var TamPagina int
 
 var CacheHabilitada bool
 var TlbHabilitada bool
@@ -84,7 +85,7 @@ func InicializarCACHE() {
 		CACHE[i] = estructuras.DatoCACHE{
 			BitModificado: -1,
 			NroPagina:     -1,
-			Contenido:     "",
+			Contenido:     make([]byte, TamPagina),
 			BitUso:        -1,
 		}
 	}

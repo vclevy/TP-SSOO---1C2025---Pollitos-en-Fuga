@@ -132,7 +132,7 @@ func desalojar(indicePisar int) {
 	direccionFisica = marco * configMMU.Tamanio_pagina
 	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Memory Update - Página: %d - Frame: %d", global.PCB_Actual.PID, global.CACHE[indicePisar].NroPagina, marco), log.INFO) //!! Página Actualizada de Caché a Memoria - LogObligatorio
 
-	MemoriaEscribePaginaCompleta(direccionFisica, global.CACHE[indicePisar].Contenido)
+	//MemoriaEscribePaginaCompleta(direccionFisica, global.CACHE[indicePisar].Contenido)
 }
 
 func DevolucionPID() error {
