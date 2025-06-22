@@ -60,13 +60,11 @@ func READ(instruccion Instruccion, cacheHabilitada bool, desplazamiento int, tlb
 				if TlbHIT(nroPagina) {
 					marco = global.TLB[indice].Marco
 					direccionFisica = MMU(desplazamiento, marco)
-					contenidoLeido,_ := MemoriaLee(direccionFisica, tamanio)//ver memoria lee
-
-					actualizarTLB(nroPagina, marco)
+					MemoriaLee(direccionFisica, tamanio)//ver memoria lee
 				} else {
 					marco = CalcularMarco()
 					direccionFisica = marco * configMMU.Tamanio_pagina + desplazamiento
-					contenidoLeido,_ := MemoriaLee(direccionFisica, tamanio)
+					MemoriaLee(direccionFisica, tamanio)
 					actualizarTLB(nroPagina, marco)
 					actualizarCACHE(nroPagina)
 				}
@@ -76,7 +74,7 @@ func READ(instruccion Instruccion, cacheHabilitada bool, desplazamiento int, tlb
 				paginaCompleta := global.CACHE[indice].Contenido
 				lectura := paginaCompleta[desplazamiento : desplazamiento + tamanio]
 
-				global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: LEER - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, direccionFisica,lectura, log.INFO))
+				global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: LEER - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, direccionFisica,lectura), log.INFO)
 			}
 		}
 	} else {
