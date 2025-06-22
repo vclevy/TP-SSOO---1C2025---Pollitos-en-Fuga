@@ -41,6 +41,7 @@ type Syscall_IO struct {
 }
 
 type Syscall_Init_Proc struct {
+	PID                 int    `json:"pid"`
 	ArchivoInstrucciones string `json:"archivoInstrucciones"`
 	Tamanio              int    `json:"tamanio"`
 }
@@ -101,3 +102,4 @@ type DatoCACHE struct {
 	Contenido     []byte
 	BitUso        int // 0 o 1
 }
+

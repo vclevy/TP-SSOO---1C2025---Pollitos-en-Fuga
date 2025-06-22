@@ -49,6 +49,7 @@ func Syscall_Init_Proc(instruccion Instruccion) {
 	}
 
 	syscall_Init_Proc := estructuras.Syscall_Init_Proc{
+		PID: global.PCB_Actual.PID,
 		ArchivoInstrucciones: instruccion.Parametros[0],
 		Tamanio:              tamanio,
 	}
