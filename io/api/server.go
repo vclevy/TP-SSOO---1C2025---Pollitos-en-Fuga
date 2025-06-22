@@ -16,6 +16,6 @@ func CrearServer() *server.Server {
 			"POST /procesoRecibido": handlers.ProcesoRecibidoHandler,
 		},
 	}
-	fmt.Printf("🟢 IO prendido en http://localhost:%d\n", global.IoConfig.Port_Io)
+	fmt.Printf("🟢 IO prendido en http://%s:%d\n",global.IoConfig.IPIo, global.IoConfig.Port_Io)
 	return server.NuevoServer(configServer)
 }
