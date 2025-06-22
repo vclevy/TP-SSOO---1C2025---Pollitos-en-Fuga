@@ -295,12 +295,16 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 			break
 		}
 	}
+	
 	global.MutexExecuting.Unlock()
-
+	
 	if proceso == nil {
-		global.LoggerKernel.Log(fmt.Sprintf("Proceso %d no encontrado en EXECUTING al devolver", resp.PID), log.DEBUG)
-		return
-	}
+	global.LoggerKernel.Log(fmt.Sprintf("Proceso %d no encontrado en EXECUTING al devolver", resp.PID), log.DEBUG)
+	return
+}
+
+global.LoggerKernel.Log(fmt.Sprintf("DEBUG: Proceso devuelto por CPU: %+v", proceso), log.DEBUG)
+
 
 	proceso.PCB.PC = resp.PC
 	RecalcularRafaga(proceso, resp.RafagaReal)
@@ -410,14 +414,12 @@ func FinalizarProceso(p *Proceso) {
 	global.EliminarProcesoDeCola(&global.ColaExecuting, p.PID)
 	global.MutexExecuting.Unlock()
 
-	global.MutexExit.Lock()
 	global.AgregarAExit(p)
-	global.MutexExit.Unlock()
 
 	global.LoggerKernel.Log(fmt.Sprintf("## (%d) - Finaliza el proceso", p.PID), log.INFO)
 
-	liberarPCB(p)
 	LoguearMetricas(p)
+	liberarPCB(p)
 
 	if !IntentarCargarDesdeSuspReady() {
 		// Si no había ninguno para mover desde SuspReady, notificar NEW

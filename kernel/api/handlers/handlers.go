@@ -323,6 +323,7 @@ func DevolucionCPUHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error al decodificar devolución", http.StatusBadRequest)
 		return
 	}
+	global.LoggerKernel.Log(fmt.Sprintf("HANDLER: Llegó devolución de CPU para PID %d. Motivo: %s", devolucion.PID, devolucion.Motivo), log.DEBUG)
 
 	go planificacion.ManejarDevolucionDeCPU(devolucion)
 	w.WriteHeader(http.StatusOK)

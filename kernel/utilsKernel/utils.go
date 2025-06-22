@@ -182,8 +182,6 @@ func EnviarInterrupcionCPU(cpu *global.CPU, pid int, pc int) (error) {
 	return nil
 }
 
-
-
 func HayCPUDisponible() bool {
 	for _, cpu := range global.CPUsConectadas {
 		if cpu.ProcesoEjecutando == nil {
