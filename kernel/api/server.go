@@ -14,7 +14,7 @@ func CrearServer() *server.Server {
 		Handlers: map[string]http.HandlerFunc{
 			"POST /handshakeCPU":   handlers.HandshakeConCPU,
 			"POST /handshakeIO":    handlers.RecibirPaquete,
-			"POST /syscallIO":      handlers.IO,
+			"POST /IO":      handlers.IO,
 			"POST /finalizacionIO": handlers.FinalizacionIO,
 			"POST /Init_Proc":      handlers.INIT_PROC,
 			"POST /exit":           handlers.EXIT,
