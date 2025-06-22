@@ -295,19 +295,19 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 			break
 		}
 	}
-	
 	global.MutexExecuting.Unlock()
-	
+
 	if proceso == nil {
-	global.LoggerKernel.Log(fmt.Sprintf("Proceso %d no encontrado en EXECUTING al devolver", resp.PID), log.DEBUG)
-	return
-}
+		global.LoggerKernel.Log(fmt.Sprintf("Proceso %d no encontrado en EXECUTING al devolver", resp.PID), log.DEBUG)
+		return
+	}
+
 	proceso.PCB.PC = resp.PC
 	RecalcularRafaga(proceso, resp.RafagaReal)
 
 	switch resp.Motivo {
 	case "EXIT":
-		FinalizarProceso(proceso) 
+		FinalizarProceso(proceso)
 
 	case "BLOCKED":
 		global.MutexExecuting.Lock()
@@ -325,6 +325,15 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 		ActualizarEstadoPCB(&proceso.PCB, READY)
 		global.AgregarAReady(proceso)
 
+		// Notificar al planificador solo si está esperando
+		select {
+		case global.NotifyReady <- struct{}{}:
+		default:
+		}
+	}
+
+	// Si el proceso no fue a READY, igual hay que notificar al planificador
+	if resp.Motivo != "READY" {
 		select {
 		case global.NotifyReady <- struct{}{}:
 		default:
