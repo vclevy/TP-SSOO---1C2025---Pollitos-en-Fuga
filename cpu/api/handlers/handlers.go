@@ -47,5 +47,7 @@ func NuevoPCB(w http.ResponseWriter, r *http.Request) {
 
 	global.LoggerCpu.Log(fmt.Sprintf("Fue asignado un nuevo proceso con PID %d y PC: %d", global.PCB_Actual.PID, global.PCB_Actual.PC), log.DEBUG)
 
-	utilsIo.CicloDeInstruccion()
+	for{
+		utilsIo.CicloDeInstruccion()
+	}
 }
