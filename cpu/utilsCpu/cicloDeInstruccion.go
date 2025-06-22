@@ -25,15 +25,15 @@ func CicloDeInstruccion() bool {
 
 	tiempoInicio = time.Now()
 
-	if(instruccion.Opcode == "EXIT"){		
+	/* if(instruccion.Opcode == "EXIT"){		
 		err := Execute(instruccion, requiereMMU)
 		if err != nil {
 			global.LoggerCpu.Log("Error ejecutando instrucción: "+err.Error(), log.ERROR)
 			return false
 		}
+		CheckInterrupt()
 		global.LoggerCpu.Log("🟦 Proceso finalizado (EXIT). Fin del ciclo", log.INFO)
-		CheckInterrupt()		
-	}
+	} */
 	
 	err := Execute(instruccion, requiereMMU)
 	if err != nil {
@@ -103,6 +103,7 @@ func Execute(instruccion Instruccion, requiereMMU bool) error {
 		global.Rafaga = time.Since(tiempoInicio).Seconds()		
 		Syscall_Exit()
 		DevolucionPID()
+		global.LoggerCpu.Log("🟦 Proceso finalizado (EXIT). Fin del ciclo", log.INFO)
 		return nil
 	}
 
@@ -177,42 +178,6 @@ func CheckInterrupt() {
 	}
 }
 
-/* func CargarConfigMMU() error {
-	url := fmt.Sprintf("http://%s:%d/configuracionMMU", CpuConfig.Ip_Memoria, CpuConfig.Port_Memoria)
-
-	resp, err := http.Post(url, "application/json", nil)
-	if err != nil {
-		LoggerCpu.Log("Error al conectar con Memoria:", log.ERROR)
-		return err
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		LoggerCpu.Log("Error leyendo respuesta de Memoria:", log.ERROR)
-		return err
-	}
-	
-	global.LoggerCpu.Log("JSON recibido de Memoria: "+string(body), log.DEBUG)
-
-	var anyJson map[string]interface{}
-err = json.Unmarshal(body, &anyJson)
-if err != nil {
-	global.LoggerCpu.Log("Error parseando JSON de prueba: "+err.Error(), log.ERROR)
-} else {
-	global.LoggerCpu.Log(fmt.Sprintf("DEBUG JSON deserializado: %+v", anyJson), log.DEBUG)
-}
-	if err != nil {
-		global.LoggerCpu.Log("Error parseando JSON de configuracion: "+err.Error(), log.ERROR)
-		return err
-	}
-
-	global.LoggerCpu.Log(fmt.Sprintf(" tamanioPagina: %d", ConfigMMU.Tamanio_pagina), log.INFO) 
-	global.LoggerCpu.Log(fmt.Sprintf(" cant n niveles: %d", ConfigMMU.Cant_N_Niveles), log.INFO) 
-	global.LoggerCpu.Log(fmt.Sprintf(" Cant_entradas_tabla: %d", ConfigMMU.Cant_entradas_tabla), log.INFO) 	
-
-	return nil
-} */
 func CargarConfigMMU() error {
 	url := fmt.Sprintf("http://%s:%d/configuracionMMU", global.CpuConfig.Ip_Memoria, global.CpuConfig.Port_Memoria)
 
