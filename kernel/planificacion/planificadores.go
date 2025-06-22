@@ -94,6 +94,14 @@ func IniciarPlanificadorLargoPlazo() {
 				global.MutexNew.Unlock()
 
 				if colaNewLen > 0 {
+					global.MutexSuspReady.Lock()
+					suspReadyVacio := len(global.ColaSuspReady) == 0
+					global.MutexSuspReady.Unlock()
+
+					if !suspReadyVacio {
+						break
+					}
+
 					switch global.ConfigKernel.ReadyIngressALgorithm {
 					case "FIFO":
 						global.MutexNew.Lock()
@@ -111,7 +119,6 @@ func IniciarPlanificadorLargoPlazo() {
 
 							ActualizarEstadoPCB(&proceso.PCB, READY)
 							global.AgregarAReady(proceso)
-							EvaluarDesalojo(proceso)
 						}
 
 					case "PMCP":
@@ -137,7 +144,6 @@ func IniciarPlanificadorLargoPlazo() {
 
 								ActualizarEstadoPCB(&proc.PCB, READY)
 								global.AgregarAReady(proc)
-								EvaluarDesalojo(proc)
 								break
 							}
 						}
@@ -487,37 +493,6 @@ func seleccionarProcesoSJF(usandoRestante bool) *global.Proceso {
 	global.ColaReady = global.ColaReady[1:]
 
 	return proceso
-}
-
-func EvaluarDesalojo(nuevo *global.Proceso) {
-	global.MutexExecuting.Lock()
-	defer global.MutexExecuting.Unlock()
-
-	if len(global.ColaExecuting) == 0 {
-		return
-	}
-
-	var procesoADesalojar *global.Proceso
-	maxRafaga := -1.0
-
-	for _, p := range global.ColaExecuting {
-		if p.EstimacionRafaga > maxRafaga {
-			maxRafaga = p.EstimacionRafaga
-			procesoADesalojar = p
-		}
-	}
-
-	if procesoADesalojar != nil && nuevo.EstimacionRafaga < maxRafaga {
-		cpu := utilskernel.BuscarCPUPorPID(procesoADesalojar.PCB.PID)
-		if cpu == nil {
-			global.LoggerKernel.Log(fmt.Sprintf("No se encontró CPU ejecutando proceso %d para interrupción", procesoADesalojar.PCB.PID), log.ERROR)
-			return
-		}
-		if err := utilskernel.EnviarInterrupcionCPU(cpu, procesoADesalojar.PCB.PID, procesoADesalojar.PCB.PC); err != nil {
-			global.LoggerKernel.Log(fmt.Sprintf("Error enviando interrupción: %v", err), log.ERROR)
-		}
-		global.LoggerKernel.Log(fmt.Sprintf("## (%d) - Desalojado por algoritmo SJF/SRT", procesoADesalojar.PCB.PID), log.INFO)
-	}
 }
 
 func RecalcularRafaga(proceso *Proceso, rafagaReal float64) {
