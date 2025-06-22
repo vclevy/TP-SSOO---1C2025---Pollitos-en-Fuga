@@ -182,21 +182,24 @@ func FinalizarProceso(pid int) string{
 
 
 //LECTURA
-func LeerMemoria(pid int, direccionFisica int, tamanio int) []byte{
+func LeerMemoria(pid int, direccionFisica int, tamanio int) string{
 	time.Sleep(time.Millisecond * time.Duration(Delay)) 
 
 	datos := MemoriaUsuario[direccionFisica : direccionFisica+tamanio] 
 	//Lee desde dirFisica hasta dirfisica+tamanio
 	metricas[pid].LecturasMemo++
 
-	return datos
+	return ArrayBytesToString(datos)
 
 }
 
-func LeerPaginaCompleta (pid int, direccionFisica int) []byte{ //Hace lo mismo que Devolver Lectura memoria, solo que el tamaño es el de la pagina
+func LeerPaginaCompleta (pid int, direccionFisica int) string{ //Hace lo mismo que Devolver Lectura memoria, solo que el tamaño es el de la pagina
 	time.Sleep(time.Millisecond * time.Duration(Delay))
 
-	//offset := direccionFisica%TamPagina
+	offset := direccionFisica%TamPagina
+	if(offset!=0){
+		return "Direccion fisica no alineada al byte 0 de la pagina"
+	}
 	return LeerMemoria(pid, direccionFisica, TamPagina)
 }
 

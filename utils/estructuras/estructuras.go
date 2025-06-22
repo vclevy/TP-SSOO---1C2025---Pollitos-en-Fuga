@@ -98,6 +98,6 @@ type DatoTLB struct {
 type DatoCACHE struct {
     BitModificado int
 	NroPagina int
-    Contenido []byte
+    Contenido string
 	BitUso    int // 0 o 1
 }
