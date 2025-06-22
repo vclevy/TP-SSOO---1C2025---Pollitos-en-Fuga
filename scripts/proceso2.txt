@@ -1,0 +1,5 @@
+WRITE 0 HOLA
+READ 0 4
+NOOP
+INIT_PROC proceso1.txt 40
+EXIT

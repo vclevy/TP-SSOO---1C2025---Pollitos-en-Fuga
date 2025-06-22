@@ -15,7 +15,7 @@ func CrearServer() *server.Server {
 		Handlers: map[string]http.HandlerFunc{
 			//usadas por el KERNEL
 			"POST /inicializarProceso": handlers.InicializarProceso,
-			"POST /verificarEspacioDisponible": handlers.VerificarEspacioDisponible,
+			"GET /verificarEspacioDisponible": handlers.VerificarEspacioDisponible,
 			"POST /finalizarProceso": handlers.FinalizarProceso,
 			"POST /suspension": handlers.Suspender,
 			"POST /dessuspension": handlers.DesSuspender,

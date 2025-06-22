@@ -2,11 +2,13 @@ package planificacion
 
 import (
 	"fmt"
+	"sort"
+	"time"
+
+	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
 	"github.com/sisoputnfrba/tp-golang/kernel/global"
 	utilskernel "github.com/sisoputnfrba/tp-golang/kernel/utilsKernel"
 	log "github.com/sisoputnfrba/tp-golang/utils/logger"
-	"sort"
-	"time"
 )
 
 const (
@@ -50,19 +52,19 @@ func CrearProceso(tamanio int, archivoPseudoCodigo string) *Proceso {
 
 func ActualizarEstadoPCB(pcb *PCB, nuevoEstado string) {
 	ahora := time.Now()
-	
+
 	if pcb.UltimoEstado != "" {
 		duracion := int(ahora.Sub(pcb.InicioEstado).Milliseconds())
 		pcb.MT[pcb.UltimoEstado] += duracion
 	}
-	
-	if(nuevoEstado != NEW){
+
+	if nuevoEstado != NEW {
 		global.LoggerKernel.Log(
 			fmt.Sprintf("## (%d) Pasa del estado %s al estado %s", pcb.PID, pcb.UltimoEstado, nuevoEstado),
 			log.INFO,
 		)
 	}
-	
+
 	pcb.ME[nuevoEstado] += 1
 	pcb.UltimoEstado = nuevoEstado
 	pcb.InicioEstado = ahora
@@ -92,7 +94,7 @@ func IniciarPlanificadorLargoPlazo() {
 				global.MutexNew.Unlock()
 
 				if colaNewLen > 0 {
-					switch global.ConfigKernel.SchedulerAlgorithm {
+					switch global.ConfigKernel.ReadyIngressALgorithm {
 					case "FIFO":
 						global.MutexNew.Lock()
 						if len(global.ColaNew) == 0 {
@@ -112,7 +114,7 @@ func IniciarPlanificadorLargoPlazo() {
 							EvaluarDesalojo(proceso)
 						}
 
-					case "CHICO":
+					case "PMCP":
 						global.MutexNew.Lock()
 						ordenada := make([]*global.Proceso, len(global.ColaNew))
 						copy(ordenada, global.ColaNew)
@@ -158,7 +160,6 @@ func IniciarPlanificadorLargoPlazo() {
 	}()
 }
 
-
 func IniciarPlanificadorCortoPlazo() {
 	go func() {
 		for {
@@ -200,6 +201,7 @@ func IniciarPlanificadorCortoPlazo() {
 				}
 
 				AsignarCPU(nuevoProceso)
+
 			}
 		}
 	}()
@@ -272,49 +274,66 @@ func AsignarCPU(proceso *global.Proceso) {
 	}(cpuLibre, proceso)
 }
 
-func ManejarDevolucionDeCPU(pid int, nuevoPC int, motivo string, rafagaReal float64) {
+func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 	var proceso *global.Proceso
 
 	// Liberar CPU que ejecutaba este proceso
 	global.MutexCPUs.Lock()
 	for _, cpu := range global.CPUsConectadas {
-		if cpu.ProcesoEjecutando != nil && cpu.ProcesoEjecutando.PID == pid {
+		if cpu.ProcesoEjecutando != nil && cpu.ProcesoEjecutando.PID == resp.PID {
 			cpu.ProcesoEjecutando = nil
 			break
 		}
 	}
 	global.MutexCPUs.Unlock()
 
+	// Buscar proceso sin removerlo todavía
 	global.MutexExecuting.Lock()
-	for i, p := range global.ColaExecuting {
-		if p.PCB.PID == pid {
+	for _, p := range global.ColaExecuting {
+		if p.PCB.PID == resp.PID {
 			proceso = p
-			global.ColaExecuting = append(global.ColaExecuting[:i], global.ColaExecuting[i+1:]... )
 			break
 		}
 	}
 	global.MutexExecuting.Unlock()
 
 	if proceso == nil {
-		global.LoggerKernel.Log(fmt.Sprintf("Proceso %d no encontrado en EXECUTING al devolver", pid), log.DEBUG)
+		global.LoggerKernel.Log(fmt.Sprintf("Proceso %d no encontrado en EXECUTING al devolver", resp.PID), log.DEBUG)
 		return
 	}
 
-	proceso.PCB.PC = nuevoPC
-	RecalcularRafaga(proceso, rafagaReal)
+	proceso.PCB.PC = resp.PC
+	RecalcularRafaga(proceso, resp.RafagaReal)
 
-	switch motivo {
+	switch resp.Motivo {
 	case "EXIT":
 		FinalizarProceso(proceso)
 
 	case "BLOCKED":
+		global.MutexExecuting.Lock()
+		global.EliminarProcesoDeCola(&global.ColaExecuting, proceso.PID)
+		global.MutexExecuting.Unlock()
+
 		ActualizarEstadoPCB(&proceso.PCB, BLOCKED)
 		global.AgregarABlocked(proceso)
 
 	case "READY":
+		global.MutexExecuting.Lock()
+		global.EliminarProcesoDeCola(&global.ColaExecuting, proceso.PID)
+		global.MutexExecuting.Unlock()
+
 		ActualizarEstadoPCB(&proceso.PCB, READY)
 		global.AgregarAReady(proceso)
 
+		// Notificar al planificador solo si está esperando
+		select {
+		case global.NotifyReady <- struct{}{}:
+		default:
+		}
+	}
+
+	// Si el proceso no fue a READY, igual hay que notificar al planificador
+	if resp.Motivo != "READY" {
 		select {
 		case global.NotifyReady <- struct{}{}:
 		default:
@@ -325,7 +344,7 @@ func ManejarDevolucionDeCPU(pid int, nuevoPC int, motivo string, rafagaReal floa
 func IniciarPlanificadorMedioPlazo() {
 	go func() {
 		for {
-			
+
 			global.MutexBlocked.Lock()
 			var nuevaColaBlocked []*global.Proceso
 			var procesosASuspender []*global.Proceso
@@ -400,15 +419,12 @@ func FinalizarProceso(p *Proceso) {
 	global.EliminarProcesoDeCola(&global.ColaExecuting, p.PID)
 	global.MutexExecuting.Unlock()
 
-	global.MutexExit.Lock()
 	global.AgregarAExit(p)
-	global.MutexExit.Unlock()
 
 	global.LoggerKernel.Log(fmt.Sprintf("## (%d) - Finaliza el proceso", p.PID), log.INFO)
 
-	liberarPCB(p)
 	LoguearMetricas(p)
-
+	liberarPCB(p)
 
 	if !IntentarCargarDesdeSuspReady() {
 		// Si no había ninguno para mover desde SuspReady, notificar NEW
@@ -446,7 +462,7 @@ func LoguearMetricas(p *Proceso) {
 		tiempo := p.MT[unEstado]
 		msg += fmt.Sprintf(" %s (%d) (%d),", unEstado, count, tiempo)
 	}
-	
+
 	msg = msg[:len(msg)-1]
 
 	global.LoggerKernel.Log(msg, log.INFO)
@@ -500,7 +516,7 @@ func EvaluarDesalojo(nuevo *global.Proceso) {
 		if err := utilskernel.EnviarInterrupcionCPU(cpu, procesoADesalojar.PCB.PID, procesoADesalojar.PCB.PC); err != nil {
 			global.LoggerKernel.Log(fmt.Sprintf("Error enviando interrupción: %v", err), log.ERROR)
 		}
-		global.LoggerKernel.Log(fmt.Sprintf("## (%d) - Desalojado por algoritmo SJF/SRT", procesoADesalojar.PCB.PID), log.INFO) 
+		global.LoggerKernel.Log(fmt.Sprintf("## (%d) - Desalojado por algoritmo SJF/SRT", procesoADesalojar.PCB.PID), log.INFO)
 	}
 }
 

@@ -49,6 +49,7 @@ func Syscall_Init_Proc(instruccion Instruccion) {
 	}
 
 	syscall_Init_Proc := estructuras.Syscall_Init_Proc{
+		PID: global.PCB_Actual.PID,
 		ArchivoInstrucciones: instruccion.Parametros[0],
 		Tamanio:              tamanio,
 	}
@@ -83,7 +84,7 @@ func Syscall_Dump_Memory() {
 }
 
 func Syscall_Exit() {
-	url := fmt.Sprintf("http://%s:%d/Exit?pid=%d", global.CpuConfig.Ip_Kernel, global.CpuConfig.Port_Kernel, global.PCB_Actual.PID) //url a la que se va a conectar
+	url := fmt.Sprintf("http://%s:%d/exit?pid=%d", global.CpuConfig.Ip_Kernel, global.CpuConfig.Port_Kernel, global.PCB_Actual.PID) //url a la que se va a conectar
 	resp, err := http.Post(url, "application/json", nil)                                                                            //se abre la conexión
 
 	if err != nil {

@@ -12,6 +12,7 @@ import (
 var ConfigKernel *Config
 var LoggerKernel *logger.LoggerStruct
 var UltimoPID int = 0
+var MutexUltimoPID sync.Mutex
 
 type PCB struct {
 	PID          int
@@ -31,16 +32,22 @@ type Proceso struct {
 }
 
 func NuevoPCB() *PCB {
+	MutexUltimoPID.Lock()
 	pid := UltimoPID
 	UltimoPID++
-
+	MutexUltimoPID.Unlock()
+	
 	return &PCB{
-		PID: pid,
-		PC:  0,
-		ME:  make(map[string]int),
-		MT:  make(map[string]int),
+		PID:          pid,
+		PC:           0,
+		ME:           make(map[string]int),
+		MT:           make(map[string]int),
+		UltimoEstado: "",
+		InicioEstado: time.Now(),
 	}
 }
+
+
 type Config struct {
 	IPMemory              string  `json:"ip_memory"`
 	Port_Memory           int     `json:"port_memory"`

@@ -75,10 +75,11 @@ func INIT_PROC(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	procesoCreado := planificacion.CrearProceso(syscall.Tamanio, syscall.ArchivoInstrucciones)
-	global.LoggerKernel.Log("## ("+strconv.Itoa(procesoCreado.PID)+") - Solicitó syscall: <INIT_PROC>", log.INFO)
-	global.LoggerKernel.Log(fmt.Sprintf("Proceso creado: %+v", procesoCreado), log.DEBUG)
+	planificacion.CrearProceso(syscall.Tamanio, syscall.ArchivoInstrucciones)
+	global.LoggerKernel.Log("## ("+strconv.Itoa(syscall.PID)+") - Solicitó syscall: <INIT_PROC>", log.INFO)
+	//global.LoggerKernel.Log(fmt.Sprintf("Proceso creado: %+v", procesoCreado), log.DEBUG)
 	//el log ya lo hace crearProceso
+
 }
 
 func HandshakeConCPU(w http.ResponseWriter, r *http.Request) { 
@@ -294,7 +295,7 @@ func DUMP_MEMORY(w http.ResponseWriter, r *http.Request) {
 
 	planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.BLOCKED)
 	global.AgregarABlocked(proceso)
-	global.LoggerKernel.Log("## ("+strconv.Itoa(pid)+") - Solicitó syscall: <INIT_PROC>", log.INFO)
+	global.LoggerKernel.Log("## ("+strconv.Itoa(pid)+") - Solicitó syscall: <DUMP_MEMORY>", log.INFO)
 
 
 	err := utilsKernel.SolicitarDumpAMemoria(pid)
@@ -323,7 +324,7 @@ func DevolucionCPUHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error al decodificar devolución", http.StatusBadRequest)
 		return
 	}
-
-	go planificacion.ManejarDevolucionDeCPU(devolucion.PID, devolucion.PC, devolucion.Motivo, devolucion.RafagaReal)
+	
+	go planificacion.ManejarDevolucionDeCPU(devolucion)
 	w.WriteHeader(http.StatusOK)
 }
