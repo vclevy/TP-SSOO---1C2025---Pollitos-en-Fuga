@@ -12,8 +12,9 @@ func WRITE(instruccion Instruccion, cacheHabilitada bool, desplazamiento int, tl
 	dato := instruccion.Parametros[1]
 	if cacheHabilitada {
 		if CacheHIT(nroPagina) {
-			indicePaginaEnCache(nroPagina)
-			global.CACHE[indice].Contenido = dato
+			indice := indicePaginaEnCache(nroPagina)
+			escribirEn := global.CACHE[indice].Contenido
+			copy(escribirEn[desplazamiento:], []byte(dato))
 			global.CACHE[indice].BitModificado = 1
 
 		} else {
@@ -42,6 +43,7 @@ func READ(instruccion Instruccion, cacheHabilitada bool, desplazamiento int, tlb
 	var marco int
 	tamanioStr := instruccion.Parametros[1]
 	tamanio, err := strconv.Atoi(tamanioStr)
+	global.TamPagina = tamanio
 	if err != nil {
 		global.LoggerCpu.Log("error al convertir tamanio", log.ERROR)
 	}
@@ -67,9 +69,6 @@ func READ(instruccion Instruccion, cacheHabilitada bool, desplazamiento int, tlb
 					actualizarCACHE(nroPagina, contenidoLeido)
 				}
 			} else {
-				marco = CalcularMarco()
-				direccionFisica = marco * configMMU.Tamanio_pagina + desplazamiento
-				contenidoLeido,_ := MemoriaLeePaginaCompleta(direccionFisica)
 				actualizarCACHE(nroPagina, contenidoLeido)
 			}
 		}
@@ -120,36 +119,28 @@ func CacheHIT(pagina int) bool {
 }
 
 func actualizarCACHE(pagina int, nuevoContenido string) {
-	global.LoggerCpu.Log("actualizar cache", log.INFO) 
-
 	time.Sleep(time.Millisecond * time.Duration(global.CpuConfig.CacheDelay))
-
-	global.LoggerCpu.Log("actualizar cache v.2", log.INFO) 
-
 	var indicePisar int
-	indice := indicePaginaEnCache(pagina)
-	if indice == -1 { // no está la página en cache
-		if indiceVacioCACHE() == -1 { // no hay espacio vacio en cachce
-			global.LoggerCpu.Log("no está la pagina y no hay indice vacio", log.INFO) 
-			indicePisar = AlgoritmoCACHE()
-		} else {
-			global.LoggerCpu.Log("no está la pagina y hay indice vacio", log.INFO) 
-			indicePisar = indiceVacioCACHE()
-		}
-		if global.CACHE[indicePisar].BitModificado == 1 {
-			global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Cache Add - Pagina: %d", global.PCB_Actual.PID, pagina), log.INFO) //!! Página ingresada en Caché - logObligatorio
-			desalojar(indicePisar)
-		}
-		global.LoggerCpu.Log("modificar la página que se insertó", log.INFO) 
-		global.CACHE[indicePisar].NroPagina = pagina
-		global.CACHE[indicePisar].Contenido = nuevoContenido
-		global.CACHE[indicePisar].BitModificado = 0
-	} else {
-		global.LoggerCpu.Log("modificar la página que ya estaba", log.INFO) 
-		global.CACHE[indice].Contenido = nuevoContenido
-		global.CACHE[indice].BitModificado = 1
+	if indiceVacioCACHE() == -1 { // no hay espacio vacio en cachce
+		global.LoggerCpu.Log("no está la pagina y no hay indice vacio", log.INFO) 
+		indicePisar = AlgoritmoCACHE()
+	} else { // hay espacio vacio en cachce
+		global.LoggerCpu.Log("no está la pagina y hay indice vacio", log.INFO) 
+		indicePisar = indiceVacioCACHE()
 	}
-}
+	if global.CACHE[indicePisar].BitModificado == 1 {
+		global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Cache Add - Pagina: %d", global.PCB_Actual.PID, pagina), log.INFO) //!! Página ingresada en Caché - logObligatorio
+		desalojar(indicePisar)
+	}
+	global.LoggerCpu.Log("modificar la página que se insertó", log.INFO) 
+	marco := CalcularMarco()
+	dirFisicaSinDesplazamiento := MMU(0,marco)
+	lecturaPagina := MemoriaLeePaginaCompleta(dirFisicaSinDesplazamiento)
+	global.CACHE[indicePisar].NroPagina = pagina
+	global.CACHE[indicePisar].Contenido = lecturaPagina
+	global.CACHE[indicePisar].BitModificado = 0
+	} 
+
 
 func actualizarTLB(pagina int, marco int) {
 	var indicePisar int
