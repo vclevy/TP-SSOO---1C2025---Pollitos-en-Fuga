@@ -173,7 +173,7 @@ func FinalizarProceso(pid int) string{
 }
 
 //LECTURA
-func LeerMemoria(pid int, direccionFisica int, tamanio int) string{
+func LeerMemoria(pid int, direccionFisica int, tamanio int) []byte {
 	time.Sleep(time.Millisecond * time.Duration(Delay)) 
 	
 	global.MutexMemoriaUsuario.Lock()
@@ -182,8 +182,7 @@ func LeerMemoria(pid int, direccionFisica int, tamanio int) string{
 
 	metricas[pid].LecturasMemo++
 
-	return ArrayBytesToString(datos)
-
+	return datos
 }
 
 func LeerPaginaCompleta (pid int, direccionFisica int) []byte{ //Hace lo mismo que Devolver Lectura memoria, solo que el tamaño es el de la pagina
@@ -191,13 +190,7 @@ func LeerPaginaCompleta (pid int, direccionFisica int) []byte{ //Hace lo mismo q
 	if(offset!=0){
 		fmt.Printf("Error: direccion física no alineada al byte 0 de la pagina\n")
 	}
-func LeerPaginaCompleta (pid int, direccionFisica int) string{ //Hace lo mismo que Devolver Lectura memoria, solo que el tamaño es el de la pagina
-	time.Sleep(time.Millisecond * time.Duration(Delay))
 
-	offset := direccionFisica%TamPagina
-	if(offset!=0){
-		return "Direccion fisica no alineada al byte 0 de la pagina"
-	}
 	return LeerMemoria(pid, direccionFisica, TamPagina)
 }
 
