@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"os"
 	"github.com/sisoputnfrba/tp-golang/cpu/api"
+
 	"github.com/sisoputnfrba/tp-golang/cpu/global"
 	utilsCpu "github.com/sisoputnfrba/tp-golang/cpu/utilsCpu"
 	log "github.com/sisoputnfrba/tp-golang/utils/logger"
 )
+
 
 func main() {
 	if len(os.Args) < 2 {

@@ -179,8 +179,6 @@ func FinalizarProceso(pid int) string{
 		return metricasLoggear
 }
 
-
-
 //LECTURA
 func LeerMemoria(pid int, direccionFisica int, tamanio int) string{
 	time.Sleep(time.Millisecond * time.Duration(Delay)) 
@@ -204,12 +202,11 @@ func LeerPaginaCompleta (pid int, direccionFisica int) string{ //Hace lo mismo q
 }
 
 //ESCRITURA
-func EscribirDatos(pid int, direccionFisica int, datos string) { 
+func EscribirDatos(pid int, direccionFisica int, datos []byte) { 
 	
 	time.Sleep(time.Millisecond * time.Duration(Delay))
 	//se para en la posicion pedida y escribe de ahi en adelante
-	bytesDatos := []byte(datos)
-    tamanioDatos := len(bytesDatos)
+    tamanioDatos := len(datos)
 
     // Validación de límites de memoria
     if direccionFisica+tamanioDatos > len(MemoriaUsuario) {
@@ -217,11 +214,11 @@ func EscribirDatos(pid int, direccionFisica int, datos string) {
         return
     }
 
-    copy(MemoriaUsuario[direccionFisica:], bytesDatos)
+    copy(MemoriaUsuario[direccionFisica:], datos)
     metricas[pid].EscriturasMemo++
 }
 
-func ActualizarPaginaCompleta (pid int, direccionFisica int, datos string) {
+func ActualizarPaginaCompleta (pid int, direccionFisica int, datos []byte) {
 	time.Sleep(time.Millisecond * time.Duration(Delay))
 
 	offset := direccionFisica%TamPagina
@@ -439,6 +436,7 @@ func HayLugar(tamanio int)(bool){
 	return cantMarcosNecesitados <= cantMarcosLibres
 }
 
+//ver
 func ArrayBytesToString(data []byte) string {
     // Primero lo convertís a string
     str := string(data)

@@ -125,13 +125,17 @@ func Execute(instruccion Instruccion, requiereMMU bool) error {
 		if err != nil {
 			return fmt.Errorf("error al convertir dirección logica")
 		} else {
-			err := ConfigMMU()
+			/* err := ConfigMMU()
 			if err != nil {
 				    global.LoggerCpu.Log("Error en ConfigMMU: "+err.Error(), log.ERROR)
 
+			} */
+			if global.ConfigMMU.Tamanio_pagina == 0 {
+				global.LoggerCpu.Log("Error: Tamanio_pagina es 0 antes de calcular el desplazamiento", log.ERROR)
+				return nil
 			}
-			desplazamiento = direccionLogica % configMMU.Tamanio_pagina
-			nroPagina = direccionLogica / configMMU.Tamanio_pagina
+			desplazamiento = direccionLogica % global.ConfigMMU.Tamanio_pagina
+			nroPagina = direccionLogica / global.ConfigMMU.Tamanio_pagina
 		}
 
 		if instruccion.Opcode == "READ" { // READ 0 20 - READ (Dirección, Tamaño)
@@ -155,6 +159,5 @@ func CheckInterrupt() {
 	}else{
 		global.LoggerCpu.Log(("No hay interrupción"), log.INFO) 
 		global.PCB_Actual.PC = global.PCB_Actual.PC + 1
-		/* CicloDeInstruccion() */
 	}
 }

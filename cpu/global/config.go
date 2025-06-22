@@ -7,8 +7,13 @@ import (
 	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
 	logger "github.com/sisoputnfrba/tp-golang/utils/logger"
 	"os"
+	"encoding/json"
+	"io"
+	"net/http"
+	log "github.com/sisoputnfrba/tp-golang/utils/logger"
 )
 
+var ConfigMMU estructuras.ConfiguracionMMU
 var CpuConfig *Config
 var LoggerCpu *logger.LoggerStruct
 
@@ -88,4 +93,31 @@ func InicializarCACHE() {
 			BitUso:        -1,
 		}
 	}
+}
+
+func CargarConfigMMU() error {
+	url := fmt.Sprintf("http://%s:%d/configuracionMMU", CpuConfig.Ip_Memoria, CpuConfig.Port_Memoria)
+
+	resp, err := http.Post(url, "application/json", nil)
+	if err != nil {
+		LoggerCpu.Log("Error al conectar con Memoria:", log.ERROR)
+		return err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		LoggerCpu.Log("Error leyendo respuesta de Memoria:", log.ERROR)
+		return err
+	}
+
+	LoggerCpu.Log("JSON recibido de Memoria: "+string(body), log.DEBUG)
+
+	err = json.Unmarshal(body, &ConfigMMU)
+	if err != nil {
+		LoggerCpu.Log("Error parseando JSON de configuracion: "+err.Error(), log.ERROR)
+		return err
+	}
+
+	return nil
 }
