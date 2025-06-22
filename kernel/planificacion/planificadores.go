@@ -302,10 +302,6 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 	global.LoggerKernel.Log(fmt.Sprintf("Proceso %d no encontrado en EXECUTING al devolver", resp.PID), log.DEBUG)
 	return
 }
-
-global.LoggerKernel.Log(fmt.Sprintf("DEBUG: Proceso devuelto por CPU: %+v", proceso), log.DEBUG)
-
-
 	proceso.PCB.PC = resp.PC
 	RecalcularRafaga(proceso, resp.RafagaReal)
 
