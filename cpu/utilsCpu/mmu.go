@@ -41,8 +41,8 @@ import (
 } */
 
 func armarListaEntradas(nroPagina int) []int {
-	cantNiveles := global.ConfigMMU.Cant_N_Niveles
-	cantEntradas := global.ConfigMMU.Cant_entradas_tabla
+	cantNiveles := ConfigMMU.Cant_N_Niveles
+	cantEntradas := ConfigMMU.Cant_entradas_tabla
 
 	entradas := make([]int, cantNiveles)
 
@@ -97,7 +97,7 @@ func BuscarMarcoEnMemoria(nroPagina int) int {
 }
 
 func MMU(desplazamiento int, marco int) int {
-	direccionFisica = marco*global.ConfigMMU.Tamanio_pagina + desplazamiento
+	direccionFisica = marco* ConfigMMU.Tamanio_pagina + desplazamiento
 	return direccionFisica
 }
 

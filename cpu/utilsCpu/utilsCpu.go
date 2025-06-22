@@ -79,8 +79,8 @@ func instruccionAEjecutar(solicitudInstruccion estructuras.PCB) string {
 	}
 	defer resp.Body.Close() //se cierra la conexión
 
-	global.LoggerCpu.Log("✅ Solicitud enviada a Memoria de forma exitosa", log.INFO)
-
+/* 	global.LoggerCpu.Log("✅ Solicitud enviada a Memoria de forma exitosa", log.INFO)
+ */
 	//respuesta
 	body, _ := io.ReadAll(resp.Body)
 
@@ -153,7 +153,7 @@ func DevolucionPID() error {
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("devolución a kernel fallida con status %d", resp.StatusCode)
 	}
-	global.LoggerCpu.Log("✅ Devolución de PID enviado a Kernel con éxito", log.INFO)
+	/* global.LoggerCpu.Log("✅ Devolución de PID enviado a Kernel con éxito", log.INFO) */
 
 	return nil
 }
