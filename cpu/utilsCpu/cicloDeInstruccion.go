@@ -20,16 +20,6 @@ func CicloDeInstruccion() bool {
 	instruccion, requiereMMU := Decode(instruccionAEjecutar)
 
 	tiempoInicio = time.Now()
-
-	if(instruccion.Opcode == "EXIT"){		
-		err := Execute(instruccion, requiereMMU)
-		if err != nil {
-			global.LoggerCpu.Log("Error ejecutando instrucción: "+err.Error(), log.ERROR)
-			return false
-		}
-		global.LoggerCpu.Log("Proceso finalizado (EXIT). Fin del ciclo", log.INFO)
-		CheckInterrupt()		
-	}
 	
 	err := Execute(instruccion, requiereMMU)
 	if err != nil {
