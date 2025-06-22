@@ -6,6 +6,7 @@ import (
 	"github.com/sisoputnfrba/tp-golang/memoria/utilsMemoria"
 	"github.com/sisoputnfrba/tp-golang/utils/logger"
 	//"github.com/sisoputnfrba/tp-golang/utils/paquetes"
+	//"fmt"
 )
 
 //CONEXIÓN;
@@ -114,6 +115,19 @@ func main() {
 	// fmt.Printf("Tablas de páginas del proceso PID %d:\n", pid4)
 	// utilsMemoria.ImprimirTabla(utilsMemoria.TablasPorProceso[pid4].SiguienteNivel, 1, "")
 	
+	//---------probando SWAP
+	// pid := 1
+	// tamanio := 500
+
+	// utilsMemoria.InicializarMetricas(pid)
+	// utilsMemoria.CrearTablaPaginas(pid,tamanio)
+
+	// fmt.Printf("Tablas de páginas del proceso PID %d:\n", pid)
+	// utilsMemoria.ImprimirTabla(utilsMemoria.TablasPorProceso[pid].SiguienteNivel, 1, "")
+
+	// utilsMemoria.AsignarMarcosATablaExistente(pid, []int{6,9,0,4,12,3,8,1})
+	// fmt.Printf("Tablas de páginas del proceso PID %d:\n CON NUEVOS MARCOS", pid)
+	// utilsMemoria.ImprimirTabla(utilsMemoria.TablasPorProceso[pid].SiguienteNivel, 1, "")
 
 	select{}
 }

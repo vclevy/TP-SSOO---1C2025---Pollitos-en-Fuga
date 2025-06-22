@@ -233,8 +233,8 @@ func EscribirMemoria(w http.ResponseWriter, r *http.Request) {
 	utilsMemoria.EscribirDatos(pid, direccionFisica, datos)
 
 	w.WriteHeader(http.StatusOK)
-
-	global.LoggerMemoria.Log(fmt.Sprintf("## PID: <%d> - <Escritura> - Dir. Física: <%d> - Datos: <%s> ", pid, direccionFisica,datos), myLogger.INFO) //!! Fetch Instrucción - logObligatorio
+	tamanio := len(datos)
+	global.LoggerMemoria.Log(fmt.Sprintf("## PID: <%d> - <Escritura> - Dir. Física: <%d> - Tamaño: <%d> ", pid, direccionFisica,tamanio), myLogger.INFO) //!! Fetch Instrucción - logObligatorio
 
 }
 

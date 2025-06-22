@@ -3,6 +3,7 @@ package global
 import(
 	logger "github.com/sisoputnfrba/tp-golang/utils/logger"
 	utils "github.com/sisoputnfrba/tp-golang/utils/config"
+	"sync"
 )
 var ConfigMemoria *Config
 var LoggerMemoria *logger.LoggerStruct
@@ -32,3 +33,8 @@ func InitGlobal() {
 	LoggerMemoria = logger.ConfigurarLogger(ConfigMemoria.Log_file, ConfigMemoria.Log_Level)
     LoggerMemoria.Log("Logger de Memoria inicializado", logger.DEBUG)
 }
+
+var MutexMemoriaUsuario sync.Mutex
+var MutexSwap sync.Mutex
+var MutexInstrucciones sync.Mutex
+var MutexMarcos sync.Mutex
