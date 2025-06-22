@@ -50,10 +50,11 @@ func MemoriaLee(direccionFisica int, tamanio int) error {
 }
 
 func MemoriaEscribe(direccionFisica int, datos string) error {
+
 	datosEnvio := estructuras.PedidoWRITE{
 		PID:             global.PCB_Actual.PID,
 		DireccionFisica: direccionFisica,
-		Datos:           datos,
+		Datos:           []byte(datos),
 	}
 
 	jsonData, err := json.Marshal(datosEnvio)
@@ -79,7 +80,7 @@ func MemoriaEscribe(direccionFisica int, datos string) error {
 	return nil
 }
 
-func MemoriaEscribePaginaCompleta(direccionFisica int, datos string) error {
+func MemoriaEscribePaginaCompleta(direccionFisica int, datos []byte) error {
 	datosEnvio := estructuras.PedidoWRITE{
 		PID:             global.PCB_Actual.PID,
 		DireccionFisica: direccionFisica,

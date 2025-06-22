@@ -79,7 +79,7 @@ func CalcularMarco() int {
 			global.TLB[indiceHIT].UltimoUso = lruCounter
 			return global.TLB[indiceHIT].Marco
 		} else { // CASO: NO esta en la TLB
-			return actualizarTLB(nroPagina)
+			return actualizarTLB()
 		}
 	}
 	//TLB NO ESTA HABILITADA

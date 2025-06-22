@@ -4,23 +4,24 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+
 	"github.com/sisoputnfrba/tp-golang/cpu/global"
 	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
 	log "github.com/sisoputnfrba/tp-golang/utils/logger"
-	"io"
-	"net/http"
 )
 
 var instruccionesConMMU = map[string]bool{
-	"WRITE": true,
-	"READ":  true,
-	"IO": false,
-	"BLOCKED": false,
-	"INIT_PROC": false,
+	"WRITE":       true,
+	"READ":        true,
+	"IO":          false,
+	"BLOCKED":     false,
+	"INIT_PROC":   false,
 	"DUMP_MEMORY": false,
-	"EXIT": false,
-	"NOOP": false,
-	"GOTO": false,
+	"EXIT":        false,
+	"NOOP":        false,
+	"GOTO":        false,
 }
 
 type Instruccion struct {
@@ -123,16 +124,11 @@ func cortoProceso() error {
 }
 
 func desalojar(indicePisar int) {
-	var marco int
-	if global.CpuConfig.TlbEntries > 0 && TlbHIT(global.CACHE[indicePisar].NroPagina) { // pagina en tlb
-		marco = global.TLB[indicePisar].Marco
-	} else {
-		marco = CalcularMarco()
-	}
-	direccionFisica = marco * configMMU.Tamanio_pagina
-	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Memory Update - Página: %d - Frame: %d", global.PCB_Actual.PID, global.CACHE[indicePisar].NroPagina, marco), log.INFO) //!! Página Actualizada de Caché a Memoria - LogObligatorio
+	marco := CalcularMarco()
+	direccionFisica := MMU(0, marco)
 
-	//MemoriaEscribePaginaCompleta(direccionFisica, global.CACHE[indicePisar].Contenido)
+	MemoriaEscribePaginaCompleta(direccionFisica, global.CACHE[indicePisar].Contenido)
+	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Memory Update - Página: %d - Frame: %d", global.PCB_Actual.PID, global.CACHE[indicePisar].NroPagina, marco), log.INFO) //!! Página Actualizada de Caché a Memoria - LogObligatorio
 }
 
 func DevolucionPID() error {
@@ -163,4 +159,3 @@ func DevolucionPID() error {
 
 	return nil
 }
-

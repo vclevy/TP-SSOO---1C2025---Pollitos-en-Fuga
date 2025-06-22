@@ -10,6 +10,7 @@ import (
 	myLogger "github.com/sisoputnfrba/tp-golang/utils/logger"
 	estructuras "github.com/sisoputnfrba/tp-golang/utils/estructuras"
 	"log"
+	"fmt"
 )
 
 type PaqueteMemoria = estructuras.PaqueteMemoria
@@ -233,9 +234,10 @@ func EscribirMemoria(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 
-	global.LoggerMemoria.Log("## PID: <"+ strconv.Itoa(pid) +">- <Escritura> - Dir. Física: <"+ 
-	strconv.Itoa(direccionFisica) +"> - Datos: <"+ datos + "> ",  myLogger.INFO)
+	global.LoggerMemoria.Log(fmt.Sprintf("## PID: <%d> - <Escritura> - Dir. Física: <%d> - Datos: <%s> ", pid, direccionFisica,datos), myLogger.INFO) //!! Fetch Instrucción - logObligatorio
+
 }
+
 
 func LeerPaginaCompleta(w http.ResponseWriter, r *http.Request){
 	if r.Method != http.MethodPost {

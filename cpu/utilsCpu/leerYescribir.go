@@ -4,12 +4,13 @@ import (
 	"fmt"
 	"github.com/sisoputnfrba/tp-golang/cpu/global"
 	log "github.com/sisoputnfrba/tp-golang/utils/logger"
-/* 	"strconv" */
+	"strconv"
 	"time"
 )
 
 func WRITE(instruccion Instruccion, cacheHabilitada bool, desplazamiento int, tlbHabilitada bool) {
 	datos := instruccion.Parametros[1]
+	//bit uso ver
 	if cacheHabilitada { //CACHE HABILITADA
 		if CacheHIT(nroPagina) {//CACHE HIT
 			indice := indicePaginaEnCache(nroPagina)			
@@ -17,7 +18,7 @@ func WRITE(instruccion Instruccion, cacheHabilitada bool, desplazamiento int, tl
 			global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: ESCRIBIR - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, 0, datos), log.INFO) //!! Lectura/Escritura Memoria - logObligatorio	
 			
 		} else {//CACHE MISS
-			indiceEscribir,dirFisicaSinDespl := actualizarCACHE(nroPagina)
+			indiceEscribir,dirFisicaSinDespl := actualizarCACHE()
 			escribirCache(indiceEscribir, datos, desplazamiento)
 			global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: ESCRIBIR - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, (dirFisicaSinDespl + desplazamiento), datos), log.INFO)
 		}
@@ -29,62 +30,29 @@ func WRITE(instruccion Instruccion, cacheHabilitada bool, desplazamiento int, tl
 }
 
 func READ(instruccion Instruccion, cacheHabilitada bool, desplazamiento int, tlbHabilitada bool, direccionLogica int) {
-	/* var marco int
 	tamanioStr := instruccion.Parametros[1]
-	tamanio, err := strconv.Atoi(tamanioStr)
-	global.TamPagina = tamanio
-	if err != nil {
-		global.LoggerCpu.Log("error al convertir tamanio", log.ERROR)
-	}
-//cambiar todas las lecturas
-	if cacheHabilitada {
-		if CacheHIT(nroPagina) {
-			indice := indicePaginaEnCache(nroPagina)
-			paginaCompleta := global.CACHE[indice].Contenido
-			lectura := paginaCompleta[desplazamiento : desplazamiento + tamanio]
+    tamanio, err := strconv.Atoi(tamanioStr)
 
-			global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: LEER - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, direccionFisica, lectura), log.INFO) //!! LECTURA SIN ACCEDER A MEMORIA (Desde caché)
-		} else {
-			if tlbHabilitada {
-				if TlbHIT(nroPagina) {
-					marco = global.TLB[indice].Marco
-					direccionFisica = MMU(desplazamiento, marco)
-					MemoriaLee(direccionFisica, tamanio)//ver memoria lee
-				} else {
-					marco = CalcularMarco()
-					direccionFisica = MMU(desplazamiento, marco)
-					MemoriaLee(direccionFisica, tamanio)
-					actualizarTLB(nroPagina, marco)
-					actualizarCACHE(nroPagina)
-				}
-			} else {
-				//caso de que no este la pagina
-				indice := actualizarCACHE(nroPagina)
+	if err != nil {
+        global.LoggerCpu.Log("error al convertir tamanio", log.ERROR)
+    }
+	if(global.CacheHabilitada){//CACHE HABILITADA
+		if CacheHIT(nroPagina) {//CACHE HIT
+			indice := indicePaginaEnCache(nroPagina)
 				paginaCompleta := global.CACHE[indice].Contenido
 				lectura := paginaCompleta[desplazamiento : desplazamiento + tamanio]
-
-				global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: LEER - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, direccionFisica,lectura), log.INFO)
-			}
+				global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: LEER - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, 0, lectura), log.INFO) //!! LECTURA SIN ACCEDER A MEMORIA (Desde caché)
+		} else {//CACHE MISS
+			indice, dirFisicaSinDespl := actualizarCACHE()
+			paginaCompleta := global.CACHE[indice].Contenido
+			lectura := paginaCompleta[desplazamiento : desplazamiento + tamanio]
+			global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: LEER - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, dirFisicaSinDespl + desplazamiento, lectura), log.INFO)
 		}
-	} else {
-		if tlbHabilitada {
-			if TlbHIT(nroPagina) {
-				marco = CalcularMarco()
-				direccionFisica = MMU(0, marco)
-				MemoriaLee(direccionFisica, tamanio)
-				actualizarTLB(nroPagina, marco)
-			} else {
-				marco = CalcularMarco()
-				direccionFisica = MMU(0, marco)
-				MemoriaLee(direccionFisica, tamanio)
-				actualizarTLB(nroPagina, marco)
-			}
-		} else {
-			marco = CalcularMarco()
-			direccionFisica = MMU(0, marco)
-			MemoriaLeePaginaCompleta(direccionFisica)
-		}
-	} */
+	}else { //CACHE DESHABILITADA
+		marco := CalcularMarco()
+		direccionFisica := MMU(desplazamiento, marco)
+		MemoriaLee(direccionFisica, tamanio)
+	}
 }
 
 func TlbHIT(pagina int) bool {
@@ -112,8 +80,7 @@ func CacheHIT(pagina int) bool {
 	return false
 }
 
-
-func actualizarCACHE(pagina int) (int,int){ //
+func actualizarCACHE() (int,int){ //
 	time.Sleep(time.Millisecond * time.Duration(global.CpuConfig.CacheDelay))
 	indicePisar := indiceVacioCACHE() 
 	
@@ -127,25 +94,25 @@ func actualizarCACHE(pagina int) (int,int){ //
 	marco := CalcularMarco()
 	dirFisicaSinDesplazamiento := MMU(0,marco)
 	lecturaPagina := MemoriaLeePaginaCompleta(dirFisicaSinDesplazamiento)
-	global.CACHE[indicePisar].NroPagina = pagina
+	global.CACHE[indicePisar].NroPagina = nroPagina
 	global.CACHE[indicePisar].Contenido = lecturaPagina
 	global.CACHE[indicePisar].BitModificado = 0
 
-	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Cache Add - Pagina: %d", global.PCB_Actual.PID, pagina), log.INFO) //!! Página ingresada en Caché - logObligatorio
+	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Cache Add - Pagina: %d", global.PCB_Actual.PID, nroPagina), log.INFO) //!! Página ingresada en Caché - logObligatorio
 
 	return indicePisar, dirFisicaSinDesplazamiento
 }
 //PISA UN VALOR DE TLB Y SE LO TRAE
-func actualizarTLB(pagina int) int{	
+func actualizarTLB() int{	
 	indicePisar := indiceVacioTLB()
 	/* lruCounter ++ */
 	if indicePisar == -1 {
 		indicePisar = AlgoritmoTLB()
 	}
 	lruCounter++
-	marco := BuscarMarcoEnMemoria(pagina)
+	marco := BuscarMarcoEnMemoria(nroPagina)
 	global.TLB[indicePisar].Marco = marco
-	global.TLB[indicePisar].NroPagina = pagina
+	global.TLB[indicePisar].NroPagina = nroPagina
 	global.TLB[indicePisar].UltimoUso = lruCounter
 	return marco
 }

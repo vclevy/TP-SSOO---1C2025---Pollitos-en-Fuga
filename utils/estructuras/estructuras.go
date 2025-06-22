@@ -1,6 +1,6 @@
 package estructuras
 
-//esto se lo manda el kernel a memoria cuando quiere inicializar un proceso
+// esto se lo manda el kernel a memoria cuando quiere inicializar un proceso
 type PaqueteMemoria struct {
 	PID                 int    `json:"pid"`
 	ArchivoPseudocodigo string `json:"archivoPseudocodigo"`
@@ -28,7 +28,7 @@ type PaqueteHandshakeIO struct {
 }
 
 type ConfiguracionMMU struct {
-	Tamanio_pagina       int `json:"tamanio_pagina"`
+	Tamanio_pagina      int `json:"tamanio_pagina"`
 	Cant_entradas_tabla int `json:"cant_entradas_tabla"`
 	Cant_N_Niveles      int `json:"cant_N_Niveles"`
 }
@@ -50,7 +50,7 @@ type TareaDeIo struct {
 }
 type FinDeIO struct {
 	Tipo string `json:"tipo"`
-	PID int	`json:"PID"`
+	PID  int    `json:"PID"`
 }
 type HandshakeConCPU struct {
 	ID     string
@@ -73,31 +73,31 @@ type PCB struct {
 }
 
 type AccesoTP struct {
-	PID            int    `json:"pid"`
-	Entradas []int    `json:"entradas"`
+	PID      int   `json:"pid"`
+	Entradas []int `json:"entradas"`
 }
 
 type PedidoREAD struct {
-	PID            int    `json:"pid"`
-	DireccionFisica int    `json:"direccion_fisica"`
-	Tamanio int    `json:"tamanio"`
+	PID             int `json:"pid"`
+	DireccionFisica int `json:"direccion_fisica"`
+	Tamanio         int `json:"tamanio"`
 }
 
 type PedidoWRITE struct {
-	PID            int    `json:"pid"`
+	PID             int    `json:"pid"`
 	DireccionFisica int    `json:"direccion_fisica"`
-	Datos string    `json:"datos"`
+	Datos           []byte `json:"datos"`
 }
 
 type DatoTLB struct {
-    NroPagina int
-    Marco  int
-	UltimoUso int 
+	NroPagina int
+	Marco     int
+	UltimoUso int
 }
 
 type DatoCACHE struct {
-    BitModificado int
-	NroPagina int
-    Contenido []byte
-	BitUso    int // 0 o 1
+	BitModificado int
+	NroPagina     int
+	Contenido     []byte
+	BitUso        int // 0 o 1
 }
