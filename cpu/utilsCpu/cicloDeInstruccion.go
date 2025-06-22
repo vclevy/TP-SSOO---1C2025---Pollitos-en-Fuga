@@ -12,7 +12,7 @@ import (
 
 var tiempoInicio time.Time
 
-func CicloDeInstruccion() {
+func CicloDeInstruccion() bool {
 	global.LoggerCpu.Log(("Comienza ciclo instruccion"), log.INFO)
 
 	var instruccionAEjecutar = Fetch()
@@ -21,20 +21,28 @@ func CicloDeInstruccion() {
 
 	tiempoInicio = time.Now()
 
-	if(instruccion.Opcode == "EXIT"){
+	if(instruccion.Opcode == "EXIT"){		
+		err := Execute(instruccion, requiereMMU)
+		if err != nil {
+			global.LoggerCpu.Log("Error ejecutando instrucción: "+err.Error(), log.ERROR)
+			return false
+		}
 		global.LoggerCpu.Log("Proceso finalizado (EXIT). Fin del ciclo", log.INFO)
-		return 
+		CheckInterrupt()
+		global.LoggerCpu.Log("Termina ciclo instruccion", log.INFO)
+		return false
 	}
 	
 	err := Execute(instruccion, requiereMMU)
 	if err != nil {
 		global.LoggerCpu.Log("Error ejecutando instrucción: "+err.Error(), log.ERROR)
-		return
+		return false
 	}
 
 	CheckInterrupt()
 	global.LoggerCpu.Log("Termina ciclo instruccion", log.INFO)
 	
+	return true
 }
 
 func Fetch() string {
@@ -149,6 +157,6 @@ func CheckInterrupt() {
 	}else{
 		global.LoggerCpu.Log(("No hay interrupción"), log.INFO) 
 		global.PCB_Actual.PC = global.PCB_Actual.PC + 1
-		CicloDeInstruccion()
+		/* CicloDeInstruccion() */
 	}
 }

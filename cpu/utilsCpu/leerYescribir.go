@@ -120,32 +120,32 @@ func CacheHIT(pagina int) bool {
 }
 
 func actualizarCACHE(pagina int, nuevoContenido string) {
-	global.LoggerCpu.Log(fmt.Sprintf("actualizar cache"), log.INFO) 
+	global.LoggerCpu.Log("actualizar cache", log.INFO) 
 
 	time.Sleep(time.Millisecond * time.Duration(global.CpuConfig.CacheDelay))
 
-	global.LoggerCpu.Log(fmt.Sprintf("actualizar cache v.2"), log.INFO) 
+	global.LoggerCpu.Log("actualizar cache v.2", log.INFO) 
 
 	var indicePisar int
 	indice := indicePaginaEnCache(pagina)
 	if indice == -1 { // no está la página en cache
 		if indiceVacioCACHE() == -1 { // no hay espacio vacio en cachce
-			global.LoggerCpu.Log(fmt.Sprintf("no está la pagina y no hay indice vacio"), log.INFO) 
+			global.LoggerCpu.Log("no está la pagina y no hay indice vacio", log.INFO) 
 			indicePisar = AlgoritmoCACHE()
 		} else {
-			global.LoggerCpu.Log(fmt.Sprintf("no está la pagina y hay indice vacio"), log.INFO) 
+			global.LoggerCpu.Log("no está la pagina y hay indice vacio", log.INFO) 
 			indicePisar = indiceVacioCACHE()
 		}
 		if global.CACHE[indicePisar].BitModificado == 1 {
 			global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Cache Add - Pagina: %d", global.PCB_Actual.PID, pagina), log.INFO) //!! Página ingresada en Caché - logObligatorio
 			desalojar(indicePisar)
 		}
-		global.LoggerCpu.Log(fmt.Sprintf("modificar la página que se insertó"), log.INFO) 
+		global.LoggerCpu.Log("modificar la página que se insertó", log.INFO) 
 		global.CACHE[indicePisar].NroPagina = pagina
 		global.CACHE[indicePisar].Contenido = nuevoContenido
 		global.CACHE[indicePisar].BitModificado = 0
 	} else {
-		global.LoggerCpu.Log(fmt.Sprintf("modificar la página que ya estaba"), log.INFO) 
+		global.LoggerCpu.Log("modificar la página que ya estaba", log.INFO) 
 		global.CACHE[indice].Contenido = nuevoContenido
 		global.CACHE[indice].BitModificado = 1
 	}
