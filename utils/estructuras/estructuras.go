@@ -100,5 +100,4 @@ type DatoCACHE struct {
 	NroPagina int
     Contenido string
 	BitUso    int // 0 o 1
-
 }

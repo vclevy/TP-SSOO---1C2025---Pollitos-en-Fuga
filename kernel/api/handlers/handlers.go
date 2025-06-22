@@ -324,6 +324,6 @@ func DevolucionCPUHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	go planificacion.ManejarDevolucionDeCPU(devolucion.PID, devolucion.PC, devolucion.Motivo, devolucion.RafagaReal)
+	go planificacion.ManejarDevolucionDeCPU(devolucion)
 	w.WriteHeader(http.StatusOK)
 }

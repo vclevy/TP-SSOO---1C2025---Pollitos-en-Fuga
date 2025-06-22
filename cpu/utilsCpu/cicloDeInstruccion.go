@@ -28,9 +28,7 @@ func CicloDeInstruccion() bool {
 			return false
 		}
 		global.LoggerCpu.Log("Proceso finalizado (EXIT). Fin del ciclo", log.INFO)
-		CheckInterrupt()
-		global.LoggerCpu.Log("Termina ciclo instruccion", log.INFO)
-		return false
+		CheckInterrupt()		
 	}
 	
 	err := Execute(instruccion, requiereMMU)
@@ -42,7 +40,7 @@ func CicloDeInstruccion() bool {
 	CheckInterrupt()
 	global.LoggerCpu.Log("Termina ciclo instruccion", log.INFO)
 	
-	return true
+	return instruccion.Opcode != "EXIT"
 }
 
 func Fetch() string {
@@ -99,8 +97,8 @@ func Execute(instruccion Instruccion, requiereMMU bool) error {
 	if instruccion.Opcode == "EXIT" {
 		global.Motivo = "EXIT"
 		global.Rafaga = time.Since(tiempoInicio).Seconds()		
-		DevolucionPID()
 		Syscall_Exit()
+		DevolucionPID()
 		return nil
 	}
 
