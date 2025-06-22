@@ -4,43 +4,32 @@ import (
 	"fmt"
 	"github.com/sisoputnfrba/tp-golang/cpu/global"
 	log "github.com/sisoputnfrba/tp-golang/utils/logger"
-	"strconv"
+/* 	"strconv" */
 	"time"
 )
 
 func WRITE(instruccion Instruccion, cacheHabilitada bool, desplazamiento int, tlbHabilitada bool) {
-	dato := instruccion.Parametros[1]
-	if cacheHabilitada {
-		if CacheHIT(nroPagina) {
-			indice := indicePaginaEnCache(nroPagina)
-			escribirEn := global.CACHE[indice].Contenido
-			copy(escribirEn[desplazamiento:], []byte(dato))
-			global.CACHE[indice].BitModificado = 1
-
-		} else {
-			actualizarCACHE(nroPagina)
+	datos := instruccion.Parametros[1]
+	if cacheHabilitada { //CACHE HABILITADA
+		if CacheHIT(nroPagina) {//CACHE HIT
+			indice := indicePaginaEnCache(nroPagina)			
+			escribirCache(indice, datos, desplazamiento)
+			global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: ESCRIBIR - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, 0, datos), log.INFO) //!! Lectura/Escritura Memoria - logObligatorio	
+			
+		} else {//CACHE MISS
+			indiceEscribir,dirFisicaSinDespl := actualizarCACHE(nroPagina)
+			escribirCache(indiceEscribir, datos, desplazamiento)
+			global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: ESCRIBIR - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, (dirFisicaSinDespl + desplazamiento), datos), log.INFO)
 		}
-	} else {
-		if tlbHabilitada {
-			var marco int
-			if TlbHIT(nroPagina) {
-				marco = global.TLB[indice].Marco
-			} else {
-				marco = CalcularMarco()
-			}
-			direccionFisica = MMU(desplazamiento, marco)
-			MemoriaEscribe(direccionFisica, dato)
-			actualizarTLB(nroPagina, marco)
-		} else {
-			marco := CalcularMarco()
-			direccionFisica = MMU(desplazamiento, marco)
-			MemoriaEscribe(direccionFisica, dato)
-		}
+	}else { //CACHE DESHABILITADA
+		marco := CalcularMarco()
+		direccionFisica := MMU(desplazamiento, marco)
+		MemoriaEscribe(direccionFisica, datos)
 	}
 }
 
 func READ(instruccion Instruccion, cacheHabilitada bool, desplazamiento int, tlbHabilitada bool, direccionLogica int) {
-	var marco int
+	/* var marco int
 	tamanioStr := instruccion.Parametros[1]
 	tamanio, err := strconv.Atoi(tamanioStr)
 	global.TamPagina = tamanio
@@ -63,7 +52,7 @@ func READ(instruccion Instruccion, cacheHabilitada bool, desplazamiento int, tlb
 					MemoriaLee(direccionFisica, tamanio)//ver memoria lee
 				} else {
 					marco = CalcularMarco()
-					direccionFisica = marco * configMMU.Tamanio_pagina + desplazamiento
+					direccionFisica = MMU(desplazamiento, marco)
 					MemoriaLee(direccionFisica, tamanio)
 					actualizarTLB(nroPagina, marco)
 					actualizarCACHE(nroPagina)
@@ -81,21 +70,21 @@ func READ(instruccion Instruccion, cacheHabilitada bool, desplazamiento int, tlb
 		if tlbHabilitada {
 			if TlbHIT(nroPagina) {
 				marco = CalcularMarco()
-				direccionFisica = marco * configMMU.Tamanio_pagina
+				direccionFisica = MMU(0, marco)
 				MemoriaLee(direccionFisica, tamanio)
 				actualizarTLB(nroPagina, marco)
 			} else {
 				marco = CalcularMarco()
-				direccionFisica = marco * configMMU.Tamanio_pagina
+				direccionFisica = MMU(0, marco)
 				MemoriaLee(direccionFisica, tamanio)
 				actualizarTLB(nroPagina, marco)
 			}
 		} else {
 			marco = CalcularMarco()
-			direccionFisica = marco * configMMU.Tamanio_pagina + 0
+			direccionFisica = MMU(0, marco)
 			MemoriaLeePaginaCompleta(direccionFisica)
 		}
-	}
+	} */
 }
 
 func TlbHIT(pagina int) bool {
@@ -123,21 +112,18 @@ func CacheHIT(pagina int) bool {
 	return false
 }
 
-func actualizarCACHE(pagina int) int{ //
+
+func actualizarCACHE(pagina int) (int,int){ //
 	time.Sleep(time.Millisecond * time.Duration(global.CpuConfig.CacheDelay))
-	var indicePisar int
-	if indiceVacioCACHE() == -1 { // no hay espacio vacio en cachce
-		global.LoggerCpu.Log("no está la pagina y no hay indice vacio", log.INFO) 
+	indicePisar := indiceVacioCACHE() 
+	
+	if indicePisar == -1 { // no hay espacio vacio en cachce
 		indicePisar = AlgoritmoCACHE()
-	} else { // hay espacio vacio en cachce
-		global.LoggerCpu.Log("no está la pagina y hay indice vacio", log.INFO) 
-		indicePisar = indiceVacioCACHE()
 	}
 	if global.CACHE[indicePisar].BitModificado == 1 {
-		global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Cache Add - Pagina: %d", global.PCB_Actual.PID, pagina), log.INFO) //!! Página ingresada en Caché - logObligatorio
 		desalojar(indicePisar)
 	}
-	global.LoggerCpu.Log("modificar la página que se insertó", log.INFO) 
+	
 	marco := CalcularMarco()
 	dirFisicaSinDesplazamiento := MMU(0,marco)
 	lecturaPagina := MemoriaLeePaginaCompleta(dirFisicaSinDesplazamiento)
@@ -145,28 +131,25 @@ func actualizarCACHE(pagina int) int{ //
 	global.CACHE[indicePisar].Contenido = lecturaPagina
 	global.CACHE[indicePisar].BitModificado = 0
 
-	return indicePisar
-	}
+	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Cache Add - Pagina: %d", global.PCB_Actual.PID, pagina), log.INFO) //!! Página ingresada en Caché - logObligatorio
 
-func actualizarTLB(pagina int, marco int) {
-	var indicePisar int
-	indice := indicePaginaEnTLB(pagina)
-	lruCounter ++
-	if indice == -1 { // no está la página
-		if indiceVacioTLB() == -1 {
-			indicePisar = AlgoritmoTLB()
-		} else {
-			indicePisar = indiceVacioTLB()
-		}
-		global.TLB[indicePisar].Marco = marco
-		global.TLB[indicePisar].NroPagina = pagina
-		global.TLB[indicePisar].UltimoUso = lruCounter
-
-	} else {
-		global.TLB[indice].Marco = marco
-		global.TLB[indice].UltimoUso = lruCounter
-	}
+	return indicePisar, dirFisicaSinDesplazamiento
 }
+//PISA UN VALOR DE TLB Y SE LO TRAE
+func actualizarTLB(pagina int) int{	
+	indicePisar := indiceVacioTLB()
+	/* lruCounter ++ */
+	if indicePisar == -1 {
+		indicePisar = AlgoritmoTLB()
+	}
+	lruCounter++
+	marco := BuscarMarcoEnMemoria(pagina)
+	global.TLB[indicePisar].Marco = marco
+	global.TLB[indicePisar].NroPagina = pagina
+	global.TLB[indicePisar].UltimoUso = lruCounter
+	return marco
+}
+
 
 func indicePaginaEnCache(pagina int) int {
 	time.Sleep(time.Millisecond * time.Duration(global.CpuConfig.CacheDelay)) 
@@ -206,4 +189,10 @@ func indiceVacioCACHE() int {
 		}
 	}
 	return -1
+}
+
+func escribirCache(indice int, datos string, desplazamiento int){
+	contenido := global.CACHE[indice].Contenido
+	copy(contenido[desplazamiento:], []byte(datos))
+	global.CACHE[indice].BitModificado = 1
 }

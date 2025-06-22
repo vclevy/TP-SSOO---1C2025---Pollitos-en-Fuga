@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/sisoputnfrba/tp-golang/cpu/global"
-	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
-	log "github.com/sisoputnfrba/tp-golang/utils/logger"
 	"io"
 	"math"
 	"net/http"
+
+	"github.com/sisoputnfrba/tp-golang/cpu/global"
+	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
+	log "github.com/sisoputnfrba/tp-golang/utils/logger"
 )
 
 func ConfigMMU() error {
@@ -35,6 +36,9 @@ func ConfigMMU() error {
 		global.LoggerCpu.Log("Error parseando JSON de configuracion: "+err.Error(), log.ERROR)
 		return err
 	}
+	/* global.LoggerCpu.Log(fmt.Sprintf("Entradas tabla %d", configMMU.Cant_entradas_tabla), log.DEBUG)
+	global.LoggerCpu.Log(fmt.Sprintf("tamanio pagina %d", configMMU.Tamanio_pagina), log.DEBUG)
+	global.LoggerCpu.Log(fmt.Sprintf("cantidad niveles %d", configMMU.Cant_N_Niveles), log.DEBUG) */
 
 	return nil
 }
@@ -46,14 +50,43 @@ func armarListaEntradas(nroPagina int) []int {
 	entradas := make([]int, cantNiveles)
 
 	for i := 1; i <= cantNiveles; i++ {
-		global.LoggerCpu.Log("Intenta dividir para conseguir la entrada de paginas", log.ERROR)
-
-		entradas[i-1] = int(math.Floor(float64(nroPagina)/math.Pow(float64(cantEntradas), float64(cantNiveles-i)))) % cantEntradas
+		logMsg := fmt.Sprintf("Dividiendo para nivel %d", i)
+		global.LoggerCpu.Log(logMsg, log.DEBUG)
+	
+		exponente := cantNiveles - i
+		if exponente < 0 {
+			global.LoggerCpu.Log(fmt.Sprintf("ERROR: Exponente negativo. Nivel: %d, cantNiveles: %d", i, cantNiveles), log.ERROR)
+			return nil // o panic, o manejo de error
+		}
+	
+		divisor := math.Pow(float64(cantEntradas), float64(exponente))
+		if divisor == 0 {
+			global.LoggerCpu.Log("ERROR: División por cero en armarListaEntradas", log.ERROR)
+			return nil
+		}
+	
+		entradas[i-1] = int(math.Floor(float64(nroPagina)/divisor)) % cantEntradas
 	}
+	
 	return entradas
 }
 
 func CalcularMarco() int {
+	if global.TlbHabilitada { //TLB HABILITADA
+		if TlbHIT(nroPagina) { // CASO: esta en la TLB
+			indiceHIT := indicePaginaEnTLB(nroPagina)
+			lruCounter++
+			global.TLB[indiceHIT].UltimoUso = lruCounter
+			return global.TLB[indiceHIT].Marco
+		} else { // CASO: NO esta en la TLB
+			return actualizarTLB(nroPagina)
+		}
+	}
+	//TLB NO ESTA HABILITADA
+	return BuscarMarcoEnMemoria(nroPagina)
+}
+
+func BuscarMarcoEnMemoria(nroPagina int) int {
 	listaEntradas := armarListaEntradas(nroPagina)
 
 	accederTabla := estructuras.AccesoTP{
@@ -62,8 +95,6 @@ func CalcularMarco() int {
 	}
 
 	marco := pedirMarco(accederTabla)
-
-	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - OBTENER MARCO - Página: %d - Marco: %d", global.PCB_Actual.PID, nroPagina, marco), log.INFO) //!! Obtener Marco - logObligatorio
 
 	return marco
 }
@@ -101,5 +132,8 @@ func pedirMarco(accesoTP estructuras.AccesoTP) int {
 		global.LoggerCpu.Log("Error parseando instruccion de Memoria: "+err.Error(), log.ERROR)
 		return -1
 	}
+
+	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - OBTENER MARCO - Página: %d - Marco: %d", global.PCB_Actual.PID, nroPagina, marco), log.INFO) //!! Obtener Marco - logObligatorio
+
 	return marco
 }
