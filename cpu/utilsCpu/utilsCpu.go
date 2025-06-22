@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-
 	"github.com/sisoputnfrba/tp-golang/cpu/global"
 	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
 	log "github.com/sisoputnfrba/tp-golang/utils/logger"
@@ -29,11 +28,10 @@ type Instruccion struct {
 	Parametros []string `json:"parametros"` // Los parámetros de la instrucción
 }
 
-var configMMU estructuras.ConfiguracionMMU
+
 var direccionFisica int
 
 var nroPagina int
-var indice int
 var Rafaga int
 
 func HandshakeKernel() error {

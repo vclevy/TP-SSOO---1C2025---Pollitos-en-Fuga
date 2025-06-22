@@ -59,7 +59,6 @@ func TlbHIT(pagina int) bool {
 	for i := 0; i <= len(global.TLB)-1; i++ {
 		if global.TLB[i].NroPagina == pagina {
 			global.LoggerCpu.Log(fmt.Sprintf("PID: %d - TLB HIT - Pagina: %d", global.PCB_Actual.PID, pagina), log.INFO) //!! TLB Hit - logObligatorio
-			indice = i
 			return true
 		}
 	}
@@ -72,7 +71,6 @@ func CacheHIT(pagina int) bool {
 	for i := 0; i <= len(global.CACHE)-1; i++ {
 		if global.CACHE[i].NroPagina == pagina {
 			global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Cache Hit - Pagina: %d", global.PCB_Actual.PID, pagina), log.INFO) //!! Página encontrada en Caché - logObligatorio (Cache hit)
-			indice = i
 			return true
 		}
 	}
