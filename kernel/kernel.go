@@ -44,7 +44,7 @@ func main() {
 
 	planificacion.IniciarPlanificadorLargoPlazo()
 
-	fmt.Println("Planificador de Largo Plazo en STOP. Presione Enter para iniciar...")
+	global.LoggerKernel.Log("Planificador de Largo Plazo en STOP. Presione Enter para iniciar...",logger.DEBUG)
 	fmt.Scanln()  // Bloquea hasta que el usuario presione Enter
 	close(global.InicioPlanificacionLargoPlazo)  
 
