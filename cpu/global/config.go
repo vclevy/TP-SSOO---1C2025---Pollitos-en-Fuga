@@ -5,7 +5,6 @@ import (
 	"time"
 	utils "github.com/sisoputnfrba/tp-golang/utils/config"
 	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
-	logger "github.com/sisoputnfrba/tp-golang/utils/logger"
 	"os"
 	"encoding/json"
 	"io"
@@ -15,7 +14,7 @@ import (
 
 var ConfigMMU estructuras.ConfiguracionMMU
 var CpuConfig *Config
-var LoggerCpu *logger.LoggerStruct
+var LoggerCpu *log.LoggerStruct
 
 type Config struct {
 	Ip_Memoria       string        `json:"ip_memory"`
@@ -42,6 +41,7 @@ var Rafaga float64
 var CacheHabilitada bool
 var TlbHabilitada bool
 var PCB_Interrupcion estructuras.PCB
+var TamPagina int
 
 var TLB []estructuras.DatoTLB
 var CACHE []estructuras.DatoCACHE
@@ -57,10 +57,10 @@ func InitGlobal(idCPU string) {
 	logFileName := fmt.Sprintf("logs/%s.log", idCPU)
 
 	// 4. Inicializar archivo logger con ese nombre
-	LoggerCpu = logger.ConfigurarLogger(logFileName, CpuConfig.LogLevel)
+	LoggerCpu = log.ConfigurarLogger(logFileName, CpuConfig.LogLevel)
 
 	// 5. Avisar que fue inicializado
-	LoggerCpu.Log("Logger de CPU inicializado", logger.DEBUG)
+	LoggerCpu.Log("Logger de CPU inicializado", log.DEBUG)
 
 	CacheHabilitada = CpuConfig.CacheEntries > 0
 	TlbHabilitada =  CpuConfig.TlbEntries > 0
@@ -89,7 +89,7 @@ func InicializarCACHE() {
 		CACHE[i] = estructuras.DatoCACHE{
 			BitModificado: -1,
 			NroPagina:     -1,
-			Contenido:     "",
+			Contenido:		make([]byte, TamPagina),
 			BitUso:        -1,
 		}
 	}
