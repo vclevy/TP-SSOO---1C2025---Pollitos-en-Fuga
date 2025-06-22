@@ -61,14 +61,14 @@ func READ(instruccion Instruccion, cacheHabilitada bool, desplazamiento int, tlb
 					actualizarCACHE(nroPagina, contenidoLeido)
 				} else {
 					marco = CalcularMarco()
-					direccionFisica = marco * configMMU.Tamanio_pagina
+					direccionFisica = marco * configMMU.Tamanio_pagina + desplazamiento
 					contenidoLeido,_ := MemoriaLee(direccionFisica, tamanio)
 					actualizarTLB(nroPagina, marco)
 					actualizarCACHE(nroPagina, contenidoLeido)
 				}
 			} else {
 				marco = CalcularMarco()
-				direccionFisica = marco * configMMU.Tamanio_pagina + 0
+				direccionFisica = marco * configMMU.Tamanio_pagina + desplazamiento
 				contenidoLeido,_ := MemoriaLeePaginaCompleta(direccionFisica)
 				actualizarCACHE(nroPagina, contenidoLeido)
 			}

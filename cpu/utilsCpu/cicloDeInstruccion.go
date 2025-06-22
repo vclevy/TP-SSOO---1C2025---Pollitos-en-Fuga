@@ -13,17 +13,28 @@ import (
 var tiempoInicio time.Time
 
 func CicloDeInstruccion() {
-	global.LoggerCpu.Log(fmt.Sprintf("Comienza ciclo instruccion"), log.INFO) 
+	global.LoggerCpu.Log(("Comienza ciclo instruccion"), log.INFO)
 
 	var instruccionAEjecutar = Fetch()
-
+	
 	instruccion, requiereMMU := Decode(instruccionAEjecutar)
 
 	tiempoInicio = time.Now()
-	Execute(instruccion, requiereMMU)
+
+	if(instruccion.Opcode == "EXIT"){
+		global.LoggerCpu.Log("Proceso finalizado (EXIT). Fin del ciclo", log.INFO)
+		return 
+	}
+	
+	err := Execute(instruccion, requiereMMU)
+	if err != nil {
+		global.LoggerCpu.Log("Error ejecutando instrucción: "+err.Error(), log.ERROR)
+		return
+	}
 
 	CheckInterrupt()
-	global.LoggerCpu.Log(fmt.Sprintf("Termina ciclo instruccion"), log.INFO) 
+	global.LoggerCpu.Log("Termina ciclo instruccion", log.INFO)
+	
 }
 
 func Fetch() string {
@@ -67,22 +78,27 @@ func Execute(instruccion Instruccion, requiereMMU bool) error {
 		global.Rafaga = time.Since(tiempoInicio).Seconds()
 		cortoProceso()
 		Syscall_IO(instruccion)
+		return nil
 	}
 	if instruccion.Opcode == "INIT_PROC" {
 		Syscall_Init_Proc(instruccion)
+		return nil
 	}
 	if instruccion.Opcode == "DUMP_MEMORY" {
 		Syscall_Dump_Memory()
+		return nil
 	}
 	if instruccion.Opcode == "EXIT" {
 		global.Motivo = "EXIT"
 		global.Rafaga = time.Since(tiempoInicio).Seconds()		
 		DevolucionPID()
 		Syscall_Exit()
+		return nil
 	}
 
 	//todo OTRAS INSTRUCCIONES
 	if instruccion.Opcode == "NOOP" {
+		return nil
 	}
 
 	if instruccion.Opcode == "GOTO" {
@@ -91,6 +107,7 @@ func Execute(instruccion Instruccion, requiereMMU bool) error {
 			return fmt.Errorf("error al convertir tiempo estimado")
 		}
 		global.PCB_Actual.PC = pcNuevo
+		return nil
 	}
 
 	//todo INSTRUCCIONES MMU
@@ -130,7 +147,7 @@ func CheckInterrupt() {
 		global.PCB_Actual = global.PCB_Interrupcion
 		global.Interrupcion = false
 	}else{
-		global.LoggerCpu.Log(fmt.Sprintf("No hay interrupción"), log.INFO) 
+		global.LoggerCpu.Log(("No hay interrupción"), log.INFO) 
 		global.PCB_Actual.PC = global.PCB_Actual.PC + 1
 		CicloDeInstruccion()
 	}

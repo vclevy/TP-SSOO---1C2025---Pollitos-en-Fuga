@@ -91,18 +91,23 @@ func DesSuspender(w http.ResponseWriter, r *http.Request){
 	
 }
 
-func FinalizarProceso(w http.ResponseWriter, r *http.Request){
-	pidStr := r.URL.Query().Get("finalizarProceso") 
-	pid,err := strconv.Atoi(pidStr)
-	if err != nil {
-		http.Error(w, "PID invalido", http.StatusBadRequest)
+func FinalizarProceso(w http.ResponseWriter, r *http.Request) {
+	type FinalizarProcesoRequest struct {
+		PID int `json:"pid"`
+	}
+
+	var paquete FinalizarProcesoRequest
+
+	if err := json.NewDecoder(r.Body).Decode(&paquete); err != nil {
+		http.Error(w, "Error al parsear el cuerpo", http.StatusBadRequest)
 		return
 	}
 
-	stringMetricas := utilsMemoria.FinalizarProceso(pid)
+	pid := paquete.PID
 
+	stringMetricas := utilsMemoria.FinalizarProceso(pid)
+	w.WriteHeader(http.StatusOK)
 	global.LoggerMemoria.Log(stringMetricas, myLogger.INFO)
-	
 }
 
 //la CPU pide una instruccion del diccionario de procesos

@@ -63,8 +63,7 @@ func HandshakeKernel() error {
 	return nil
 }
 
-func instruccionAEjecutar(estructuras.PCB) string {
-	var solicitudInstruccion estructuras.PCB
+func instruccionAEjecutar(solicitudInstruccion estructuras.PCB) string {
 
 	jsonData, err := json.Marshal(solicitudInstruccion)
 	if err != nil {
