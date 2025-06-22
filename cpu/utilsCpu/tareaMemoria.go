@@ -113,7 +113,7 @@ func MemoriaEscribePaginaCompleta(direccionFisica int, datos []byte) error {
 	return nil
 }
 
-func MemoriaLeePaginaCompleta(direccionFisica int) (string ,error) {
+func MemoriaLeePaginaCompleta(direccionFisica int) []byte {
 	datosEnvio := estructuras.PedidoREAD{
 		PID:             global.PCB_Actual.PID,
 		DireccionFisica: direccionFisica,
@@ -122,33 +122,33 @@ func MemoriaLeePaginaCompleta(direccionFisica int) (string ,error) {
 
 	jsonData, err := json.Marshal(datosEnvio)
 	if err != nil {
-		return "" , fmt.Errorf("error codificando pedido: %w", err)
+		return nil
 	}
 	url := fmt.Sprintf("http://%s:%d/leerPaginaCompleta", global.CpuConfig.Ip_Memoria, global.CpuConfig.Port_Memoria)
 
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
 		global.LoggerCpu.Log("Error enviando pedido lectura a Memoria: "+err.Error(), log.ERROR)
-		return "" , err
+		return nil 
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("pedido lectura fallido con status %d", resp.StatusCode)
+		return nil
 	}
 	global.LoggerCpu.Log("✅ Pedido lectura enviado a Memoria con éxito", log.INFO)
 
 	body, _ := io.ReadAll(resp.Body)
 
-	var contenido string
+	var contenido []byte
 	err = json.Unmarshal(body, &contenido)
 	if err != nil {
 		global.LoggerCpu.Log("Error parseando instruccion de Memoria: "+err.Error(), log.ERROR)
-		return "" , err
+		return nil
 	}
 
 	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: LEER - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, direccionFisica, contenido), log.INFO)  //!! Lectura/Escritura Memoria (página completa) - logObligatorio
 
 
-	return contenido , nil
+	return contenido
 }
