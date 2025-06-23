@@ -358,6 +358,7 @@ func PegarInfoEnMemoria(pid int, info []byte, marcosAsignados []int) {
 	}
 	metricas[pid].SubidasMemoPpal++
 }
+
 func BuscarDataEnSwap(pid int) []byte{
 	file, err := os.Open(SwapPath) //O_APPEND: Todo se agrega al final, no sobreescribe; O_CREATE: Si no existe lo crea; O_WORNLY Se abre solo para escritura, no lectura
 	if err != nil{
@@ -407,6 +408,36 @@ func GuardarInfoSwap(pid int, data []byte){
 	SWAP[pid].Inicio = inicio
 	SWAP[pid].Fin = inicio + int64(len(data))
 
+}
+
+func DumpMemoriaProceso (pid int){
+	marcos:=EncontrarMarcosDeProceso(pid)
+
+	// Validación: ¿el proceso existe y tiene marcos?
+	if len(marcos) == 0 {
+		log.Printf("⚠️ No se encontraron marcos para el PID %d", pid)
+		return
+	}
+
+	//ASIGNAR FECHA
+	timestamp := time.Now().Format("20060102-150405")
+    nombreArchivo := fmt.Sprintf("%s/%d-%s.dmp", global.ConfigMemoria.Dump_path, pid, timestamp) //VER SI LA RUTA ES LA MISMA QUE KERNEL
+
+	file, err := os.Create(nombreArchivo) //CREO EL ARCHIVO
+    if err != nil {
+        log.Printf("❌ Error creando dump para PID %d: %v", pid, err)
+        return
+    }
+    defer file.Close()
+
+	for i := 0; i < len(marcos); i++ {
+		inicio := marcos[i] * TamPagina
+		fin := inicio + TamPagina
+
+		datos:=MemoriaUsuario[inicio:fin]
+		file.Write(datos)
+	}
+	log.Printf("✅ Dump de memoria creado: %s", nombreArchivo)
 }
 
 
@@ -497,6 +528,8 @@ func recorrerYAsignar(tabla []*EntradaTP, proximo *int, marcos []int, nivelActua
 		fmt.Printf("✅ Total marcos asignados: %d\n", proximo)//AUX
 	}
 }
+
+
 
 
 

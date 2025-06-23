@@ -19,6 +19,7 @@ func CrearServer() *server.Server {
 			"POST /finalizarProceso": handlers.FinalizarProceso,
 			"POST /suspension": handlers.Suspender,
 			"POST /dessuspension": handlers.DesSuspender,
+			"POST /Dump_Memory": handlers.DumpMemoria,
 
 			//usadas por la CPU
 			"POST /solicitudInstruccion": handlers.DevolverInstruccion,

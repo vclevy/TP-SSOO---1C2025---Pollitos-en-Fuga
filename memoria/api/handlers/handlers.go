@@ -122,6 +122,27 @@ func FinalizarProceso(w http.ResponseWriter, r *http.Request) {
 	global.LoggerMemoria.Log(stringMetricas, myLogger.INFO)
 }
 
+func DumpMemoria(w http.ResponseWriter, r *http.Request){
+	
+	if r.Method != http.MethodPost {
+		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+		return
+	}
+
+	
+	var body estructuras.SolicitudDump
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "Error al decodificar JSON", http.StatusBadRequest)
+		return
+	}
+
+	pid:=body.PID
+
+	utilsMemoria.DumpMemoriaProceso(pid)
+	global.LoggerMemoria.Log(fmt.Sprintf("## PID: %d - Memory Dump generado correctamente", pid), myLogger.DEBUG)
+	w.WriteHeader(http.StatusOK)
+}
+
 //la CPU pide una instruccion del diccionario de procesos
 func DevolverInstruccion(w http.ResponseWriter, r *http.Request) {
 	
