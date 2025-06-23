@@ -6,8 +6,7 @@ import (
 	utils "github.com/sisoputnfrba/tp-golang/utils/config"
 	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
 	"os"
-	log "github.com/sisoputnfrba/tp-golang/utils/logger"
-)
+	log "github.com/sisoputnfrba/tp-golang/utils/logger")
 
 var CpuConfig *Config
 var LoggerCpu *log.LoggerStruct
@@ -62,11 +61,13 @@ func InitGlobal(idCPU string) {
 	TlbHabilitada =  CpuConfig.TlbEntries > 0
 
 
-	if(CacheHabilitada){
+	if CacheHabilitada {
 		InicializarCACHE()
-	}else if(TlbHabilitada){
+	}
+	if TlbHabilitada {
 		InicializarTLB()
 	}
+	
 }
 
 func InicializarTLB() {
@@ -86,7 +87,7 @@ func InicializarCACHE() {
 		CACHE[i] = estructuras.DatoCACHE{
 			BitModificado: -1,
 			NroPagina:     -1,
-			Contenido:		make([]byte, TamPagina),
+			Contenido:		make([]byte, 64),//ver
 			BitUso:        -1,
 		}
 	}

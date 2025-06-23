@@ -40,6 +40,10 @@ func READ(instruccion Instruccion, cacheHabilitada bool, desplazamiento int, tlb
 		if CacheHIT(nroPagina) {//CACHE HIT
 			indice := indicePaginaEnCache(nroPagina)
 				paginaCompleta := global.CACHE[indice].Contenido
+				if desplazamiento+tamanio > len(paginaCompleta) {
+					global.LoggerCpu.Log("❌ Lectura fuera de rango en caché", log.ERROR)
+					return
+				}
 				lectura := paginaCompleta[desplazamiento : desplazamiento + tamanio]
 				global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: LEER - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, 0, lectura), log.INFO) //!! LECTURA SIN ACCEDER A MEMORIA (Desde caché)
 		} else {//CACHE MISS
@@ -92,6 +96,8 @@ func actualizarCACHE() (int,int){ //
 	marco := CalcularMarco()
 	dirFisicaSinDesplazamiento := MMU(0,marco)
 	lecturaPagina := MemoriaLeePaginaCompleta(dirFisicaSinDesplazamiento)
+	global.LoggerCpu.Log(fmt.Sprintf("pagina completa que se lee de memoria: %d", lecturaPagina), log.INFO)
+
 	global.CACHE[indicePisar].NroPagina = nroPagina
 	global.CACHE[indicePisar].Contenido = lecturaPagina
 	global.CACHE[indicePisar].BitModificado = 0
@@ -160,4 +166,5 @@ func escribirCache(indice int, datos string, desplazamiento int){
 	contenido := global.CACHE[indice].Contenido
 	copy(contenido[desplazamiento:], []byte(datos))
 	global.CACHE[indice].BitModificado = 1
+	
 }

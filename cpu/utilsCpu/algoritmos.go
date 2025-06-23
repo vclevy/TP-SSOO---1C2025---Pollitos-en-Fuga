@@ -13,7 +13,7 @@ var lruCounter int = 0
 func AlgoritmoTLB() int { // la página no está en la tlb y no hay indice vacio
 	if global.CpuConfig.TlbReplacement == "FIFO" {
 		indice := fifoIndice
-		fifoIndice = (fifoIndice + 1) % len(global.TLB)
+		//fifoIndice = (fifoIndice + 1) % len(global.TLB)
 		return indice
 	} else if global.CpuConfig.TlbReplacement == "LRU" {
 		var indiceLRU int = 0

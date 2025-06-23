@@ -101,8 +101,7 @@ func MMU(desplazamiento int, marco int) int {
 	return direccionFisica
 }
 
-func pedirMarco(estructuras.AccesoTP) int {
-	var accesoTP estructuras.AccesoTP
+func pedirMarco(accesoTP estructuras.AccesoTP) int {
 
 	jsonData, err := json.Marshal(accesoTP)
 	if err != nil {
@@ -118,6 +117,8 @@ func pedirMarco(estructuras.AccesoTP) int {
 		return -1
 	}
 	defer resp.Body.Close() //se cierra la conexión
+	
+	global.LoggerCpu.Log("✅ Solicitud enviada a Memoria de forma exitosa", log.INFO)
 
 	global.LoggerCpu.Log("✅ Solicitud enviada a Memoria de forma exitosa", log.INFO)
 

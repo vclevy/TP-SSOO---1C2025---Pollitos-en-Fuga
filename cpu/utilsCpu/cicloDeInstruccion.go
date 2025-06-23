@@ -135,12 +135,6 @@ func Execute(instruccion Instruccion, requiereMMU bool) error {
 				    global.LoggerCpu.Log("Error en ConfigMMU: "+err.Error(), log.ERROR)
 
 			} */
-			if ConfigMMU.Tamanio_pagina == 0 {
-				global.LoggerCpu.Log("Error: Tamanio_pagina es 0 antes de calcular el desplazamiento", log.ERROR)
-				return nil
-			}
-
-
 
 			err := CargarConfigMMU()
 			if err != nil {
@@ -148,7 +142,10 @@ func Execute(instruccion Instruccion, requiereMMU bool) error {
 
 			}
 
-
+			if ConfigMMU.Tamanio_pagina == 0 {
+				global.LoggerCpu.Log("Error: Tamanio_pagina es 0 antes de calcular el desplazamiento", log.ERROR)
+				return nil
+			}
 
 			desplazamiento = direccionLogica % ConfigMMU.Tamanio_pagina
 			nroPagina = direccionLogica / ConfigMMU.Tamanio_pagina
@@ -205,5 +202,6 @@ func CargarConfigMMU() error {
 	global.LoggerCpu.Log(fmt.Sprintf("tamanio pagina %d", ConfigMMU.Tamanio_pagina), log.DEBUG)
 	global.LoggerCpu.Log(fmt.Sprintf("cantidad niveles %d", ConfigMMU.Cant_N_Niveles), log.DEBUG)
 
+	global.TamPagina = ConfigMMU.Tamanio_pagina
 	return nil
 }
