@@ -3,12 +3,13 @@ package utilsMemoria
 import (
 	"fmt"
 	"io"
+	"log"
 	"math"
 	"os"
 	"strconv"
 	"strings"
 	"time"
-"log"
+
 	"github.com/sisoputnfrba/tp-golang/memoria/global"
 )
 
@@ -314,12 +315,24 @@ func DesSuspenderProceso(pid int) {
 
 //HACERRRRR
 func EncontrarDataMarcos(marcos []int) []byte {
+	var data []byte
 
-	//global.MutexMemoriaUsuario.Lock()
-//acceder a memoria de usuario....
-	//global.MutexMemoriaUsuario.Unlock()
+	global.MutexMemoriaUsuario.Lock()
+	for i := 0; i < len(marcos); i++ {
+		inicio := marcos[i] * TamPagina
+		fin := inicio + TamPagina
 
-	return []byte{}
+		// Validación, no creo que pase, pero ¿y si..?
+		if inicio < 0 || fin > len(MemoriaUsuario) {
+			fmt.Printf("Error: marco %d fuera de límites de memoria\n", marcos[i])
+			continue //Saltea el data=append... y da una vuelta mas al for
+		}
+
+		data = append(data, MemoriaUsuario[inicio:fin]...)
+	}
+	global.MutexMemoriaUsuario.Unlock()
+
+	return data
 }
 
 func PegarInfoEnMemoria(info []byte, marcosAsignados []int) {
@@ -368,7 +381,11 @@ func GuardarInfoSwap(pid int, data []byte){
 	}
 
 	file.Write(data)
-	global.MutexSwap.Lock()
+	global.MutexSwap.Unlock() //Si rompe, probar de poner debajo del lock con un defer... está acá para reducir la sección crítica
+
+	if SWAP[pid] == nil {
+		SWAP[pid] = &Gorda{}
+	}
 
 	SWAP[pid].Inicio = inicio
 	SWAP[pid].Fin = inicio + int64(len(data))
