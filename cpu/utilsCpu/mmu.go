@@ -13,36 +13,9 @@ import (
 	log "github.com/sisoputnfrba/tp-golang/utils/logger"
 )
 
-/* func ConfigMMU() error {
-	url := fmt.Sprintf("http://%s:%d/configuracionMMU", global.CpuConfig.Ip_Memoria, global.CpuConfig.Port_Memoria)
-
-	resp, err := http.Post(url, "application/json", nil)
-	if err != nil {
-		global.LoggerCpu.Log("Error al conectar con Memoria:", log.ERROR)
-		return err
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		global.LoggerCpu.Log("Error leyendo respuesta de Memoria:", log.ERROR)
-		return err
-	}
-
-	global.LoggerCpu.Log("JSON recibido de Memoria: "+string(body), log.DEBUG)
-
-	err = json.Unmarshal(body, &configMMU)
-	if err != nil {
-		global.LoggerCpu.Log("Error parseando JSON de configuracion: "+err.Error(), log.ERROR)
-		return err
-	}
-
-	return nil
-} */
-
 func armarListaEntradas(nroPagina int) []int {
-	cantNiveles := ConfigMMU.Cant_N_Niveles
-	cantEntradas := ConfigMMU.Cant_entradas_tabla
+	cantNiveles := global.ConfigMMU.Cant_N_Niveles
+	cantEntradas := global.ConfigMMU.Cant_entradas_tabla
 
 	entradas := make([]int, cantNiveles)
 
@@ -97,7 +70,7 @@ func BuscarMarcoEnMemoria(nroPagina int) int {
 }
 
 func MMU(desplazamiento int, marco int) int {
-	direccionFisica = marco* ConfigMMU.Tamanio_pagina + desplazamiento
+	direccionFisica = marco* global.ConfigMMU.Tamanio_pagina + desplazamiento
 	return direccionFisica
 }
 

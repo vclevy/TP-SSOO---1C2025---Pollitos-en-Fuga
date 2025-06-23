@@ -3,6 +3,9 @@ package global
 import (
 	"fmt"
 	"time"
+	"encoding/json"
+	"io"
+	"net/http"
 	utils "github.com/sisoputnfrba/tp-golang/utils/config"
 	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
 	"os"
@@ -37,6 +40,7 @@ var CacheHabilitada bool
 var TlbHabilitada bool
 var PCB_Interrupcion estructuras.PCB
 var TamPagina int
+var ConfigMMU estructuras.ConfiguracionMMU
 
 var TLB []estructuras.DatoTLB
 var CACHE []estructuras.DatoCACHE
@@ -61,7 +65,12 @@ func InitGlobal(idCPU string) {
 	TlbHabilitada =  CpuConfig.TlbEntries > 0
 
 	
+	err := CargarConfigMMU()
+		if err != nil {
+			LoggerCpu.Log("Error en ConfigMMU: "+err.Error(), log.ERROR)
 
+		}
+			
 	if CacheHabilitada {
 		InicializarCACHE()
 	}
@@ -88,9 +97,39 @@ func InicializarCACHE() {
 		CACHE[i] = estructuras.DatoCACHE{
 			BitModificado: -1,
 			NroPagina:     -1,
-			Contenido:		make([]byte, 64),//ver
+			Contenido:		make([]byte, ConfigMMU.Tamanio_pagina),//ver
 			BitUso:        -1,
 		}
 	}
 }
 
+func CargarConfigMMU() error {
+	url := fmt.Sprintf("http://%s:%d/configuracionMMU", CpuConfig.Ip_Memoria, CpuConfig.Port_Memoria)
+
+	resp, err := http.Post(url, "application/json", nil)
+	if err != nil {
+		LoggerCpu.Log("Error al conectar con Memoria:", log.ERROR)
+		return err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		LoggerCpu.Log("Error leyendo respuesta de Memoria:", log.ERROR)
+		return err
+	}
+
+	LoggerCpu.Log("JSON recibido de Memoria: "+string(body), log.DEBUG)
+
+	err = json.Unmarshal(body, &ConfigMMU)
+	if err != nil {
+		LoggerCpu.Log("Error parseando JSON de configuracion: "+err.Error(), log.ERROR)
+		return err
+	}
+	LoggerCpu.Log(fmt.Sprintf("Entradas tabla %d", ConfigMMU.Cant_entradas_tabla), log.DEBUG)
+	LoggerCpu.Log(fmt.Sprintf("tamanio pagina %d", ConfigMMU.Tamanio_pagina), log.DEBUG)
+	LoggerCpu.Log(fmt.Sprintf("cantidad niveles %d", ConfigMMU.Cant_N_Niveles), log.DEBUG)
+
+	TamPagina = ConfigMMU.Tamanio_pagina
+	return nil
+}

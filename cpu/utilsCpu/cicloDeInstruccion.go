@@ -8,13 +8,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"encoding/json"
-	"io"
-	"net/http"
 )
 
 var tiempoInicio time.Time
-var ConfigMMU estructuras.ConfiguracionMMU
 
 func CicloDeInstruccion() bool {
 
@@ -124,19 +120,15 @@ func Execute(instruccion Instruccion, requiereMMU bool) error {
 
 			} */
 
-			err := CargarConfigMMU()
-			if err != nil {
-				    global.LoggerCpu.Log("Error en ConfigMMU: "+err.Error(), log.ERROR)
+			
 
-			}
-
-			if ConfigMMU.Tamanio_pagina == 0 {
+			if global.ConfigMMU.Tamanio_pagina == 0 {
 				global.LoggerCpu.Log("Error: Tamanio_pagina es 0 antes de calcular el desplazamiento", log.ERROR)
 				return nil
 			}
 
-			desplazamiento = direccionLogica % ConfigMMU.Tamanio_pagina
-			nroPagina = direccionLogica / ConfigMMU.Tamanio_pagina
+			desplazamiento = direccionLogica % global.ConfigMMU.Tamanio_pagina
+			nroPagina = direccionLogica / global.ConfigMMU.Tamanio_pagina
 		}
 
 		if instruccion.Opcode == "READ" { // READ 0 20 - READ (Dirección, Tamaño)
@@ -163,7 +155,7 @@ func CheckInterrupt() {
 	}
 }
 
-func CargarConfigMMU() error {
+/* func CargarConfigMMU() error {
 	url := fmt.Sprintf("http://%s:%d/configuracionMMU", global.CpuConfig.Ip_Memoria, global.CpuConfig.Port_Memoria)
 
 	resp, err := http.Post(url, "application/json", nil)
@@ -192,4 +184,4 @@ func CargarConfigMMU() error {
 
 	global.TamPagina = ConfigMMU.Tamanio_pagina
 	return nil
-}
+} */
