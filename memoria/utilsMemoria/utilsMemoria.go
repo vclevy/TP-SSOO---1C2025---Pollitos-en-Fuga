@@ -410,6 +410,31 @@ func GuardarInfoSwap(pid int, data []byte){
 
 }
 
+//DUMP
+func DumpMemoriaProceso(pid int){
+	marcos := EncontrarMarcosDeProceso(pid)
+
+	//CREAR ARCHIVO <PID>-<TIMESTAMP>.dmp
+	timestamp := time.Now().Format("20060102-150405")
+	nombreArchivo := fmt.Sprintf("%s/%d-%s.dmp", global.ConfigMemoria.Dump_path, pid, timestamp)
+
+	file, err := os.Create(nombreArchivo) //Creo archivo
+    if err != nil {
+        log.Printf("❌ Error creando dump para PID %d: %v", pid, err)
+        return
+    }
+    defer file.Close()
+
+	for i := 0; i < len(marcos); i++ {
+		inicio := marcos[i] * TamPagina
+		fin := inicio + TamPagina
+
+		datos:=MemoriaUsuario[inicio:fin]
+		file.Write(datos)
+	}
+	log.Printf("✅ Dump de memoria creado: %s", nombreArchivo)
+}
+
 
 //OTROS
 func ReservarMarcos(tamanio int) []int{
