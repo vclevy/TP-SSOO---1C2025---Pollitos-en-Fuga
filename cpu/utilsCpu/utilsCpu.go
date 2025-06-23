@@ -57,7 +57,6 @@ func HandshakeKernel() error {
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("handshake fallido con status %d", resp.StatusCode)
 	}
-	global.LoggerCpu.Log("✅ Handshake enviado al Kernel con éxito", log.INFO)
 
 	return nil
 }
@@ -126,7 +125,7 @@ func desalojar(indicePisar int) {
 	direccionFisica := MMU(0, marco)
 
 	MemoriaEscribePaginaCompleta(direccionFisica, global.CACHE[indicePisar].Contenido)
-	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Memory Update - Página: %d - Frame: %d", global.PCB_Actual.PID, global.CACHE[indicePisar].NroPagina, marco), log.INFO) //!! Página Actualizada de Caché a Memoria - LogObligatorio
+	global.LoggerCpu.Log(fmt.Sprintf("\033[36mPID: %d - Memory Update - Página: %d - Frame: %d\033[0m", global.PCB_Actual.PID, global.CACHE[indicePisar].NroPagina, marco), log.INFO) //!! Página Actualizada de Caché a Memoria - LogObligatorio
 }
 
 func DevolucionPID() error {

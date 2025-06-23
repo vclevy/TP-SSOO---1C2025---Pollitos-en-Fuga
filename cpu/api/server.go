@@ -15,6 +15,6 @@ func CrearServer() *server.Server {
 			"POST /dispatch": handlers.NuevoPCB,
  		},
 	}
-	fmt.Printf("🟢 CPU prendido en http://%s:%d\n",global.CpuConfig.Ip_Cpu, global.CpuConfig.Port_Cpu)
+	fmt.Printf("\033[32m🟢 CPU prendido en http://%s:%d\n\033[0m",global.CpuConfig.Ip_Cpu, global.CpuConfig.Port_Cpu)
 	return server.NuevoServer(configServer)
 }

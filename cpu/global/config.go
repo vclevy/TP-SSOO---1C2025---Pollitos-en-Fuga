@@ -60,6 +60,7 @@ func InitGlobal(idCPU string) {
 	CacheHabilitada = CpuConfig.CacheEntries > 0
 	TlbHabilitada =  CpuConfig.TlbEntries > 0
 
+	
 
 	if CacheHabilitada {
 		InicializarCACHE()
@@ -92,5 +93,4 @@ func InicializarCACHE() {
 		}
 	}
 }
-
 

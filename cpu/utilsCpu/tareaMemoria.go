@@ -34,7 +34,6 @@ func MemoriaLee(direccionFisica int, tamanio int) (string ,error) {
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("pedido lectura fallido con status %d", resp.StatusCode)
 	}
-	global.LoggerCpu.Log("✅ Pedido lectura enviado a Memoria con éxito", log.INFO)
 
 	body, _ := io.ReadAll(resp.Body)
 
@@ -45,7 +44,7 @@ func MemoriaLee(direccionFisica int, tamanio int) (string ,error) {
 		return "" , err
 	}
 
-	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: LEER - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, direccionFisica, contenido), log.INFO) //!! Lectura/Escritura Memoria - logObligatorio
+	global.LoggerCpu.Log(fmt.Sprintf("\033[36mPID: %d - Acción: LEER - Dirección Física: %d - Valor: %s\033[0m", global.PCB_Actual.PID, direccionFisica, contenido), log.INFO) //!! Lectura/Escritura Memoria - logObligatorio
 
 
 	return contenido , nil
@@ -77,7 +76,7 @@ func MemoriaEscribe(direccionFisica int, datos string) error {
 	}
 	global.LoggerCpu.Log("✅ Pedido escritura enviados a Memoria con éxito", log.INFO)
 
-	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: ESCRIBIR - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, direccionFisica, datos), log.INFO) //!! Lectura/Escritura Memoria - logObligatorio
+	global.LoggerCpu.Log(fmt.Sprintf("\033[36mPID: %d - Acción: ESCRIBIR - Dirección Física: %d - Valor: %s\033[0m", global.PCB_Actual.PID, direccionFisica, datos), log.INFO) //!! Lectura/Escritura Memoria - logObligatorio
 
 	return nil
 }
@@ -107,7 +106,7 @@ func MemoriaEscribePaginaCompleta(direccionFisica int, datos []byte) error {
 	}
 	global.LoggerCpu.Log("✅ Pedido escritura enviados a Memoria con éxito", log.INFO)
 
-	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: ESCRIBIR - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, direccionFisica, datos), log.INFO) //!! Lectura/Escritura Memoria (página completa) - logObligatorio
+	global.LoggerCpu.Log(fmt.Sprintf("\033[36mPID: %d - Acción: ESCRIBIR - Dirección Física: %d - Valor: %s\033[0m", global.PCB_Actual.PID, direccionFisica, datos), log.INFO) //!! Lectura/Escritura Memoria (página completa) - logObligatorio
 
 
 	return nil
@@ -136,7 +135,6 @@ func MemoriaLeePaginaCompleta(direccionFisica int) []byte {
 	if resp.StatusCode != http.StatusOK {
 		return nil
 	}
-	global.LoggerCpu.Log("✅ Pedido lectura enviado a Memoria con éxito", log.INFO)
 
 	body, _ := io.ReadAll(resp.Body)
 
@@ -147,7 +145,7 @@ func MemoriaLeePaginaCompleta(direccionFisica int) []byte {
 		return nil
 	}
 
-	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: LEER - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, direccionFisica, contenido), log.INFO)  //!! Lectura/Escritura Memoria (página completa) - logObligatorio
+	global.LoggerCpu.Log(fmt.Sprintf("\033[36mPID: %d - Acción: LEER - Dirección Física: %d - Valor: %s\033[0m", global.PCB_Actual.PID, direccionFisica, contenido), log.INFO)  //!! Lectura/Escritura Memoria (página completa) - logObligatorio
 
 
 	return contenido

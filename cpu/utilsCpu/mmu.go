@@ -117,10 +117,6 @@ func pedirMarco(accesoTP estructuras.AccesoTP) int {
 		return -1
 	}
 	defer resp.Body.Close() //se cierra la conexión
-	
-	global.LoggerCpu.Log("✅ Solicitud enviada a Memoria de forma exitosa", log.INFO)
-
-	global.LoggerCpu.Log("✅ Solicitud enviada a Memoria de forma exitosa", log.INFO)
 
 	//respuesta
 	body, _ := io.ReadAll(resp.Body)
@@ -132,7 +128,7 @@ func pedirMarco(accesoTP estructuras.AccesoTP) int {
 		return -1
 	}
 
-	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - OBTENER MARCO - Página: %d - Marco: %d", global.PCB_Actual.PID, nroPagina, marco), log.INFO) //!! Obtener Marco - logObligatorio
+	global.LoggerCpu.Log(fmt.Sprintf("\033[36mPID: %d - OBTENER MARCO - Página: %d - Marco: %d\033[0m", global.PCB_Actual.PID, nroPagina, marco), log.INFO) //!! Obtener Marco - logObligatorio
 
 	return marco
 }

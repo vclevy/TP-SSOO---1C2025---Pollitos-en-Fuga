@@ -17,7 +17,6 @@ var tiempoInicio time.Time
 var ConfigMMU estructuras.ConfiguracionMMU
 
 func CicloDeInstruccion() bool {
-	global.LoggerCpu.Log(("🟨Comienza ciclo instruccion"), log.INFO)
 
 	var instruccionAEjecutar = Fetch()
 	
@@ -25,16 +24,6 @@ func CicloDeInstruccion() bool {
 
 	tiempoInicio = time.Now()
 
-	/* if(instruccion.Opcode == "EXIT"){		
-		err := Execute(instruccion, requiereMMU)
-		if err != nil {
-			global.LoggerCpu.Log("Error ejecutando instrucción: "+err.Error(), log.ERROR)
-			return false
-		}
-		CheckInterrupt()
-		global.LoggerCpu.Log("🟦 Proceso finalizado (EXIT). Fin del ciclo", log.INFO)
-	} */
-	
 	err := Execute(instruccion, requiereMMU)
 	if err != nil {
 		global.LoggerCpu.Log("Error ejecutando instrucción: "+err.Error(), log.ERROR)
@@ -42,7 +31,6 @@ func CicloDeInstruccion() bool {
 	}
 
 	CheckInterrupt()
-	global.LoggerCpu.Log("🟧Termina ciclo instruccion", log.INFO)
 	
 	return instruccion.Opcode != "EXIT"
 }
@@ -51,7 +39,7 @@ func Fetch() string {
 	pidActual := global.PCB_Actual.PID
 	pcActual := global.PCB_Actual.PC
 
-	global.LoggerCpu.Log(fmt.Sprintf(" ## PID: %d - FETCH - Program Counter: %d", pidActual, pcActual), log.INFO) //!! Fetch Instrucción - logObligatorio
+	global.LoggerCpu.Log(fmt.Sprintf("\033[36m## PID: %d - FETCH - Program Counter: %d\033[0m", pidActual, pcActual), log.INFO) //!! Fetch Instrucción - logObligatorio
 
 	solicitudInstruccion := estructuras.PCB{
 		PID: pidActual,
@@ -80,7 +68,7 @@ func Decode(instruccionAEjecutar string) (Instruccion, bool) {
 
 func Execute(instruccion Instruccion, requiereMMU bool) error {
 
-	global.LoggerCpu.Log(fmt.Sprintf("## PID: %d - Ejecutando: %s - %s", global.PCB_Actual.PID, instruccion.Opcode, instruccion.Parametros), log.INFO) //!! Instrucción Ejecutada - logObligatorio
+	global.LoggerCpu.Log(fmt.Sprintf("\033[36m## PID: %d - Ejecutando: %s - %s\033[0m", global.PCB_Actual.PID, instruccion.Opcode, instruccion.Parametros), log.INFO) //!! Instrucción Ejecutada - logObligatorio
 
 	//todo INSTRUCCIONES SYSCALLS
 	if instruccion.Opcode == "IO" {
@@ -103,7 +91,7 @@ func Execute(instruccion Instruccion, requiereMMU bool) error {
 		global.Rafaga = time.Since(tiempoInicio).Seconds()		
 		Syscall_Exit()
 		DevolucionPID()
-		global.LoggerCpu.Log("🟦 Proceso finalizado (EXIT). Fin del ciclo", log.INFO)
+		global.LoggerCpu.Log(fmt.Sprintf("\033[35mProceso %d finalizado (EXIT). Fin del ciclo\033[0m",global.PCB_Actual.PID), log.INFO)
 		return nil
 	}
 
