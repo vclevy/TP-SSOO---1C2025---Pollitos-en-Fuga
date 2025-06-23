@@ -22,6 +22,6 @@ func CrearServer() *server.Server {
 			"POST /devolucion": 	handlers.DevolucionCPUHandler,
 		},
 	}
-	fmt.Printf("🟢 Kernel prendido en http://%s:%d\n",global.ConfigKernel.Ip_Kernel, global.ConfigKernel.Port_Kernel)
+	fmt.Printf("\033[32m🟢 Kernel prendido en http://%s:%d\n\033[0m",global.ConfigKernel.Ip_Kernel, global.ConfigKernel.Port_Kernel)
 	return server.NuevoServer(configServer)
 }

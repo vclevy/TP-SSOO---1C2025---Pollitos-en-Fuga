@@ -30,6 +30,6 @@ func CrearServer() *server.Server {
 			"POST /actualizarPaginaCompleta": handlers.EscribirPaginaCompleta,
 		},
 	}
-	fmt.Printf("🟢 Memoria prendida en http://%s:%d\n",global.ConfigMemoria.IPMemory, global.ConfigMemoria.Port_Memory)
+	fmt.Printf("\033[32m🟢 Memoria prendida en http://%s:%d\n\033[0",global.ConfigMemoria.IPMemory, global.ConfigMemoria.Port_Memory)
 	return server.NuevoServer(configServer)
 }

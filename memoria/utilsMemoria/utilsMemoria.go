@@ -95,7 +95,7 @@ func CargarProceso(pid int, ruta string) error {
 	lineas := strings.Split(strings.TrimSpace(string(contenidoArchivo)), "\n")
 
 	// Log de ayuda para debug
-	log.Printf("PID %d - %d instrucciones cargadas desde '%s'\n", pid, len(lineas), ruta)
+	//log.Printf("PID %d - %d instrucciones cargadas desde '%s'\n", pid, len(lineas), ruta)
 
 	global.MutexInstrucciones.Lock()
 	instruccionesProcesos[pid] = &lineas
@@ -160,8 +160,7 @@ func FinalizarProceso(pid int) string{
 	//devolver metricas
 	m := metricas[pid]
 
-	metricasLoggear := "## PID: " + strconv.Itoa(pid) + " - Proceso Destruido - " +
-		"Métricas - " +
+	metricasLoggear :=
 		"Acc.T.Pag: " + strconv.Itoa(m.AcesosTP) + "; " +
 		"Inst.Sol.: " + strconv.Itoa(m.InstruccionesSolicitadas) + "; " +
 		"SWAP: " + strconv.Itoa(m.BajadasSWAP) + "; " +
