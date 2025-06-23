@@ -254,8 +254,16 @@ func LeerPaginaCompleta(w http.ResponseWriter, r *http.Request){
 	pid := paquete.PID
 	direccionFisica := paquete.DireccionFisica
 	
-	utilsMemoria.LeerPaginaCompleta(pid, direccionFisica)
+	lectura := utilsMemoria.LeerPaginaCompleta(pid, direccionFisica)
 
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(lectura); err != nil {
+		http.Error(w, "Error al enviar el marco", http.StatusInternalServerError)
+		return
+	}
+
+	global.LoggerMemoria.Log("## PID: <"+ strconv.Itoa(pid) +">- <Lectura> - Dir. Física: <"+ 
+	strconv.Itoa(direccionFisica) +"> - Tamaño: <"+ strconv.Itoa(len(lectura))+ "> ",  myLogger.INFO)
 }
 
 func EscribirPaginaCompleta(w http.ResponseWriter, r *http.Request){
@@ -275,6 +283,7 @@ func EscribirPaginaCompleta(w http.ResponseWriter, r *http.Request){
 	datos := paquete.Datos
 	
 	utilsMemoria.ActualizarPaginaCompleta(pid, direccionFisica, datos)
+	global.LoggerMemoria.Log(fmt.Sprintf("## PID: <%d> - <Escritura> - Dir. Física: <%d> - Tamaño: <%d> ", pid, direccionFisica,len(datos)), myLogger.INFO)
 }
 
 
