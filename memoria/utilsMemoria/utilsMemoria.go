@@ -54,7 +54,8 @@ func InicializarMemoria() {
 	TamPagina = global.ConfigMemoria.Page_Size
 	CantNiveles = global.ConfigMemoria.Number_of_levels
 	CantEntradas = global.ConfigMemoria.Entries_per_page
-	Delay = global.ConfigMemoria.Memory_delay
+	MemoDelay = global.ConfigMemoria.Memory_delay
+	SwapDelay = global.ConfigMemoria.Swap_delay
 	SwapPath = global.ConfigMemoria.Swapfile_path
 
 	instruccionesProcesos = make(map[int]*[]string)
@@ -175,7 +176,7 @@ func FinalizarProceso(pid int) string{
 
 //LECTURA
 func LeerMemoria(pid int, direccionFisica int, tamanio int) []byte {
-	time.Sleep(time.Millisecond * time.Duration(Delay)) 
+	time.Sleep(time.Millisecond * time.Duration(MemoDelay)) 
 	
 	global.MutexMemoriaUsuario.Lock()
 	datos := MemoriaUsuario[direccionFisica : direccionFisica+tamanio] 
@@ -198,7 +199,7 @@ func LeerPaginaCompleta (pid int, direccionFisica int) []byte{ //Hace lo mismo q
 //ESCRITURA
 func EscribirDatos(pid int, direccionFisica int, datos []byte) { 
 	
-	time.Sleep(time.Millisecond * time.Duration(Delay))
+	time.Sleep(time.Millisecond * time.Duration(MemoDelay))
 	//se para en la posicion pedida y escribe de ahi en adelante
     tamanioDatos := len(datos)
 
@@ -216,7 +217,7 @@ func EscribirDatos(pid int, direccionFisica int, datos []byte) {
 }
 
 func ActualizarPaginaCompleta (pid int, direccionFisica int, datos []byte) {
-	time.Sleep(time.Millisecond * time.Duration(Delay))
+	time.Sleep(time.Millisecond * time.Duration(MemoDelay))
 
 	offset := direccionFisica%TamPagina
 	if(offset!=0){
@@ -297,7 +298,8 @@ func EncontrarMarco(pid int, entradas []int) int {
 
 
 //SWAP
-func Suspender(pid int) {
+func SuspenderProceso(pid int) {
+	time.Sleep(time.Millisecond * time.Duration(SwapDelay))
 	marcosDelProceso := EncontrarMarcosDeProceso(pid)
 	dataMarcos := EncontrarDataMarcos(marcosDelProceso)
 	LiberarEspacioMemoria(pid, marcosDelProceso)
@@ -305,6 +307,7 @@ func Suspender(pid int) {
 }
 
 func DesSuspenderProceso(pid int) {
+	time.Sleep(time.Millisecond * time.Duration(SwapDelay))
 	info := BuscarDataEnSwap(pid)
 	tamanio := len(info) / TamPagina
 	marcosAginados := ReservarMarcos(tamanio)
@@ -317,7 +320,6 @@ func DesSuspenderProceso(pid int) {
 
 }
 
-//HACERRRRR
 func EncontrarDataMarcos(marcos []int) []byte {
 	var data []byte
 
@@ -434,6 +436,8 @@ func LiberarEspacioMemoria(pid int, marcosALiberar []int) {
 		MarcosLibres[idx] = true
 	}
 	global.MutexMarcos.Unlock()
+
+	//habria que borrar la informacion que tienen
 }
 
 func EncontrarMarcosDeProceso(pid int) []int {
@@ -523,7 +527,8 @@ var TamMemoria int
 var TamPagina int
 var CantNiveles int
 var CantEntradas int
-var Delay int
+var MemoDelay int
+var SwapDelay int
 var SwapPath string
 
 

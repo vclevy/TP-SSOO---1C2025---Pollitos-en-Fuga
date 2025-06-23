@@ -46,7 +46,7 @@ func TestFuncionamientoCompletoProceso(t *testing.T) {
 	}
 
 	// Suspender el proceso
-	Suspender(pid)
+	SuspenderProceso(pid)
 
 	// Liberar la tabla y borrar memoria
 	delete(TablasPorProceso, pid)
