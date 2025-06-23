@@ -308,8 +308,13 @@ func DesSuspenderProceso(pid int) {
 	info := BuscarDataEnSwap(pid)
 	tamanio := len(info) / TamPagina
 	marcosAginados := ReservarMarcos(tamanio)
+	fmt.Printf("🧩 Marcos asignados: %v (cantidad: %d)\n", marcosAginados, len(marcosAginados))//AUX
+	fmt.Printf("📏 Info len: %d (espera %d marcos)\n", len(info), len(info)/TamPagina)//AUX
 	AsignarMarcosATablaExistente(pid, marcosAginados)
-	PegarInfoEnMemoria(info, marcosAginados)
+	
+	PegarInfoEnMemoria(pid, info, marcosAginados)
+	fmt.Printf("📦 Info SWAP recuperada: len = %d, bytes = %v\n", len(info), info) //AUX
+
 }
 
 //HACERRRRR
@@ -334,11 +339,23 @@ func EncontrarDataMarcos(marcos []int) []byte {
 	return data
 }
 
-func PegarInfoEnMemoria(info []byte, marcosAsignados []int) {
+func PegarInfoEnMemoria(pid int, info []byte, marcosAsignados []int) {
 
-	//global.MutexMemoriaUsuario.Lock()
-//acceder a memoria de usuario....
-	//global.MutexMemoriaUsuario.Unlock()
+	global.MutexMemoriaUsuario.Lock()
+	for i := 0; i < len(marcosAsignados); i++ {
+		inicio := marcosAsignados[i] * TamPagina
+		fin := inicio + TamPagina
+
+		copy(MemoriaUsuario[inicio:fin], info[i*TamPagina:(i+1)*TamPagina]) //copio
+		fmt.Printf("✏️ Pegando página %d en marco %d [%d:%d]\n", i, marcosAsignados[i], i*TamPagina, (i+1)*TamPagina)//AUX
+
+	}
+	global.MutexMemoriaUsuario.Unlock()
+
+	if metricas[pid] == nil {
+		metricas[pid] = &MetricasProceso{}
+	}
+	metricas[pid].SubidasMemoPpal++
 }
 func BuscarDataEnSwap(pid int) []byte{
 	file, err := os.Open(SwapPath) //O_APPEND: Todo se agrega al final, no sobreescribe; O_CREATE: Si no existe lo crea; O_WORNLY Se abre solo para escritura, no lectura
@@ -456,22 +473,28 @@ func AsignarMarcosATablaExistente(pid int, marcos []int) {
 
 func recorrerYAsignar(tabla []*EntradaTP, proximo *int, marcos []int, nivelActual int) {
 	for _, entrada := range tabla {
+		if *proximo >= len(marcos) {
+			return // ✅ Ya asignaste todos los marcos necesarios, corto el recorrido
+		}
+
 		if entrada == nil {
 			continue
 		}
 
 		if nivelActual == CantNiveles {
-			if *proximo >= len(marcos) {
-				break
+			if *proximo < len(marcos) {
+				fmt.Printf("📍 Asignando marco %d a entrada\n", marcos[*proximo]) //AUX
+				entrada.MarcoFisico = marcos[*proximo]
+				entrada.Presente = true
+				*proximo += 1
 			}
-			entrada.MarcoFisico = marcos[*proximo]
-			entrada.Presente = true
-			*proximo++
 		} else if entrada.SiguienteNivel != nil {
 			recorrerYAsignar(entrada.SiguienteNivel, proximo, marcos, nivelActual+1)
 		}
+		fmt.Printf("✅ Total marcos asignados: %d\n", proximo)//AUX
 	}
 }
+
 
 
 
