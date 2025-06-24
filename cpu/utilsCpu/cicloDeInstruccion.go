@@ -28,7 +28,8 @@ func CicloDeInstruccion() bool {
 
 	CheckInterrupt()
 	
-	return instruccion.Opcode != "EXIT"
+	seguirEjecutando := instruccion.Opcode != "EXIT" && instruccion.Opcode != "IO"
+	return seguirEjecutando
 }
 
 func Fetch() string {
@@ -70,8 +71,8 @@ func Execute(instruccion Instruccion, requiereMMU bool) error {
 	if instruccion.Opcode == "IO" {
 		global.Motivo = "BLOCKED"
 		global.Rafaga = time.Since(tiempoInicio).Seconds()
-		cortoProceso()
 		Syscall_IO(instruccion)
+		cortoProceso()
 		return nil
 	}
 	if instruccion.Opcode == "INIT_PROC" {
