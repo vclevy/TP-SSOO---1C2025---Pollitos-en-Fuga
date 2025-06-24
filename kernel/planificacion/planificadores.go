@@ -299,7 +299,6 @@ func evaluarDesalojoSRTF(nuevoProceso *global.Proceso) bool {
 	return false
 }
 
-
 func AsignarCPU(proceso *global.Proceso) {
 	global.LoggerKernel.Log(fmt.Sprintf("Intentando asignar CPU al proceso PID %d", proceso.PID), log.DEBUG)
 
@@ -317,7 +316,7 @@ func AsignarCPU(proceso *global.Proceso) {
 		global.LoggerKernel.Log(fmt.Sprintf("CPU libre encontrada: %s para proceso %d", cpuLibre.ID, proceso.PID), log.DEBUG)
 		cpuLibre.ProcesoEjecutando = &proceso.PCB
 	} else {
-		global.LoggerKernel.Log(fmt.Sprintf("No hay CPU disponible para proceso %d, vuelve a READY", proceso.PID), log.INFO)
+		global.LoggerKernel.Log(fmt.Sprintf("No hay CPU disponible para proceso %d, vuelve a READY", proceso.PID), log.DEBUG)
 		global.MutexCPUs.Unlock()
 		global.AgregarAReady(proceso)
 		return
@@ -347,7 +346,6 @@ func AsignarCPU(proceso *global.Proceso) {
 	}(cpuLibre, proceso)
 }
 
-
 func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 	var proceso *global.Proceso
 
@@ -375,6 +373,10 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 		global.LoggerKernel.Log(fmt.Sprintf("Proceso %d no encontrado en EXECUTING al devolver", resp.PID), log.DEBUG)
 		return
 	}
+
+	// Actualizar TiempoEjecutado con el tiempo real ejecutado que devuelve la CPU
+	proceso.TiempoEjecutado += resp.RafagaReal
+	global.LoggerKernel.Log(fmt.Sprintf("Proceso PID %d - TiempoEjecutado actualizado a %f", proceso.PCB.PID, proceso.TiempoEjecutado), log.DEBUG)
 
 	proceso.PCB.PC = resp.PC
 	RecalcularRafaga(proceso, resp.RafagaReal)
@@ -414,6 +416,7 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 		}
 	}
 }
+
 
 func IniciarPlanificadorMedioPlazo() {
 	for {
