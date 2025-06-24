@@ -9,7 +9,7 @@
     "swapfile_path": "swapfile.bin",
     "swap_delay": 15000,
     "log_level": "DEBUG",
-    "dump_path": "/dump_files/",
+    "dump_path": "./dump_files/",
     "log_file": "memoria.log",
     "scripts_path": "../scripts/"
 }

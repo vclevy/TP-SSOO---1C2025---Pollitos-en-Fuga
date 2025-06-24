@@ -129,7 +129,6 @@ func DumpMemoria(w http.ResponseWriter, r *http.Request){
 		return
 	}
 
-	
 	var body estructuras.SolicitudDump
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, "Error al decodificar JSON", http.StatusBadRequest)
@@ -139,7 +138,8 @@ func DumpMemoria(w http.ResponseWriter, r *http.Request){
 	pid:=body.PID
 
 	utilsMemoria.DumpMemoriaProceso(pid)
-	global.LoggerMemoria.Log(fmt.Sprintf("## PID: %d - Memory Dump generado correctamente", pid), myLogger.DEBUG)
+
+	global.LoggerMemoria.Log(fmt.Sprintf("## PID: %d - Memory Dump solicitado", pid), myLogger.DEBUG)
 	w.WriteHeader(http.StatusOK)
 }
 

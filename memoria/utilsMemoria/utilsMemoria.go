@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
+"path/filepath"
 	"github.com/sisoputnfrba/tp-golang/memoria/global"
 )
 
@@ -421,9 +421,10 @@ func DumpMemoriaProceso (pid int){
 
 	//ASIGNAR FECHA
 	timestamp := time.Now().Format("20060102-150405")
-    nombreArchivo := fmt.Sprintf("%s/%d-%s.dmp", global.ConfigMemoria.Dump_path, pid, timestamp) //VER SI LA RUTA ES LA MISMA QUE KERNEL
+    nombreArchivo := fmt.Sprintf("%d-%s.dmp", pid, timestamp)
+	rutaCompleta := filepath.Join(global.ConfigMemoria.Dump_path, nombreArchivo)
 
-	file, err := os.Create(nombreArchivo) //CREO EL ARCHIVO
+	file, err := os.Create(rutaCompleta) //CREO EL ARCHIVO
     if err != nil {
         log.Printf("❌ Error creando dump para PID %d: %v", pid, err)
         return
