@@ -268,6 +268,10 @@ func evaluarDesalojoSRTF(nuevoProceso *global.Proceso) bool {
 	global.MutexExecuting.Lock()
 	defer global.MutexExecuting.Unlock()
 
+	if(utilskernel.HayCPUDisponible()){
+		return false
+	}
+
 	if len(global.ColaExecuting) == 0 {
 		global.LoggerKernel.Log("evaluarDesalojoSRTF: no hay procesos ejecutando, no se desaloja", log.DEBUG)
 		return false
@@ -376,9 +380,9 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 
 	// Actualizar TiempoEjecutado con el tiempo real ejecutado que devuelve la CPU
 	proceso.TiempoEjecutado += resp.RafagaReal
+	proceso.PCB.PC = resp.PC
 	global.LoggerKernel.Log(fmt.Sprintf("Proceso PID %d - TiempoEjecutado actualizado a %f", proceso.PCB.PID, proceso.TiempoEjecutado), log.DEBUG)
 
-	proceso.PCB.PC = resp.PC
 	RecalcularRafaga(proceso, resp.RafagaReal)
 
 	switch resp.Motivo {
@@ -408,7 +412,7 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 		}
 	}
 
-	// Si el proceso no fue a READY, igual hay que notificar al planificador
+	// Si el proceso no fue a READY, igual hay que notificar al planificador //!@Valen no esta de mas el if?
 	if resp.Motivo != "READY" {
 		select {
 		case global.NotifyReady <- struct{}{}:
