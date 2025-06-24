@@ -14,6 +14,16 @@ import (
 	"github.com/sisoputnfrba/tp-golang/utils/logger"
 )
 
+const (
+    ColorReset  = "\033[0m"
+    ColorRed    = "\033[31m"
+    ColorGreen  = "\033[32m"
+    ColorYellow = "\033[33m"
+    ColorBlue   = "\033[34m"
+    ColorOrange = "\033[38;5;208m" // naranja aproximado usando color 256
+)
+
+
 type PaqueteHandshakeIO = estructuras.PaqueteHandshakeIO
 type IODevice = global.IODevice
 type PCB = planificacion.PCB
@@ -74,7 +84,7 @@ func INIT_PROC(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	global.LoggerKernel.Log("## ("+strconv.Itoa(syscall.PID)+") - Solicitó syscall: <INIT_PROC>", log.INFO)
+	global.LoggerKernel.Log(ColorGreen + "## ("+strconv.Itoa(syscall.PID)+") - Solicitó syscall: <INIT_PROC>" + ColorReset, log.INFO)
 	planificacion.CrearProceso(syscall.Tamanio, syscall.ArchivoInstrucciones)
 	//el log ya lo hace crearProceso
 
@@ -125,7 +135,7 @@ func IO(w http.ResponseWriter, r *http.Request) {
 	tiempoUso := syscall.TiempoEstimado
 	pid := syscall.PIDproceso
 
-	global.LoggerKernel.Log("## ("+strconv.Itoa(pid)+") - Solicitó syscall: <IO>", log.INFO)
+	global.LoggerKernel.Log(ColorBlue + "## ("+strconv.Itoa(pid)+") - Solicitó syscall: <IO>" + ColorReset, log.INFO)
 
 	global.IOListMutex.RLock()
 	dispositivos := utilsKernel.ObtenerDispositivoIO(nombre)
@@ -279,7 +289,7 @@ func EXIT(w http.ResponseWriter, r *http.Request) {
 	pidStr := r.URL.Query().Get("pid")
 	PID, _ := strconv.Atoi(pidStr)
 
-	global.LoggerKernel.Log("## ("+strconv.Itoa(PID)+") - Solicitó syscall: <EXIT>", log.INFO)
+	global.LoggerKernel.Log(ColorRed + "## ("+strconv.Itoa(PID)+") - Solicitó syscall: <EXIT>" + ColorReset, log.INFO)
 
 	w.WriteHeader(http.StatusOK)
 }
@@ -292,7 +302,7 @@ func DUMP_MEMORY(w http.ResponseWriter, r *http.Request) {
 
 	planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.BLOCKED)
 	global.AgregarABlocked(proceso)
-	global.LoggerKernel.Log("## ("+strconv.Itoa(pid)+") - Solicitó syscall: <DUMP_MEMORY>", log.INFO)
+	global.LoggerKernel.Log(ColorOrange + "## ("+strconv.Itoa(pid)+") - Solicitó syscall: <DUMP_MEMORY>" + ColorReset, log.INFO)
 
 	err := utilsKernel.SolicitarDumpAMemoria(pid)
 	if err != nil {

@@ -31,6 +31,15 @@ var estado = []string{
 	SUSP_BLOCKED,
 }
 
+const (
+    ColorReset  = "\033[0m"
+    ColorRed    = "\033[31m"
+    ColorGreen  = "\033[32m"
+    ColorYellow = "\033[33m"
+    ColorBlue   = "\033[34m"
+    ColorOrange = "\033[38;5;208m" // naranja aproximado usando color 256
+)
+
 type PCB = global.PCB
 type Proceso = global.Proceso
 
@@ -50,7 +59,7 @@ func CrearProceso(tamanio int, archivoPseudoCodigo string) *Proceso {
 		EstimacionRafaga: float64(global.ConfigKernel.InitialEstimate),
 	}
 
-	global.LoggerKernel.Log(fmt.Sprintf("## (%d) Se crea el proceso - Estado: NEW", pcb.PID), log.INFO)
+	global.LoggerKernel.Log(ColorYellow + fmt.Sprintf("## (%d) Se crea el proceso - Estado: NEW", pcb.PID) + ColorReset, log.INFO)
 	global.AgregarANew(&proceso)
 	return &proceso
 }
