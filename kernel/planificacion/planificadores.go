@@ -167,15 +167,18 @@ func IniciarPlanificadorLargoPlazo() {
 func IniciarPlanificadorCortoPlazo() {
 	for {
 		<-global.NotifyReady
+		global.LoggerKernel.Log("Se recibió notificación de procesos en READY", log.DEBUG)
 
 		for {
 			if !utilskernel.HayCPUDisponible() && global.ConfigKernel.SchedulerAlgorithm != "SRTF" {
+				global.LoggerKernel.Log("No hay CPU disponible y el algoritmo no es SRTF. Se detiene iteración.", log.DEBUG)
 				break
 			}
 
 			global.MutexReady.Lock()
 			if len(global.ColaReady) == 0 {
 				global.MutexReady.Unlock()
+				global.LoggerKernel.Log("Cola READY vacía. Se detiene iteración.", log.DEBUG)
 				break
 			}
 
@@ -184,25 +187,33 @@ func IniciarPlanificadorCortoPlazo() {
 			case "FIFO":
 				nuevoProceso = global.ColaReady[0]
 				global.ColaReady = global.ColaReady[1:]
+				global.LoggerKernel.Log(fmt.Sprintf("Seleccionado proceso FIFO PID %d", nuevoProceso.PCB.PID), log.DEBUG)
+
 			case "SJF", "SRTF":
 				nuevoProceso = seleccionarProcesoSJF(global.ConfigKernel.SchedulerAlgorithm == "SRTF")
+				if nuevoProceso != nil {
+					global.LoggerKernel.Log(fmt.Sprintf("Seleccionado proceso %s PID %d", global.ConfigKernel.SchedulerAlgorithm, nuevoProceso.PCB.PID), log.DEBUG)
+				}
 			}
 			global.MutexReady.Unlock()
 
 			if nuevoProceso == nil {
+				global.LoggerKernel.Log("No se seleccionó ningún proceso. Se detiene iteración.", log.DEBUG)
 				break
 			}
 
 			if global.ConfigKernel.SchedulerAlgorithm == "SRTF" {
 				if evaluarDesalojoSRTF(nuevoProceso) {
+					global.LoggerKernel.Log(fmt.Sprintf("Proceso PID %d no asignado por desalojo SRTF", nuevoProceso.PCB.PID), log.DEBUG)
 					continue
 				} else {
-					// vuelve a ready porque no se ejecuta todavía
+					global.LoggerKernel.Log(fmt.Sprintf("Proceso PID %d no ejecuta aún, vuelve a READY", nuevoProceso.PCB.PID), log.DEBUG)
 					global.AgregarAReady(nuevoProceso)
 					break
 				}
 			}
 
+			global.LoggerKernel.Log(fmt.Sprintf("Asignando proceso PID %d a CPU", nuevoProceso.PCB.PID), log.DEBUG)
 			AsignarCPU(nuevoProceso)
 		}
 	}
@@ -342,7 +353,6 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 		}
 	}
 }
-
 func IniciarPlanificadorMedioPlazo() {
 	for {
 		global.MutexBlocked.Lock()
@@ -357,17 +367,20 @@ func IniciarPlanificadorMedioPlazo() {
 				nuevaColaBlocked = append(nuevaColaBlocked, proceso)
 			}
 		}
+
+		global.LoggerKernel.Log(fmt.Sprintf("Procesos a suspender: %d", len(procesosASuspender)), log.DEBUG)
 		global.ColaBlocked = nuevaColaBlocked
 		global.MutexBlocked.Unlock()
 
-		// Suspender fuera del lock
 		for _, p := range procesosASuspender {
+			global.LoggerKernel.Log(fmt.Sprintf("Suspendiendo proceso PID %d", p.PCB.PID), log.DEBUG)
 			suspenderProceso(p)
 
-			// Notificar al planificador largo plazo para intentar cargar desde SuspReady
 			select {
 			case global.NotifySuspReady <- struct{}{}:
+				global.LoggerKernel.Log("Notificando a largo plazo por SuspReady", log.DEBUG)
 			default:
+				global.LoggerKernel.Log("Notificación a largo plazo omitida (canal ya lleno)", log.DEBUG)
 			}
 		}
 
