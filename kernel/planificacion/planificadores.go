@@ -35,20 +35,27 @@ type PCB = global.PCB
 type Proceso = global.Proceso
 
 func CrearProceso(tamanio int, archivoPseudoCodigo string) *Proceso {
-	pcb := global.NuevoPCB()
-	ActualizarEstadoPCB(pcb, NEW)
+    pcb := global.NuevoPCB()
 
-	proceso := Proceso{
-		PCB:              *pcb,
-		MemoriaRequerida: tamanio,
-		ArchivoPseudo:    archivoPseudoCodigo,
-		EstimacionRafaga: float64(global.ConfigKernel.InitialEstimate),
-	}
+	global.MutexUltimoPID.Lock()
+    global.UltimoPID++
+    global.MutexUltimoPID.Unlock()
 
-	global.LoggerKernel.Log(fmt.Sprintf("## (%d) Se crea el proceso - Estado: NEW", pcb.PID), log.INFO)
-	global.AgregarANew(&proceso)
-	return &proceso
+    global.LoggerKernel.Log(fmt.Sprintf("[DEBUG] CrearProceso usará PID: %d", pcb.PID), log.DEBUG)
+    ActualizarEstadoPCB(pcb, NEW)
+
+    proceso := Proceso{
+        PCB:              *pcb,
+        MemoriaRequerida: tamanio,
+        ArchivoPseudo:    archivoPseudoCodigo,
+        EstimacionRafaga: float64(global.ConfigKernel.InitialEstimate),
+    }
+
+    global.LoggerKernel.Log(fmt.Sprintf("## (%d) Se crea el proceso - Estado: NEW", pcb.PID), log.INFO)
+    global.AgregarANew(&proceso)
+    return &proceso
 }
+
 
 func ActualizarEstadoPCB(pcb *PCB, nuevoEstado string) {
 	ahora := time.Now()

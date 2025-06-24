@@ -1,6 +1,7 @@
 package global
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -32,19 +33,20 @@ type Proceso struct {
 }
 
 func NuevoPCB() *PCB {
-	MutexUltimoPID.Lock()
+
 	pid := UltimoPID
-	UltimoPID++
-	MutexUltimoPID.Unlock()
-	
-	return &PCB{
-		PID:          pid,
-		PC:           0,
-		ME:           make(map[string]int),
-		MT:           make(map[string]int),
-		UltimoEstado: "",
-		InicioEstado: time.Now(),
-	}
+
+
+    LoggerKernel.Log(fmt.Sprintf("[DEBUG] NuevoPCB generó PID: %d", pid), logger.DEBUG)
+
+    return &PCB{
+        PID:          pid,
+        PC:           0,
+        ME:           make(map[string]int),
+        MT:           make(map[string]int),
+        UltimoEstado: "",
+        InicioEstado: time.Now(),
+    }
 }
 
 
