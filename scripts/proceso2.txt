@@ -1,4 +1,5 @@
 WRITE 0 HOLA
+IO teclado 10000
 READ 0 4
 NOOP
 IO teclado 1000 

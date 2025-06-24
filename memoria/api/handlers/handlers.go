@@ -75,7 +75,7 @@ func VerificarEspacioDisponible(w http.ResponseWriter, r *http.Request) {
 }
 
 func Suspender(w http.ResponseWriter, r *http.Request){
-	pidStr := r.URL.Query().Get("suspension") 
+	pidStr := r.URL.Query().Get("pid") 
 	pid,err := strconv.Atoi(pidStr)
 
 	if err != nil {
@@ -89,7 +89,7 @@ func Suspender(w http.ResponseWriter, r *http.Request){
 }
 
 func DesSuspender(w http.ResponseWriter, r *http.Request){
-	pidStr := r.URL.Query().Get("dessuspension") 
+	pidStr := r.URL.Query().Get("pid") 
 	pid,err := strconv.Atoi(pidStr)
 
 	if err != nil {
