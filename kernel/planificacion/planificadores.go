@@ -5,9 +5,9 @@ import (
 	"sort"
 	"time"
 
-	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
 	"github.com/sisoputnfrba/tp-golang/kernel/global"
 	utilskernel "github.com/sisoputnfrba/tp-golang/kernel/utilsKernel"
+	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
 	log "github.com/sisoputnfrba/tp-golang/utils/logger"
 )
 
@@ -35,27 +35,25 @@ type PCB = global.PCB
 type Proceso = global.Proceso
 
 func CrearProceso(tamanio int, archivoPseudoCodigo string) *Proceso {
-    pcb := global.NuevoPCB()
+	pcb := global.NuevoPCB()
 
 	global.MutexUltimoPID.Lock()
-    global.UltimoPID++
-    global.MutexUltimoPID.Unlock()
+	global.UltimoPID++
+	global.MutexUltimoPID.Unlock()
 
-    global.LoggerKernel.Log(fmt.Sprintf("[DEBUG] CrearProceso usará PID: %d", pcb.PID), log.DEBUG)
-    ActualizarEstadoPCB(pcb, NEW)
+	ActualizarEstadoPCB(pcb, NEW)
 
-    proceso := Proceso{
-        PCB:              *pcb,
-        MemoriaRequerida: tamanio,
-        ArchivoPseudo:    archivoPseudoCodigo,
-        EstimacionRafaga: float64(global.ConfigKernel.InitialEstimate),
-    }
+	proceso := Proceso{
+		PCB:              *pcb,
+		MemoriaRequerida: tamanio,
+		ArchivoPseudo:    archivoPseudoCodigo,
+		EstimacionRafaga: float64(global.ConfigKernel.InitialEstimate),
+	}
 
-    global.LoggerKernel.Log(fmt.Sprintf("## (%d) Se crea el proceso - Estado: NEW", pcb.PID), log.INFO)
-    global.AgregarANew(&proceso)
-    return &proceso
+	global.LoggerKernel.Log(fmt.Sprintf("## (%d) Se crea el proceso - Estado: NEW", pcb.PID), log.INFO)
+	global.AgregarANew(&proceso)
+	return &proceso
 }
-
 
 func ActualizarEstadoPCB(pcb *PCB, nuevoEstado string) {
 	ahora := time.Now()
@@ -79,7 +77,7 @@ func ActualizarEstadoPCB(pcb *PCB, nuevoEstado string) {
 
 func IniciarPlanificadorLargoPlazo() {
 	<-global.InicioPlanificacionLargoPlazo
-	global.LoggerKernel.Log("Iniciando planificación de largo plazo...", log.INFO)
+	global.LoggerKernel.Log("Iniciando planificación de largo plazo...", log.DEBUG)
 
 	for {
 		// Prioridad: SuspReady
@@ -108,7 +106,7 @@ func IniciarPlanificadorLargoPlazo() {
 					break
 				}
 
-				switch global.ConfigKernel.ReadyIngressALgorithm {
+				switch global.ConfigKernel.ReadyIngressAlgorithm {
 				case "FIFO":
 					global.MutexNew.Lock()
 					if len(global.ColaNew) == 0 {
@@ -225,7 +223,6 @@ func IniciarPlanificadorCortoPlazo() {
 		}
 	}
 }
-
 
 func evaluarDesalojoSRTF(nuevoProceso *global.Proceso) bool {
 	global.MutexExecuting.Lock()
@@ -394,7 +391,6 @@ func IniciarPlanificadorMedioPlazo() {
 		time.Sleep(100 * time.Millisecond)
 	}
 }
-
 
 func IntentarCargarDesdeSuspReady() bool {
 	global.MutexSuspReady.Lock()

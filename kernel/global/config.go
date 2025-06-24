@@ -1,10 +1,8 @@
 package global
 
 import (
-	"fmt"
 	"sync"
 	"time"
-
 	utils "github.com/sisoputnfrba/tp-golang/utils/config"
 	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
 	logger "github.com/sisoputnfrba/tp-golang/utils/logger"
@@ -14,7 +12,6 @@ var ConfigKernel *Config
 var LoggerKernel *logger.LoggerStruct
 var UltimoPID int = 0
 var MutexUltimoPID sync.Mutex
-
 type PCB struct {
 	PID          int
 	PC           int
@@ -23,7 +20,6 @@ type PCB struct {
 	UltimoEstado string
 	InicioEstado time.Time
 }
-
 type Proceso struct {
     PCB
     MemoriaRequerida  int
@@ -33,11 +29,7 @@ type Proceso struct {
 }
 
 func NuevoPCB() *PCB {
-
 	pid := UltimoPID
-
-
-    LoggerKernel.Log(fmt.Sprintf("[DEBUG] NuevoPCB generó PID: %d", pid), logger.DEBUG)
 
     return &PCB{
         PID:          pid,
@@ -48,13 +40,11 @@ func NuevoPCB() *PCB {
         InicioEstado: time.Now(),
     }
 }
-
-
 type Config struct {
 	IPMemory              string  `json:"ip_memory"`
 	Port_Memory           int     `json:"port_memory"`
 	SchedulerAlgorithm    string  `json:"scheduler_algorithm"`
-	ReadyIngressALgorithm string  `json:"ready_ingress_algorithm"`
+	ReadyIngressAlgorithm string  `json:"ready_ingress_algorithm"`
 	Alpha                 float64 `json:"alpha"`
 	SuspensionTime        int     `json:"suspension_time"`
 	LogLevel              string  `json:"log_level"`
@@ -63,7 +53,6 @@ type Config struct {
 	Ip_Kernel             string  `json:"ip_kernel"`
 	InitialEstimate       int     `json:"initial_estimate"`
 }
-
 
 func InitGlobal(archivoConfig string) {
 	ConfigKernel = utils.CargarConfig[Config](archivoConfig)

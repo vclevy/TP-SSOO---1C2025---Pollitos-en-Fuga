@@ -21,7 +21,6 @@ type SyscallIO = estructuras.Syscall_IO
 type FinDeIO = estructuras.FinDeIO
 type Syscall_Init_Proc = estructuras.Syscall_Init_Proc
 
-
 func RecibirPaquete(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
@@ -63,7 +62,7 @@ func RecibirPaquete(w http.ResponseWriter, r *http.Request) {
 }
 
 func INIT_PROC(w http.ResponseWriter, r *http.Request) {
-    var syscall estructuras.Syscall_Init_Proc
+	var syscall estructuras.Syscall_Init_Proc
 
 	if err := json.NewDecoder(r.Body).Decode(&syscall); err != nil {
 		http.Error(w, "Error al parsear el cuerpo de la solicitud", http.StatusBadRequest)
@@ -77,12 +76,11 @@ func INIT_PROC(w http.ResponseWriter, r *http.Request) {
 
 	global.LoggerKernel.Log("## ("+strconv.Itoa(syscall.PID)+") - Solicitó syscall: <INIT_PROC>", log.INFO)
 	planificacion.CrearProceso(syscall.Tamanio, syscall.ArchivoInstrucciones)
-	//global.LoggerKernel.Log(fmt.Sprintf("Proceso creado: %+v", procesoCreado), log.DEBUG)
 	//el log ya lo hace crearProceso
 
 }
 
-func HandshakeConCPU(w http.ResponseWriter, r *http.Request) { 
+func HandshakeConCPU(w http.ResponseWriter, r *http.Request) {
 	var nuevoHandshake estructuras.HandshakeConCPU
 	if r.Method != http.MethodPost {
 		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
@@ -94,9 +92,9 @@ func HandshakeConCPU(w http.ResponseWriter, r *http.Request) {
 	}
 
 	nuevaCpu := global.CPU{
-		ID:               nuevoHandshake.ID,
-		IP:               nuevoHandshake.IP,
-		Puerto:           nuevoHandshake.Puerto,
+		ID:                nuevoHandshake.ID,
+		IP:                nuevoHandshake.IP,
+		Puerto:            nuevoHandshake.Puerto,
 		ProcesoEjecutando: nil,
 	}
 
@@ -188,13 +186,12 @@ func IO(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-
 func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
 
 	// Si NO hay body desconexión
 	if r.ContentLength == 0 {
 		fmt.Println("Desconexión recibida")
-		
+
 		r.Header.Get("X-IO-Nombre")
 		ip := r.Header.Get("X-IO-IP")
 		puertoStr := r.Header.Get("X-IO-Puerto")
@@ -297,7 +294,6 @@ func DUMP_MEMORY(w http.ResponseWriter, r *http.Request) {
 	global.AgregarABlocked(proceso)
 	global.LoggerKernel.Log("## ("+strconv.Itoa(pid)+") - Solicitó syscall: <DUMP_MEMORY>", log.INFO)
 
-
 	err := utilsKernel.SolicitarDumpAMemoria(pid)
 	if err != nil {
 		global.LoggerKernel.Log(fmt.Sprintf("Error en dump de memoria para PID %d: %s", pid, err.Error()), log.ERROR)
@@ -324,7 +320,7 @@ func DevolucionCPUHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error al decodificar devolución", http.StatusBadRequest)
 		return
 	}
-	
+
 	go planificacion.ManejarDevolucionDeCPU(devolucion)
 	w.WriteHeader(http.StatusOK)
 }
