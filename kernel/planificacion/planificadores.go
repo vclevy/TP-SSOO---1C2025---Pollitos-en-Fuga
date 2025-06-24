@@ -195,7 +195,7 @@ func IniciarPlanificadorCortoPlazo() {
 				global.LoggerKernel.Log(fmt.Sprintf("Seleccionado proceso FIFO PID %d", nuevoProceso.PCB.PID), log.DEBUG)
 
 			case "SJF", "SRTF":
-				nuevoProceso = seleccionarProcesoSJF(global.ConfigKernel.SchedulerAlgorithm == "SRTF")
+				nuevoProceso = seleccionarProcesoSJF(global.ConfigKernel.SchedulerAlgorithm == "SRTF") //esta ya elimina de ready
 				if nuevoProceso != nil {
 					global.LoggerKernel.Log(fmt.Sprintf("Seleccionado proceso %s PID %d", global.ConfigKernel.SchedulerAlgorithm, nuevoProceso.PCB.PID), log.DEBUG)
 				}
@@ -416,7 +416,6 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 		}
 	}
 }
-
 
 func IniciarPlanificadorMedioPlazo() {
 	for {

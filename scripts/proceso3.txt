@@ -1,0 +1,3 @@
+INIT_PROC proceso1.txt 100
+INIT_PROC proceso1.txt 80
+EXIT
