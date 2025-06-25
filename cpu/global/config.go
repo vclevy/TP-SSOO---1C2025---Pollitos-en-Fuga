@@ -45,40 +45,36 @@ var ConfigMMU estructuras.ConfiguracionMMU
 var TLB []estructuras.DatoTLB
 var CACHE []estructuras.DatoCACHE
 
-func InitGlobal(idCPU string) {
+func InitGlobal(idCPU string, configPath string) {
 	CpuID = idCPU
-	// 1. Cargar configuración desde archivo
-	CpuConfig = utils.CargarConfig[Config]("config/config.json")
+
+	// 1. Cargar configuración desde archivo recibido por parámetro
+	CpuConfig = utils.CargarConfig[Config](configPath)
 
 	os.MkdirAll("logs", os.ModePerm)
 
 	// 2. Crear el archivo Log correspondiente a la CPU
 	logFileName := fmt.Sprintf("logs/%s.log", idCPU)
 
-	// 4. Inicializar archivo logger con ese nombre
+	// 3. Inicializar archivo logger
 	LoggerCpu = log.ConfigurarLogger(logFileName, CpuConfig.LogLevel)
-
-	// 5. Avisar que fue inicializado
 	LoggerCpu.Log("Logger de CPU inicializado", log.DEBUG)
 
 	CacheHabilitada = CpuConfig.CacheEntries > 0
 	TlbHabilitada =  CpuConfig.TlbEntries > 0
 
-	
-	err := CargarConfigMMU()
-		if err != nil {
-			LoggerCpu.Log("Error en ConfigMMU: "+err.Error(), log.ERROR)
+	if err := CargarConfigMMU(); err != nil {
+		LoggerCpu.Log("Error en ConfigMMU: "+err.Error(), log.ERROR)
+	}
 
-		}
-			
 	if CacheHabilitada {
 		InicializarCACHE()
 	}
 	if TlbHabilitada {
 		InicializarTLB()
 	}
-	
 }
+
 
 func InicializarTLB() {
 	TLB = make([]estructuras.DatoTLB, CpuConfig.TlbEntries)

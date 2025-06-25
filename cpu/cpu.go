@@ -10,15 +10,16 @@ import (
 	log "github.com/sisoputnfrba/tp-golang/utils/logger"
 )
 
-
 func main() {
-	if len(os.Args) < 2 {
-		fmt.Println("Uso: ./cpu <ID_CPU>")
+	if len(os.Args) < 3 {
+		fmt.Println("Uso: ./cpu <ID_CPU> <path_config>")
 		return
 	}
 
 	idCPU := os.Args[1]
-	global.InitGlobal(idCPU)
+	configPath := os.Args[2]
+
+	global.InitGlobal(idCPU, configPath)
 	defer global.LoggerCpu.CloseLogger()
 
 	if err := utilsCpu.HandshakeKernel(); err != nil {

@@ -14,13 +14,15 @@ import (
 
 func main() {
 
-	global.InitGlobal()
-	defer global.LoggerIo.CloseLogger()
-
-	if len(os.Args) < 2 {
-		global.LoggerIo.Log("Ejemplo: go run ./src/io.go teclado", log.ERROR) 
+	if len(os.Args) < 3 {
+		fmt.Println("Uso: go run ./src/io.go <dispositivo> <path_config>")
 		return
 	}
+
+	configPath := os.Args[2]
+	global.InitGlobal(configPath)
+	defer global.LoggerIo.CloseLogger()
+	
 s := api.CrearServer()
 	go func() {
 		err_server := s.Iniciar()

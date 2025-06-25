@@ -1,12 +1,13 @@
 package main
 
 import (
+	"fmt"
+	"os"
 	"github.com/sisoputnfrba/tp-golang/memoria/api"
 	"github.com/sisoputnfrba/tp-golang/memoria/global"
 	"github.com/sisoputnfrba/tp-golang/memoria/utilsMemoria"
 	"github.com/sisoputnfrba/tp-golang/utils/logger"
 	//"github.com/sisoputnfrba/tp-golang/utils/paquetes"
-	//"fmt"
 )
 
 //CONEXIÓN;
@@ -15,11 +16,17 @@ import (
 
 func main() {
 
-	global.InitGlobal()
-	defer global.LoggerMemoria.CloseLogger()	
-	
+	if len(os.Args) < 2 {
+		fmt.Println("Uso: ./memoria <path_config>")
+		return
+	}
+
+	configPath := os.Args[1]
+	global.InitGlobal(configPath)
+	defer global.LoggerMemoria.CloseLogger()
+
 	utilsMemoria.InicializarMemoria()
-	// configurar logger e inicializar config
+
 	s := api.CrearServer()
 	go func() {
 		err_server := s.Iniciar()

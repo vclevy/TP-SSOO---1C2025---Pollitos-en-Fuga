@@ -25,14 +25,12 @@ type Config struct {
 	//"scripts_file": "/home/utnso/scripts/" LO CAMBIE PARA PRUEBAS
 }
 
-func InitGlobal() {
-	// 1. Cargar configuración desde archivo
-	ConfigMemoria = utils.CargarConfig[Config]("config/config.json")
-
-	// 2. Inicializar logger con lo que vino en la config
+func InitGlobal(configPath string) {
+	ConfigMemoria = utils.CargarConfig[Config](configPath)
 	LoggerMemoria = logger.ConfigurarLogger(ConfigMemoria.Log_file, ConfigMemoria.Log_Level)
-    LoggerMemoria.Log("Logger de Memoria inicializado", logger.DEBUG)
+	LoggerMemoria.Log("Logger de Memoria inicializado", logger.DEBUG)
 }
+
 
 var MutexMemoriaUsuario sync.Mutex
 var MutexSwap sync.Mutex

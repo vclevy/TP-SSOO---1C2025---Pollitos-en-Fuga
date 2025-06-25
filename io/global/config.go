@@ -18,8 +18,8 @@ type Config struct {
 	Log_File			string  `json:"log_file"`	
 	}	
 
-func InitGlobal () {
-	IoConfig = utils.CargarConfig[Config]("config/config.json")
+func InitGlobal(configPath string) {
+	IoConfig = utils.CargarConfig[Config](configPath)
 	LoggerIo = logger.ConfigurarLogger(IoConfig.Log_File, IoConfig.LogLevel)
 	LoggerIo.Log("Logger de io inicializado", logger.DEBUG)
 }
