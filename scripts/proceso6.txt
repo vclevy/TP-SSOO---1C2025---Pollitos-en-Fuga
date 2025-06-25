@@ -1,0 +1,2 @@
+IO disco 10000
+EXIT

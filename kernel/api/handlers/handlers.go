@@ -6,8 +6,6 @@ import (
 	"io"
 	"net/http"
 	"strconv"
-	"strings"
-
 	"github.com/sisoputnfrba/tp-golang/kernel/global"
 	planificacion "github.com/sisoputnfrba/tp-golang/kernel/planificacion"
 	utilsKernel "github.com/sisoputnfrba/tp-golang/kernel/utilsKernel"
@@ -132,39 +130,46 @@ func IO(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	nombre := strings.ToLower(syscall.IoSolicitada)
-	tiempoUso := syscall.TiempoEstimado
-	pid := syscall.PIDproceso
+	err := ManejarSolicitudIO(syscall.PIDproceso, syscall.IoSolicitada, syscall.TiempoEstimado)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
+	w.WriteHeader(http.StatusOK)
+}
+
+func ManejarSolicitudIO(pid int, nombre string, tiempoUso int) error {
 	global.LoggerKernel.Log(ColorBlue + "## ("+strconv.Itoa(pid)+") - Solicitó syscall: <IO>" + ColorReset, log.INFO)
 
 	global.IOListMutex.Lock()
 	dispositivos := utilsKernel.ObtenerDispositivoIO(nombre)
 	global.IOListMutex.Unlock()
 
-	
-	proceso := utilsKernel.BuscarProcesoPorPID(global.ColaBlocked, pid)
+	proceso := utilsKernel.BuscarProcesoPorPID(global.ColaExecuting, pid)
 	if proceso == nil {
-		http.Error(w, "No se pudo obtener el proceso en BLOCKED", http.StatusInternalServerError)
-		return
+		return fmt.Errorf("no se pudo obtener el proceso en EXECUTING (PID %d)", pid)
 	}
 
+	global.MutexExecuting.Lock()
+	global.EliminarProcesoDeCola(&global.ColaExecuting, proceso.PID)
+	global.MutexExecuting.Unlock()
+
 	if len(dispositivos) == 0 {
-		global.LoggerKernel.Log(fmt.Sprintf("Dispositivo IO %s no existe, enviando %d a exit", nombre, pid), log.ERROR)
-		global.MutexBlocked.Lock()
-		global.EliminarProcesoDeCola(&global.ColaBlocked,proceso.PID)
-		global.MutexBlocked.Unlock()
+		global.LoggerKernel.Log(fmt.Sprintf("Dispositivo IO %s no existe, enviando %d a EXIT", nombre, pid), log.ERROR)
 		planificacion.FinalizarProceso(proceso)
-		w.WriteHeader(http.StatusNotFound)
-		return
+		return fmt.Errorf("dispositivo IO %s no existe", nombre)
 	}
-	
+
 	procesoEncolado := &global.ProcesoIO{
 		Proceso:   proceso,
 		TiempoUso: tiempoUso,
 	}
 
-	//buscar un dispositivo libre
+	global.AgregarABlocked(proceso)
+	planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.BLOCKED)
+
+	// buscar un dispositivo libre
 	for _, dispositivo := range dispositivos {
 		dispositivo.Mutex.Lock()
 		if !dispositivo.Ocupado {
@@ -174,29 +179,27 @@ func IO(w http.ResponseWriter, r *http.Request) {
 
 			global.LoggerKernel.Log("## ("+strconv.Itoa(pid)+") - Bloqueado por IO: <"+dispositivo.Nombre+">", log.INFO)
 			go utilsKernel.EnviarAIO(dispositivo, pid, tiempoUso)
-
-			w.WriteHeader(http.StatusOK)
-			return
+			return nil
 		}
 		dispositivo.Mutex.Unlock()
 	}
 
-	// Si nadie esta libre, encolar en el primero
+	// Si todos ocupados, encolar en el primero
 	primero := dispositivos[0]
 	primero.Mutex.Lock()
 	primero.ColaEspera = append(primero.ColaEspera, procesoEncolado)
 	primero.Mutex.Unlock()
 
-	w.WriteHeader(http.StatusOK)
+	return nil
 }
 
 func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
+	global.LoggerKernel.Log("[DEBUG] FinalizacionIO llamada", log.DEBUG)
 
 	// Si NO hay body desconexión
 	if r.ContentLength == 0 {
-		fmt.Println("Desconexión recibida")
+		global.LoggerKernel.Log("[DEBUG] Desconexión recibida", log.DEBUG)
 
-		r.Header.Get("X-IO-Nombre")
 		ip := r.Header.Get("X-IO-IP")
 		puertoStr := r.Header.Get("X-IO-Puerto")
 
@@ -221,7 +224,6 @@ func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
 		global.MutexBlocked.Lock()
 		global.EliminarProcesoDeCola(&global.ColaBlocked, proc.PID)
 		global.MutexBlocked.Unlock()
-		
 
 		global.IOListMutex.Lock()
 		global.IOConectados = utilsKernel.FiltrarIODevice(global.IOConectados, dispositivo)
@@ -242,32 +244,36 @@ func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
 	}
 
 	pid := mensaje.PID
-	global.LoggerKernel.Log(fmt.Sprintf("Finalizó IO del PID: %d\n", pid), log.DEBUG)
+	global.LoggerKernel.Log(fmt.Sprintf("[DEBUG] Finalizó IO del PID: %d", pid), log.DEBUG)
 
 	dispositivo := utilsKernel.BuscarDispositivoPorPID(pid)
 	if dispositivo == nil {
 		http.Error(w, "No se encontró dispositivo para el PID", http.StatusNotFound)
 		return
 	}
+	global.LoggerKernel.Log(fmt.Sprintf("[DEBUG] Dispositivo encontrado: %s", dispositivo.Nombre), log.DEBUG)
 
 	if dispositivo.ProcesoEnUso != nil && dispositivo.ProcesoEnUso.Proceso.PID == pid {
 		proceso := dispositivo.ProcesoEnUso.Proceso
+		global.LoggerKernel.Log(fmt.Sprintf("[DEBUG] Proceso PID %d extraído de dispositivo %s", proceso.PID, dispositivo.Nombre), log.DEBUG)
+
 		dispositivo.ProcesoEnUso = nil
 
 		// Primero intentar sacar de SUSP_BLOCKED
 		global.MutexSuspBlocked.Lock()
 		enSuspBlocked := global.EliminarProcesoDeCola(&global.ColaSuspBlocked, proceso.PID)
 		global.MutexSuspBlocked.Unlock()
+		global.LoggerKernel.Log(fmt.Sprintf("[DEBUG] Proceso PID %d eliminado de ColaSuspBlocked: %v", proceso.PID, enSuspBlocked), log.DEBUG)
 
 		if enSuspBlocked {
 			global.AgregarASuspReady(proceso)
 			planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.SUSP_READY)
 
-			global.LoggerKernel.Log(fmt.Sprintf("## (%d) finalizó IO y pasa a SUSP_READY", proceso.PID), log.INFO)
+			global.LoggerKernel.Log(fmt.Sprintf("[INFO] ## (%d) finalizó IO y pasa a SUSP_READY", proceso.PID), log.INFO)
 
 			select {
 			case global.NotifySuspReady <- struct{}{}:
-				global.LoggerKernel.Log("Notificando a largo plazo por SUSP_READY", log.DEBUG)
+				global.LoggerKernel.Log("[DEBUG] Notificando a largo plazo por SUSP_READY", log.DEBUG)
 			default:
 			}
 			return
@@ -277,7 +283,6 @@ func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
 		global.MutexBlocked.Lock()
 		global.EliminarProcesoDeCola(&global.ColaBlocked, proceso.PID)
 		global.MutexBlocked.Unlock()
-
 		global.AgregarAReady(proceso)
 		planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.READY)
 
@@ -287,6 +292,7 @@ func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
 		case global.NotifyReady <- struct{}{}:
 		default:
 		}
+
 		// Ver si hay proceso esperando en el dispositivo
 		dispositivo.Mutex.Lock()
 		if len(dispositivo.ColaEspera) > 0 {

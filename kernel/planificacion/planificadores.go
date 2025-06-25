@@ -306,16 +306,11 @@ func evaluarDesalojoSRTF(nuevoProceso *global.Proceso) bool {
 }
 
 func AsignarCPU(proceso *global.Proceso) {
-	//No intentar asignar si ya está finalizado
 	if proceso.PCB.UltimoEstado == EXIT {
 		global.LoggerKernel.Log(fmt.Sprintf("[ERROR] No se puede asignar PID %d, ya está finalizado", proceso.PID), log.ERROR)
 		return
 	}
-
-	global.LoggerKernel.Log(fmt.Sprintf("Intentando asignar CPU al proceso PID %d", proceso.PID), log.DEBUG)
-
 	global.MutexCPUs.Lock()
-
 	var cpuLibre *global.CPU
 	for _, cpu := range global.CPUsConectadas {
 		if cpu.ProcesoEjecutando == nil {
@@ -325,50 +320,44 @@ func AsignarCPU(proceso *global.Proceso) {
 	}
 
 	if cpuLibre != nil {
-		global.LoggerKernel.Log(fmt.Sprintf("CPU libre encontrada: %s para proceso %d", cpuLibre.ID, proceso.PID), log.DEBUG)
 		cpuLibre.ProcesoEjecutando = &proceso.PCB
 	} else {
-		global.LoggerKernel.Log(fmt.Sprintf("No hay CPU disponible para proceso %d, vuelve a READY", proceso.PID), log.DEBUG)
 		global.MutexCPUs.Unlock()
 
-		// Evitar reencolar si ya está finalizado
 		if proceso.PCB.UltimoEstado != EXIT {
 			global.AgregarAReady(proceso)
 		} else {
-			global.LoggerKernel.Log(fmt.Sprintf("[WARN] Proceso %d finalizado no se reencola en READY", proceso.PID), log.ERROR)
+			global.LoggerKernel.Log(fmt.Sprintf("[WARN] Proceso PID %d no se reencola en READY, estado actual: %s", proceso.PID, proceso.PCB.UltimoEstado), log.DEBUG)
 		}
 		return
 	}
-
 	global.MutexCPUs.Unlock()
 
 	// No actualizar a EXEC si ya está en EXEC
 	if proceso.PCB.UltimoEstado != EXEC {
 		ActualizarEstadoPCB(&proceso.PCB, EXEC)
-	}
-
+	
 	global.AgregarAExecuting(proceso)
 
 	go func(cpu *global.CPU, proceso *global.Proceso) {
-		global.LoggerKernel.Log(fmt.Sprintf("Enviando dispatch proceso %d a CPU %s", proceso.PID, cpu.ID), log.DEBUG)
-
 		err := utilskernel.EnviarADispatch(cpu, proceso.PCB.PID, proceso.PCB.PC)
 		if err != nil {
-			global.LoggerKernel.Log(fmt.Sprintf("Error en dispatch de proceso %d a CPU %s: %v", proceso.PID, cpu.ID, err), log.ERROR)
+			global.LoggerKernel.Log(fmt.Sprintf("[ERROR] Error en dispatch de proceso %d a CPU %s: %v", proceso.PID, cpu.ID, err), log.ERROR)
 
 			global.MutexCPUs.Lock()
 			cpu.ProcesoEjecutando = nil
 			global.MutexCPUs.Unlock()
 
-			// otra vez: no lo reencolamos si está finalizado
-			if proceso.PCB.UltimoEstado != EXIT {
+			// Evitar reencolar si no sigue en READY
+			if proceso.PCB.UltimoEstado != EXIT{
+				global.LoggerKernel.Log(fmt.Sprintf("[TRACE] Reencolando proceso PID %d en READY tras error de dispatch", proceso.PID), log.DEBUG)
 				global.AgregarAReady(proceso)
-			}
-			return
+			} 
 		}
+			return
 
-		global.LoggerKernel.Log(fmt.Sprintf("Dispatch proceso %d a CPU %s exitoso", proceso.PID, cpu.ID), log.DEBUG)
 	}(cpuLibre, proceso)
+}
 }
 
 func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
@@ -376,13 +365,19 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 
 	// Liberar CPU que ejecutaba este proceso
 	global.MutexCPUs.Lock()
+	cpuEncontrada := false
 	for _, cpu := range global.CPUsConectadas {
 		if cpu.ProcesoEjecutando != nil && cpu.ProcesoEjecutando.PID == resp.PID {
+			global.LoggerKernel.Log(fmt.Sprintf("[TRACE] Liberando CPU %s de proceso PID %d", cpu.ID, resp.PID), log.DEBUG)
 			cpu.ProcesoEjecutando = nil
+			cpuEncontrada = true
 			break
 		}
 	}
 	global.MutexCPUs.Unlock()
+	if !cpuEncontrada {
+		global.LoggerKernel.Log(fmt.Sprintf("[WARN] No se encontró CPU ejecutando proceso PID %d para liberar", resp.PID), log.DEBUG)
+	}
 
 	// Buscar proceso sin removerlo todavía
 	global.MutexExecuting.Lock()
@@ -395,18 +390,18 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 	global.MutexExecuting.Unlock()
 
 	if proceso == nil {
-		global.LoggerKernel.Log(fmt.Sprintf("Proceso %d no encontrado en EXECUTING al devolver", resp.PID), log.DEBUG)
+		global.LoggerKernel.Log(fmt.Sprintf("[WARN] Proceso %d no encontrado en EXECUTING al devolver", resp.PID), log.DEBUG)
 		return
 	}
 
 	if proceso.PCB.UltimoEstado == EXIT {
-		global.LoggerKernel.Log(fmt.Sprintf("Se recibió devolución de CPU para PID %d pero ya estaba en EXIT", proceso.PID), log.DEBUG)
+		global.LoggerKernel.Log(fmt.Sprintf("[WARN] Se recibió devolución de CPU para PID %d pero ya estaba en EXIT", proceso.PID), log.DEBUG)
 		return
 	}
 
 	proceso.TiempoEjecutado += resp.RafagaReal
 	proceso.PCB.PC = resp.PC
-	global.LoggerKernel.Log(fmt.Sprintf("Proceso PID %d - TiempoEjecutado actualizado a %f", proceso.PCB.PID, proceso.TiempoEjecutado), log.DEBUG)
+	global.LoggerKernel.Log(fmt.Sprintf("[TRACE] Proceso PID %d - TiempoEjecutado actualizado a %f, PC actualizado a %d", proceso.PCB.PID, proceso.TiempoEjecutado, proceso.PCB.PC), log.DEBUG)
 
 	RecalcularRafaga(proceso, resp.RafagaReal)
 
@@ -414,13 +409,10 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 	case "EXIT":
 		FinalizarProceso(proceso)
 
-	case "BLOCKED":
-		global.MutexExecuting.Lock()
-		global.EliminarProcesoDeCola(&global.ColaExecuting, proceso.PID)
-		global.MutexExecuting.Unlock()
-
-		ActualizarEstadoPCB(&proceso.PCB, BLOCKED)
-		global.AgregarABlocked(proceso)
+	case "IO":
+		global.LoggerKernel.Log(fmt.Sprintf("[TRACE] Proceso PID %d solicitó IO. No se hace gestión aquí porque ya fue manejado en la syscall IO", proceso.PID), log.DEBUG)
+		// Ya fue eliminado de EXECUTING y bloqueado desde la syscall IO
+		// No se hace nada aquí para evitar doble gestión
 
 	case "READY":
 		global.MutexExecuting.Lock()
@@ -432,15 +424,17 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 
 		select {
 		case global.NotifyReady <- struct{}{}:
+			global.LoggerKernel.Log("[TRACE] NotifyReady enviado", log.DEBUG)
 		default:
+			global.LoggerKernel.Log("[TRACE] NotifyReady canal ocupado, no se envió", log.DEBUG)
 		}
 	}
-
-	// Notificar al planificador si no se notificó antes (por BLOCKED o EXIT)
 	if resp.Motivo != "READY" {
 		select {
 		case global.NotifyReady <- struct{}{}:
+			global.LoggerKernel.Log("[TRACE] NotifyReady enviado para motivo diferente a READY", log.DEBUG)
 		default:
+			global.LoggerKernel.Log("[TRACE] NotifyReady canal ocupado (motivo != READY), no se envió", log.DEBUG)
 		}
 	}
 }
@@ -448,6 +442,7 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 func IniciarPlanificadorMedioPlazo() {
 	for {
 		global.MutexBlocked.Lock()
+
 		var nuevaColaBlocked []*global.Proceso
 		var procesosASuspender []*global.Proceso
 
@@ -460,14 +455,15 @@ func IniciarPlanificadorMedioPlazo() {
 			}
 		}
 
-		//!global.LoggerKernel.Log(fmt.Sprintf("Procesos a suspender: %d", len(procesosASuspender)), log.DEBUG) dsps lo descomento
 		global.ColaBlocked = nuevaColaBlocked
 		global.MutexBlocked.Unlock()
 
 		for _, p := range procesosASuspender {
 			global.LoggerKernel.Log(fmt.Sprintf("Suspendiendo proceso PID %d", p.PCB.PID), log.DEBUG)
 			suspenderProceso(p)
+		}
 
+		for range procesosASuspender {
 			select {
 			case global.NotifySuspReady <- struct{}{}:
 				global.LoggerKernel.Log("Notificando a largo plazo por SuspReady", log.DEBUG)

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 
 	"github.com/sisoputnfrba/tp-golang/io/api"
@@ -36,7 +35,7 @@ s := api.CrearServer()
 	fmt.Printf("Se conectó %s!\n", nombreInterfaz)
 
 	infoIO := utilsIO.PaqueteHandshakeIO{
-		NombreIO: strings.ToLower(nombreInterfaz),
+		NombreIO: nombreInterfaz,
 		IPIO: global.IoConfig.IPIo,
 		PuertoIO: global.IoConfig.Port_Io,
 	}
