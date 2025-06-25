@@ -60,6 +60,8 @@ func READ(instruccion Instruccion, cacheHabilitada bool, desplazamiento int, tlb
 }
 
 func TlbHIT(pagina int) bool {
+	lruCounter ++
+	global.LoggerCpu.Log(fmt.Sprintf("Contenido TLB: %v", global.TLB), log.DEBUG)
 	for i := 0; i <= len(global.TLB)-1; i++ {
 		if global.TLB[i].NroPagina == pagina {
 			global.LoggerCpu.Log(fmt.Sprintf("\033[36mPID: %d - TLB HIT - Pagina: %d\033[0m", global.PCB_Actual.PID, pagina), log.INFO) //!! TLB Hit - logObligatorio
@@ -71,9 +73,11 @@ func TlbHIT(pagina int) bool {
 }
 
 func CacheHIT(pagina int) bool {
+	global.LoggerCpu.Log(fmt.Sprintf("Contenido CACHE: %v", global.CACHE), log.DEBUG)
 	time.Sleep(time.Millisecond * time.Duration(global.CpuConfig.CacheDelay)) 
 	for i := 0; i <= len(global.CACHE)-1; i++ {
 		if global.CACHE[i].NroPagina == pagina {
+			global.CACHE[pagina].BitUso = 1
 			global.LoggerCpu.Log(fmt.Sprintf("\033[36mPID: %d - Cache Hit - Pagina: %d\033[0m", global.PCB_Actual.PID, pagina), log.INFO) //!! Página encontrada en Caché - logObligatorio (Cache hit)
 			return true
 		}
@@ -92,7 +96,6 @@ func actualizarCACHE() (int,int){ //
 	if global.CACHE[indicePisar].BitModificado == 1 {
 		desalojar(indicePisar)
 	}
-	
 	marco := CalcularMarco()
 	dirFisicaSinDesplazamiento := MMU(0,marco)
 	lecturaPagina := MemoriaLeePaginaCompleta(dirFisicaSinDesplazamiento)
@@ -101,6 +104,7 @@ func actualizarCACHE() (int,int){ //
 	global.CACHE[indicePisar].NroPagina = nroPagina
 	global.CACHE[indicePisar].Contenido = lecturaPagina
 	global.CACHE[indicePisar].BitModificado = 0
+	global.CACHE[nroPagina].BitUso = 1
 
 	global.LoggerCpu.Log(fmt.Sprintf("\033[36mPID: %d - Cache Add - Pagina: %d\033[0m", global.PCB_Actual.PID, nroPagina), log.INFO) //!! Página ingresada en Caché - logObligatorio
 
@@ -109,11 +113,10 @@ func actualizarCACHE() (int,int){ //
 //PISA UN VALOR DE TLB Y SE LO TRAE
 func actualizarTLB() int{	
 	indicePisar := indiceVacioTLB()
-	/* lruCounter ++ */
 	if indicePisar == -1 {
 		indicePisar = AlgoritmoTLB()
 	}
-	lruCounter++
+	lruCounter++	
 	marco := BuscarMarcoEnMemoria(nroPagina)
 	global.TLB[indicePisar].Marco = marco
 	global.TLB[indicePisar].NroPagina = nroPagina

@@ -20,8 +20,7 @@ func armarListaEntradas(nroPagina int) []int {
 	entradas := make([]int, cantNiveles)
 
 	for i := 1; i <= cantNiveles; i++ {
-		logMsg := fmt.Sprintf("Dividiendo para nivel %d", i)
-		global.LoggerCpu.Log(logMsg, log.DEBUG)
+		/* global.LoggerCpu.Log(fmt.Sprintf("Dividiendo para nivel %d", i), log.DEBUG) */ 
 	
 		exponente := cantNiveles - i
 		if exponente < 0 {
@@ -45,7 +44,6 @@ func CalcularMarco() int {
 	if global.TlbHabilitada { //TLB HABILITADA
 		if TlbHIT(nroPagina) { // CASO: esta en la TLB
 			indiceHIT := indicePaginaEnTLB(nroPagina)
-			lruCounter++
 			global.TLB[indiceHIT].UltimoUso = lruCounter
 			return global.TLB[indiceHIT].Marco
 		} else { // CASO: NO esta en la TLB
