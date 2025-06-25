@@ -594,6 +594,14 @@ func RecalcularRafaga(proceso *Proceso, rafagaReal float64) {
 }
 
 func suspenderProceso(proceso *global.Proceso) {
+	global.MutexBlocked.Lock()
+	removido := global.EliminarProcesoDeCola(&global.ColaBlocked, proceso.PID)
+	global.MutexBlocked.Unlock()
+
+	if !removido {
+		global.LoggerKernel.Log(fmt.Sprintf("Advertencia: proceso %d no estaba en BLOCKED al suspender", proceso.PID), log.ERROR)
+	}
+
 	if err := utilskernel.MoverASwap(proceso.PID); err != nil {
 		global.LoggerKernel.Log(fmt.Sprintf("Error moviendo proceso %d a swap: %v", proceso.PID, err), log.ERROR)
 		return
@@ -601,6 +609,8 @@ func suspenderProceso(proceso *global.Proceso) {
 
 	ActualizarEstadoPCB(&proceso.PCB, SUSP_BLOCKED)
 	global.AgregarASuspBlocked(proceso)
+	
+	global.LoggerKernel.Log(fmt.Sprintf("Proceso %d suspendido y movido a SUSP_BLOCKED", proceso.PID), log.INFO)
 }
 
 func EstimacionRestante(p *Proceso) float64 {

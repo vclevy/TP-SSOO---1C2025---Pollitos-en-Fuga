@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/sisoputnfrba/tp-golang/kernel/global"
 	planificacion "github.com/sisoputnfrba/tp-golang/kernel/planificacion"
@@ -131,15 +132,15 @@ func IO(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	nombre := syscall.IoSolicitada
+	nombre := strings.ToLower(syscall.IoSolicitada)
 	tiempoUso := syscall.TiempoEstimado
 	pid := syscall.PIDproceso
 
 	global.LoggerKernel.Log(ColorBlue + "## ("+strconv.Itoa(pid)+") - Solicitó syscall: <IO>" + ColorReset, log.INFO)
 
-	global.IOListMutex.RLock()
+	global.IOListMutex.Lock()
 	dispositivos := utilsKernel.ObtenerDispositivoIO(nombre)
-	global.IOListMutex.RUnlock()
+	global.IOListMutex.Unlock()
 
 	
 	proceso := utilsKernel.BuscarProcesoPorPID(global.ColaBlocked, pid)
@@ -150,8 +151,10 @@ func IO(w http.ResponseWriter, r *http.Request) {
 
 	if len(dispositivos) == 0 {
 		global.LoggerKernel.Log(fmt.Sprintf("Dispositivo IO %s no existe, enviando %d a exit", nombre, pid), log.ERROR)
-		global.AgregarAExit(proceso)
-		planificacion.FinalizarProceso(proceso) //? Esta bien la funcion de finalizar aca no @valenchu?
+		global.MutexBlocked.Lock()
+		global.EliminarProcesoDeCola(&global.ColaBlocked,proceso.PID)
+		global.MutexBlocked.Unlock()
+		planificacion.FinalizarProceso(proceso)
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
@@ -211,9 +214,14 @@ func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
 
 		proc := dispositivo.ProcesoEnUso.Proceso
 
+		global.MutexSuspBlocked.Lock()
+		global.EliminarProcesoDeCola(&global.ColaSuspBlocked, proc.PID)
+		global.MutexSuspBlocked.Unlock()
+
 		global.MutexBlocked.Lock()
 		global.EliminarProcesoDeCola(&global.ColaBlocked, proc.PID)
 		global.MutexBlocked.Unlock()
+		
 
 		global.IOListMutex.Lock()
 		global.IOConectados = utilsKernel.FiltrarIODevice(global.IOConectados, dispositivo)
