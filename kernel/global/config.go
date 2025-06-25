@@ -174,11 +174,12 @@ type IODevice struct {
 	Mutex        sync.Mutex
 }
 
-func EliminarProcesoDeCola(cola *[]*Proceso, pid int) {
+func EliminarProcesoDeCola(cola *[]*Proceso, pid int) bool {
 	for i, p := range *cola {
 		if p.PID == pid {
 			*cola = append((*cola)[:i], (*cola)[i+1:]...)
-			return
+			return true
 		}
 	}
+	return false
 }

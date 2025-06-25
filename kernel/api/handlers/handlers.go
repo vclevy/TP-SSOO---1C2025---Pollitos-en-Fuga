@@ -141,36 +141,27 @@ func IO(w http.ResponseWriter, r *http.Request) {
 	dispositivos := utilsKernel.ObtenerDispositivoIO(nombre)
 	global.IOListMutex.RUnlock()
 
-	if len(dispositivos) == 0 {
-		global.LoggerKernel.Log(fmt.Sprintf("Dispositivo IO %s no existe", nombre), log.ERROR)
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-
+	
 	proceso := utilsKernel.BuscarProcesoPorPID(global.ColaBlocked, pid)
 	if proceso == nil {
 		http.Error(w, "No se pudo obtener el proceso en BLOCKED", http.StatusInternalServerError)
 		return
 	}
 
+	if len(dispositivos) == 0 {
+		global.LoggerKernel.Log(fmt.Sprintf("Dispositivo IO %s no existe, enviando %d a exit", nombre, pid), log.ERROR)
+		global.AgregarAExit(proceso)
+		planificacion.FinalizarProceso(proceso) //? Esta bien la funcion de finalizar aca no @valenchu?
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	
 	procesoEncolado := &global.ProcesoIO{
 		Proceso:   proceso,
 		TiempoUso: tiempoUso,
 	}
 
-	// Paso 1: Ver si alguna cola de espera ya tiene procesos
-	for _, dispositivo := range dispositivos {
-		dispositivo.Mutex.Lock()
-		if len(dispositivo.ColaEspera) > 0 {
-			dispositivo.ColaEspera = append(dispositivo.ColaEspera, procesoEncolado)
-			dispositivo.Mutex.Unlock()
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-		dispositivo.Mutex.Unlock()
-	}
-
-	// Paso 2: Si no hay colas, buscar un dispositivo libre
+	//buscar un dispositivo libre
 	for _, dispositivo := range dispositivos {
 		dispositivo.Mutex.Lock()
 		if !dispositivo.Ocupado {
@@ -187,7 +178,7 @@ func IO(w http.ResponseWriter, r *http.Request) {
 		dispositivo.Mutex.Unlock()
 	}
 
-	// Paso 3: Si nadie tiene cola pero tampoco hay libres, encolar en el primero
+	// Si nadie esta libre, encolar en el primero
 	primero := dispositivos[0]
 	primero.Mutex.Lock()
 	primero.ColaEspera = append(primero.ColaEspera, procesoEncolado)
@@ -255,6 +246,26 @@ func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
 		proceso := dispositivo.ProcesoEnUso.Proceso
 		dispositivo.ProcesoEnUso = nil
 
+		// Primero intentar sacar de SUSP_BLOCKED
+		global.MutexSuspBlocked.Lock()
+		enSuspBlocked := global.EliminarProcesoDeCola(&global.ColaSuspBlocked, proceso.PID)
+		global.MutexSuspBlocked.Unlock()
+
+		if enSuspBlocked {
+			global.AgregarASuspReady(proceso)
+			planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.SUSP_READY)
+
+			global.LoggerKernel.Log(fmt.Sprintf("## (%d) finalizó IO y pasa a SUSP_READY", proceso.PID), log.INFO)
+
+			select {
+			case global.NotifySuspReady <- struct{}{}:
+				global.LoggerKernel.Log("Notificando a largo plazo por SUSP_READY", log.DEBUG)
+			default:
+			}
+			return
+		}
+
+		// Si no estaba en SUSP_BLOCKED, asumimos que estaba en BLOCKED
 		global.MutexBlocked.Lock()
 		global.EliminarProcesoDeCola(&global.ColaBlocked, proceso.PID)
 		global.MutexBlocked.Unlock()
@@ -264,6 +275,10 @@ func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
 
 		global.LoggerKernel.Log(fmt.Sprintf("## (%d) finalizó IO y pasa a READY", proceso.PID), log.INFO)
 
+		select {
+		case global.NotifyReady <- struct{}{}:
+		default:
+		}
 		// Ver si hay proceso esperando en el dispositivo
 		dispositivo.Mutex.Lock()
 		if len(dispositivo.ColaEspera) > 0 {
