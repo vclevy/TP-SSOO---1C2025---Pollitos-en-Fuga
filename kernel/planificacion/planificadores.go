@@ -32,12 +32,12 @@ var estado = []string{
 }
 
 const (
-    ColorReset  = "\033[0m"
-    ColorRed    = "\033[31m"
-    ColorGreen  = "\033[32m"
-    ColorYellow = "\033[33m"
-    ColorBlue   = "\033[34m"
-    ColorOrange = "\033[38;5;208m" // naranja aproximado usando color 256
+	ColorReset  = "\033[0m"
+	ColorRed    = "\033[31m"
+	ColorGreen  = "\033[32m"
+	ColorYellow = "\033[33m"
+	ColorBlue   = "\033[34m"
+	ColorOrange = "\033[38;5;208m" // naranja aproximado usando color 256
 )
 
 type PCB = global.PCB
@@ -59,7 +59,7 @@ func CrearProceso(tamanio int, archivoPseudoCodigo string) *Proceso {
 		EstimacionRafaga: float64(global.ConfigKernel.InitialEstimate),
 	}
 
-	global.LoggerKernel.Log(ColorYellow + fmt.Sprintf("## (%d) Se crea el proceso - Estado: NEW", pcb.PID) + ColorReset, log.INFO)
+	global.LoggerKernel.Log(ColorYellow+fmt.Sprintf("## (%d) Se crea el proceso - Estado: NEW", pcb.PID)+ColorReset, log.INFO)
 	global.AgregarANew(&proceso)
 	return &proceso
 }
@@ -234,25 +234,18 @@ func IniciarPlanificadorCortoPlazo() {
 }
 
 func seleccionarProcesoSJF(usandoRestante bool) *global.Proceso {
-	global.LoggerKernel.Log("seleccionarProcesoSJF: inicio de selección", log.DEBUG)
 
 	if len(global.ColaReady) == 0 {
 		global.LoggerKernel.Log("seleccionarProcesoSJF: ColaReady vacía, retorna nil", log.DEBUG)
 		return nil
 	}
 
-	global.LoggerKernel.Log(fmt.Sprintf("seleccionarProcesoSJF: procesos en READY: %d", len(global.ColaReady)), log.DEBUG)
-
 	sort.SliceStable(global.ColaReady, func(i, j int) bool {
-		global.LoggerKernel.Log(fmt.Sprintf("Comparando procesos en indices %d y %d", i, j), log.DEBUG)
 
 		var valI, valJ float64
 		if usandoRestante {
-			global.LoggerKernel.Log(fmt.Sprintf("Llamando EstimacionRestante para PID %d", global.ColaReady[i].PCB.PID), log.DEBUG)
 			valI = EstimacionRestante(global.ColaReady[i])
 			global.LoggerKernel.Log(fmt.Sprintf("EstimacionRestante PID %d: %f", global.ColaReady[i].PCB.PID, valI), log.DEBUG)
-
-			global.LoggerKernel.Log(fmt.Sprintf("Llamando EstimacionRestante para PID %d", global.ColaReady[j].PCB.PID), log.DEBUG)
 			valJ = EstimacionRestante(global.ColaReady[j])
 			global.LoggerKernel.Log(fmt.Sprintf("EstimacionRestante PID %d: %f", global.ColaReady[j].PCB.PID, valJ), log.DEBUG)
 		} else {
@@ -277,7 +270,7 @@ func evaluarDesalojoSRTF(nuevoProceso *global.Proceso) bool {
 	global.MutexExecuting.Lock()
 	defer global.MutexExecuting.Unlock()
 
-	if(utilskernel.HayCPUDisponible()){
+	if utilskernel.HayCPUDisponible() {
 		return false
 	}
 
@@ -313,6 +306,12 @@ func evaluarDesalojoSRTF(nuevoProceso *global.Proceso) bool {
 }
 
 func AsignarCPU(proceso *global.Proceso) {
+	//No intentar asignar si ya está finalizado
+	if proceso.PCB.UltimoEstado == EXIT {
+		global.LoggerKernel.Log(fmt.Sprintf("[ERROR] No se puede asignar PID %d, ya está finalizado", proceso.PID), log.ERROR)
+		return
+	}
+
 	global.LoggerKernel.Log(fmt.Sprintf("Intentando asignar CPU al proceso PID %d", proceso.PID), log.DEBUG)
 
 	global.MutexCPUs.Lock()
@@ -331,13 +330,23 @@ func AsignarCPU(proceso *global.Proceso) {
 	} else {
 		global.LoggerKernel.Log(fmt.Sprintf("No hay CPU disponible para proceso %d, vuelve a READY", proceso.PID), log.DEBUG)
 		global.MutexCPUs.Unlock()
-		global.AgregarAReady(proceso)
+
+		// Evitar reencolar si ya está finalizado
+		if proceso.PCB.UltimoEstado != EXIT {
+			global.AgregarAReady(proceso)
+		} else {
+			global.LoggerKernel.Log(fmt.Sprintf("[WARN] Proceso %d finalizado no se reencola en READY", proceso.PID), log.ERROR)
+		}
 		return
 	}
 
 	global.MutexCPUs.Unlock()
 
-	ActualizarEstadoPCB(&proceso.PCB, EXEC)
+	// No actualizar a EXEC si ya está en EXEC
+	if proceso.PCB.UltimoEstado != EXEC {
+		ActualizarEstadoPCB(&proceso.PCB, EXEC)
+	}
+
 	global.AgregarAExecuting(proceso)
 
 	go func(cpu *global.CPU, proceso *global.Proceso) {
@@ -351,7 +360,10 @@ func AsignarCPU(proceso *global.Proceso) {
 			cpu.ProcesoEjecutando = nil
 			global.MutexCPUs.Unlock()
 
-			global.AgregarAReady(proceso)
+			// otra vez: no lo reencolamos si está finalizado
+			if proceso.PCB.UltimoEstado != EXIT {
+				global.AgregarAReady(proceso)
+			}
 			return
 		}
 
@@ -387,7 +399,11 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 		return
 	}
 
-	// Actualizar TiempoEjecutado con el tiempo real ejecutado que devuelve la CPU
+	if proceso.PCB.UltimoEstado == EXIT {
+		global.LoggerKernel.Log(fmt.Sprintf("Se recibió devolución de CPU para PID %d pero ya estaba en EXIT", proceso.PID), log.DEBUG)
+		return
+	}
+
 	proceso.TiempoEjecutado += resp.RafagaReal
 	proceso.PCB.PC = resp.PC
 	global.LoggerKernel.Log(fmt.Sprintf("Proceso PID %d - TiempoEjecutado actualizado a %f", proceso.PCB.PID, proceso.TiempoEjecutado), log.DEBUG)
@@ -414,14 +430,13 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 		ActualizarEstadoPCB(&proceso.PCB, READY)
 		global.AgregarAReady(proceso)
 
-		// Notificar al planificador solo si está esperando
 		select {
 		case global.NotifyReady <- struct{}{}:
 		default:
 		}
 	}
 
-	// Si el proceso no fue a READY, igual hay que notificar al planificador //!@Valen no esta de mas el if?
+	// Notificar al planificador si no se notificó antes (por BLOCKED o EXIT)
 	if resp.Motivo != "READY" {
 		select {
 		case global.NotifyReady <- struct{}{}:
@@ -508,6 +523,14 @@ func FinalizarProceso(p *Proceso) {
 	global.EliminarProcesoDeCola(&global.ColaExecuting, p.PID)
 	global.MutexExecuting.Unlock()
 
+	global.MutexReady.Lock()
+	global.EliminarProcesoDeCola(&global.ColaReady, p.PID)
+	global.MutexReady.Unlock()
+
+	global.MutexBlocked.Lock()
+	global.EliminarProcesoDeCola(&global.ColaBlocked, p.PID)
+	global.MutexBlocked.Unlock()
+
 	global.AgregarAExit(p)
 
 	global.LoggerKernel.Log(fmt.Sprintf("## (%d) - Finaliza el proceso", p.PID), log.INFO)
@@ -522,6 +545,14 @@ func FinalizarProceso(p *Proceso) {
 		default:
 		}
 	}
+
+	global.MutexCPUs.Lock()
+	for _, cpu := range global.CPUsConectadas {
+		if cpu.ProcesoEjecutando != nil && cpu.ProcesoEjecutando.PID == p.PID {
+			cpu.ProcesoEjecutando = nil
+		}
+	}
+	global.MutexCPUs.Unlock()
 }
 
 func liberarPCB(p *Proceso) {
