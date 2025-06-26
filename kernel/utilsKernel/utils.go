@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+
 	"github.com/sisoputnfrba/tp-golang/kernel/global"
 	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
 	log "github.com/sisoputnfrba/tp-golang/utils/logger"
@@ -110,14 +111,14 @@ func SolicitarDumpAMemoria(pid int) error {
 }
 
 func BuscarCPUPorPID(pid int) *global.CPU {
-    global.MutexCPUs.Lock()
-    defer global.MutexCPUs.Unlock()
-    for _, cpu := range global.CPUsConectadas {
-        if cpu.ProcesoEjecutando != nil && cpu.ProcesoEjecutando.PID == pid {
-            return cpu
-        }
-    }
-    return nil
+	global.MutexCPUs.Lock()
+	defer global.MutexCPUs.Unlock()
+	for _, cpu := range global.CPUsConectadas {
+		if cpu.ProcesoEjecutando != nil && cpu.ProcesoEjecutando.PID == pid {
+			return cpu
+		}
+	}
+	return nil
 }
 
 func EnviarADispatch(cpu *global.CPU, pid int, pc int) error {
@@ -146,13 +147,12 @@ func EnviarADispatch(cpu *global.CPU, pid int, pc int) error {
 	return nil
 }
 
-
-func EnviarInterrupcionCPU(cpu *global.CPU, pid int, pc int) (error) {
+func EnviarInterrupcionCPU(cpu *global.CPU, pid int, pc int) error {
 	url := fmt.Sprintf("http://%s:%d/interrupt", cpu.IP, cpu.Puerto)
 
 	payload := map[string]interface{}{
 		"pid": pid,
-		"pc": pc,
+		"pc":  pc,
 	}
 	jsonData, err := json.Marshal(payload)
 	if err != nil {
@@ -175,7 +175,7 @@ func EnviarInterrupcionCPU(cpu *global.CPU, pid int, pc int) (error) {
 		PC  int `json:"pc"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-		return  fmt.Errorf("error decodificando respuesta: %w", err)
+		return fmt.Errorf("error decodificando respuesta: %w", err)
 	}
 
 	return nil
@@ -264,7 +264,7 @@ func InformarFinAMemoria(pid int) error {
 	return nil
 }
 
-func BuscarProcesoPorPID(cola []*global.Proceso, pid int) (*global.Proceso) {
+func BuscarProcesoPorPID(cola []*global.Proceso, pid int) *global.Proceso {
 	for i := range cola {
 		if cola[i].PCB.PID == pid {
 			return cola[i]
@@ -275,8 +275,8 @@ func BuscarProcesoPorPID(cola []*global.Proceso, pid int) (*global.Proceso) {
 
 func InicializarProceso(proceso *global.Proceso) bool {
 	paquete := estructuras.PaqueteMemoria{
-		PID:                proceso.PID,
-		TamanioProceso:     proceso.MemoriaRequerida,
+		PID:                 proceso.PID,
+		TamanioProceso:      proceso.MemoriaRequerida,
 		ArchivoPseudocodigo: proceso.ArchivoPseudo,
 	}
 	jsonData, err := json.Marshal(paquete)
@@ -285,7 +285,7 @@ func InicializarProceso(proceso *global.Proceso) bool {
 		return false
 	}
 
-	url := "http://"+ global.ConfigKernel.IPMemory+":"+ strconv.Itoa(global.ConfigKernel.Port_Memory)+"/inicializarProceso"
+	url := "http://" + global.ConfigKernel.IPMemory + ":" + strconv.Itoa(global.ConfigKernel.Port_Memory) + "/inicializarProceso"
 
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {

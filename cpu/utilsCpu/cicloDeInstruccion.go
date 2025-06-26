@@ -69,10 +69,10 @@ func Execute(instruccion Instruccion, requiereMMU bool) error {
 
 	//todo INSTRUCCIONES SYSCALLS
 	if instruccion.Opcode == "IO" {
-		global.Motivo = "BLOCKED"
+		global.Motivo = "IO"
 		global.Rafaga = float64(time.Since(tiempoInicio).Milliseconds())
-		Syscall_IO(instruccion)
 		cortoProceso()
+		Syscall_IO(instruccion)
 		return nil
 	}
 	if instruccion.Opcode == "INIT_PROC" {
@@ -115,14 +115,6 @@ func Execute(instruccion Instruccion, requiereMMU bool) error {
 		if err != nil {
 			return fmt.Errorf("error al convertir dirección logica")
 		} else {
-			/* err := ConfigMMU()
-			if err != nil {
-				    global.LoggerCpu.Log("Error en ConfigMMU: "+err.Error(), log.ERROR)
-
-			} */
-
-			
-
 			if global.ConfigMMU.Tamanio_pagina == 0 {
 				global.LoggerCpu.Log("Error: Tamanio_pagina es 0 antes de calcular el desplazamiento", log.ERROR)
 				return nil
@@ -138,6 +130,7 @@ func Execute(instruccion Instruccion, requiereMMU bool) error {
 
 		if instruccion.Opcode == "WRITE" { // WRITE 0 EJEMPLO_DE_ENUNCIADO - WRITE (Dirección, Datos)
 			WRITE(instruccion, global.CacheHabilitada, desplazamiento, global.TlbHabilitada)
+			global.LoggerCpu.Log(fmt.Sprintf("Contenido CACHE: %v", global.CACHE), log.DEBUG)
 		}
 	}
 	return nil
@@ -145,7 +138,7 @@ func Execute(instruccion Instruccion, requiereMMU bool) error {
 
 func CheckInterrupt() {
 	if global.Interrupcion {
-		global.LoggerCpu.Log(("Hay interrupción"), log.INFO) 
+		global.LoggerCpu.Log(("Hay interrupción"), log.DEBUG) 
 		global.Motivo = "READY"
 		global.Rafaga = float64(time.Since(tiempoInicio).Milliseconds())
 		cortoProceso()
@@ -153,36 +146,6 @@ func CheckInterrupt() {
 		global.Interrupcion = false
 	}else{
 		global.PCB_Actual.PC = global.PCB_Actual.PC + 1
+		global.LoggerCpu.Log(fmt.Sprintf("NO Hay interrupción, nuevo pc: %d", global.PCB_Actual.PC), log.DEBUG)
 	}
 }
-
-/* func CargarConfigMMU() error {
-	url := fmt.Sprintf("http://%s:%d/configuracionMMU", global.CpuConfig.Ip_Memoria, global.CpuConfig.Port_Memoria)
-
-	resp, err := http.Post(url, "application/json", nil)
-	if err != nil {
-		global.LoggerCpu.Log("Error al conectar con Memoria:", log.ERROR)
-		return err
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		global.LoggerCpu.Log("Error leyendo respuesta de Memoria:", log.ERROR)
-		return err
-	}
-
-	global.LoggerCpu.Log("JSON recibido de Memoria: "+string(body), log.DEBUG)
-
-	err = json.Unmarshal(body, &ConfigMMU)
-	if err != nil {
-		global.LoggerCpu.Log("Error parseando JSON de configuracion: "+err.Error(), log.ERROR)
-		return err
-	}
-	global.LoggerCpu.Log(fmt.Sprintf("Entradas tabla %d", ConfigMMU.Cant_entradas_tabla), log.DEBUG)
-	global.LoggerCpu.Log(fmt.Sprintf("tamanio pagina %d", ConfigMMU.Tamanio_pagina), log.DEBUG)
-	global.LoggerCpu.Log(fmt.Sprintf("cantidad niveles %d", ConfigMMU.Cant_N_Niveles), log.DEBUG)
-
-	global.TamPagina = ConfigMMU.Tamanio_pagina
-	return nil
-} */

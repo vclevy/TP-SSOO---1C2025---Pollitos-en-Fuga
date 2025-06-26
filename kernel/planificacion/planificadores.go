@@ -340,6 +340,8 @@ func AsignarCPU(proceso *global.Proceso) {
 	global.AgregarAExecuting(proceso)
 
 	go func(cpu *global.CPU, proceso *global.Proceso) {
+		global.LoggerKernel.Log(fmt.Sprintf("pid a enviar a cpu: %d, pc a enviar a cpu %d (por dispatch) pc: ", proceso.PCB.PID,proceso.PCB.PC), log.DEBUG)
+
 		err := utilskernel.EnviarADispatch(cpu, proceso.PCB.PID, proceso.PCB.PC)
 		if err != nil {
 			global.LoggerKernel.Log(fmt.Sprintf("[ERROR] Error en dispatch de proceso %d a CPU %s: %v", proceso.PID, cpu.ID, err), log.ERROR)
@@ -362,7 +364,7 @@ func AsignarCPU(proceso *global.Proceso) {
 
 func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 	var proceso *global.Proceso
-
+	global.LoggerKernel.Log(fmt.Sprintf("Resp PC: %d", resp.PC), log.DEBUG)
 	// Liberar CPU que ejecutaba este proceso
 	global.MutexCPUs.Lock()
 	cpuEncontrada := false
@@ -379,20 +381,21 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 		global.LoggerKernel.Log(fmt.Sprintf("[WARN] No se encontró CPU ejecutando proceso PID %d para liberar", resp.PID), log.DEBUG)
 	}
 
-	// Buscar proceso sin removerlo todavía
-	global.MutexExecuting.Lock()
-	for _, p := range global.ColaExecuting {
+	
+		global.MutexExecuting.Lock()
+		for _, p := range global.ColaExecuting {
 		if p.PCB.PID == resp.PID {
 			proceso = p
 			break
 		}
-	}
-	global.MutexExecuting.Unlock()
-
-	if proceso == nil {
-		global.LoggerKernel.Log(fmt.Sprintf("[WARN] Proceso %d no encontrado en EXECUTING al devolver", resp.PID), log.DEBUG)
-		return
-	}
+		}
+		global.MutexExecuting.Unlock()
+		if proceso == nil {
+			global.LoggerKernel.Log(fmt.Sprintf("[WARN] Proceso %d no encontrado en EXECUTING al devolver", resp.PID), log.DEBUG)
+			return
+		}
+	
+	
 
 	if proceso.PCB.UltimoEstado == EXIT {
 		global.LoggerKernel.Log(fmt.Sprintf("[WARN] Se recibió devolución de CPU para PID %d pero ya estaba en EXIT", proceso.PID), log.DEBUG)
