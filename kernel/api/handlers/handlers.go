@@ -194,7 +194,6 @@ func ManejarSolicitudIO(pid int, nombre string, tiempoUso int) error {
 }
 
 func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
-	global.LoggerKernel.Log("[DEBUG] FinalizacionIO llamada", log.DEBUG)
 
 	// Si NO hay body desconexión
 	if r.ContentLength == 0 {
@@ -251,47 +250,41 @@ func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "No se encontró dispositivo para el PID", http.StatusNotFound)
 		return
 	}
-	global.LoggerKernel.Log(fmt.Sprintf("[DEBUG] Dispositivo encontrado: %s", dispositivo.Nombre), log.DEBUG)
 
 	if dispositivo.ProcesoEnUso != nil && dispositivo.ProcesoEnUso.Proceso.PID == pid {
 		proceso := dispositivo.ProcesoEnUso.Proceso
-		global.LoggerKernel.Log(fmt.Sprintf("[DEBUG] Proceso PID %d extraído de dispositivo %s", proceso.PID, dispositivo.Nombre), log.DEBUG)
-
 		dispositivo.ProcesoEnUso = nil
-
 		// Primero intentar sacar de SUSP_BLOCKED
 		global.MutexSuspBlocked.Lock()
 		enSuspBlocked := global.EliminarProcesoDeCola(&global.ColaSuspBlocked, proceso.PID)
 		global.MutexSuspBlocked.Unlock()
-		global.LoggerKernel.Log(fmt.Sprintf("[DEBUG] Proceso PID %d eliminado de ColaSuspBlocked: %v", proceso.PID, enSuspBlocked), log.DEBUG)
+		
 
 		if enSuspBlocked {
 			global.AgregarASuspReady(proceso)
 			planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.SUSP_READY)
 
-			global.LoggerKernel.Log(fmt.Sprintf("[INFO] ## (%d) finalizó IO y pasa a SUSP_READY", proceso.PID), log.INFO)
-
 			select {
 			case global.NotifySuspReady <- struct{}{}:
-				global.LoggerKernel.Log("[DEBUG] Notificando a largo plazo por SUSP_READY", log.DEBUG)
 			default:
 			}
 			return
+		} else{
+			// Si no estaba en SUSP_BLOCKED, asumimos que estaba en BLOCKED
+			global.MutexBlocked.Lock()
+			global.EliminarProcesoDeCola(&global.ColaBlocked, proceso.PID)
+			global.MutexBlocked.Unlock()
+			
+			global.AgregarAReady(proceso)
+
+			planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.READY)
+
+			select {
+			case global.NotifyReady <- struct{}{}:
+			default:
+			}
 		}
-
-		// Si no estaba en SUSP_BLOCKED, asumimos que estaba en BLOCKED
-		global.MutexBlocked.Lock()
-		global.EliminarProcesoDeCola(&global.ColaBlocked, proceso.PID)
-		global.MutexBlocked.Unlock()
-		global.AgregarAReady(proceso)
-		planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.READY)
-
-		global.LoggerKernel.Log(fmt.Sprintf("## (%d) finalizó IO y pasa a READY", proceso.PID), log.INFO)
-
-		select {
-		case global.NotifyReady <- struct{}{}:
-		default:
-		}
+	
 
 		// Ver si hay proceso esperando en el dispositivo
 		dispositivo.Mutex.Lock()
@@ -327,29 +320,30 @@ func DUMP_MEMORY(w http.ResponseWriter, r *http.Request) {
 	pidStr := r.URL.Query().Get("pid")
 	pid, _ := strconv.Atoi(pidStr)
 
-	proceso := utilsKernel.BuscarProcesoPorPID(global.ColaExecuting, pid)
-
-	planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.BLOCKED)
-	global.AgregarABlocked(proceso)
 	global.LoggerKernel.Log(ColorOrange + "## ("+strconv.Itoa(pid)+") - Solicitó syscall: <DUMP_MEMORY>" + ColorReset, log.INFO)
-
+	proceso := utilsKernel.BuscarProcesoPorPID(global.ColaBlocked, pid)
+	
 	err := utilsKernel.SolicitarDumpAMemoria(pid)
 	if err != nil {
 		global.LoggerKernel.Log(fmt.Sprintf("Error en dump de memoria para PID %d: %s", pid, err.Error()), log.ERROR)
-
+		global.MutexBlocked.Lock()
 		global.EliminarProcesoDeCola(&global.ColaBlocked, pid)
+		global.MutexBlocked.Unlock()
+
 		planificacion.FinalizarProceso(proceso)
 
 		http.Error(w, "Fallo en Dump, proceso finalizado", http.StatusInternalServerError)
 		return
 	}
 
+	global.MutexBlocked.Lock()
 	global.EliminarProcesoDeCola(&global.ColaBlocked, pid)
-	planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.READY)
+	global.MutexBlocked.Unlock()
+	
 	global.AgregarAReady(proceso)
+	planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.READY)
 
 	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "Dump exitoso para PID %d", pid)
 }
 
 func DevolucionCPUHandler(w http.ResponseWriter, r *http.Request) {

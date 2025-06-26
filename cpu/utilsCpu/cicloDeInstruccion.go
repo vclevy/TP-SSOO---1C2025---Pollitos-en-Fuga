@@ -82,6 +82,9 @@ func Execute(instruccion Instruccion, requiereMMU bool) error {
 		return nil
 	}
 	if instruccion.Opcode == "DUMP_MEMORY" {
+		global.Motivo = "DUMP"
+		global.Rafaga = float64(time.Since(tiempoInicio).Milliseconds())
+		cortoProceso()
 		Syscall_Dump_Memory()
 		return nil
 	}
