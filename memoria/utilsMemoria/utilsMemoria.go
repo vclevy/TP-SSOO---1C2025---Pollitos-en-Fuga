@@ -239,13 +239,16 @@ func ActualizarPaginaCompleta (pid int, direccionFisica int, datos []byte) {
 
 //OBTENER INSTRUCCIONES
 func ObtenerInstruccion(pid int, pc int) (string, error) { //ESTO SIRVE PARA CPU
+	time.Sleep(time.Millisecond * time.Duration(global.ConfigMemoria.Memory_delay))
 	instrucciones := ListaDeInstrucciones(pid)
 
 	if pc < 0 || pc >= len(instrucciones) { //Si PC es menor a 0 o mayor al lista de instrucciones -> ERROR
 		return "", fmt.Errorf("PC %d fuera de rango", pc)
 	}
 	metricas[pid].InstruccionesSolicitadas++
+	
 	return instrucciones[pc], nil
+	
 }
 
 

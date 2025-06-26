@@ -23,7 +23,7 @@ func WRITE(instruccion Instruccion, cacheHabilitada bool, desplazamiento int, tl
 			global.LoggerCpu.Log(fmt.Sprintf("\033[36mPID: %d - Acción: ESCRIBIR - Dirección Física: %d - Valor: %s\033[0m", global.PCB_Actual.PID, (dirFisicaSinDespl + desplazamiento), datos), log.INFO)
 		}
 	}else { //CACHE DESHABILITADA
-		marco := CalcularMarco()
+		marco := CalcularMarco(nroPagina)
 		direccionFisica := MMU(desplazamiento, marco)
 		MemoriaEscribe(direccionFisica, datos)
 	}
@@ -53,7 +53,7 @@ func READ(instruccion Instruccion, cacheHabilitada bool, desplazamiento int, tlb
 			global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: LEER - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, dirFisicaSinDespl + desplazamiento, lectura), log.INFO)
 		}
 	}else { //CACHE DESHABILITADA
-		marco := CalcularMarco()
+		marco := CalcularMarco(nroPagina)
 		direccionFisica := MMU(desplazamiento, marco)
 		MemoriaLee(direccionFisica, tamanio)
 	}
@@ -64,6 +64,7 @@ func TlbHIT(pagina int) bool {
 	global.LoggerCpu.Log(fmt.Sprintf("Contenido TLB: %v", global.TLB), log.DEBUG)
 	for i := 0; i <= len(global.TLB)-1; i++ {
 		if global.TLB[i].NroPagina == pagina {
+			global.TLB[i].UltimoUso = lruCounter
 			global.LoggerCpu.Log(fmt.Sprintf("\033[36mPID: %d - TLB HIT - Pagina: %d\033[0m", global.PCB_Actual.PID, pagina), log.INFO) //!! TLB Hit - logObligatorio
 			return true
 		}
@@ -94,9 +95,11 @@ func actualizarCACHE() (int,int){ //
 		indicePisar = AlgoritmoCACHE()
 	}
 	if global.CACHE[indicePisar].BitModificado == 1 {
-		desalojar(indicePisar)
+		nroPaginaPisar := global.CACHE[indicePisar].NroPagina
+		desalojar(indicePisar,nroPaginaPisar)
 	}
-	marco := CalcularMarco()
+	
+	marco := CalcularMarco(nroPagina)
 	dirFisicaSinDesplazamiento := MMU(0,marco)
 	lecturaPagina := MemoriaLeePaginaCompleta(dirFisicaSinDesplazamiento)
 	global.LoggerCpu.Log(fmt.Sprintf("pagina completa que se lee de memoria: %d", lecturaPagina), log.INFO)
@@ -104,7 +107,7 @@ func actualizarCACHE() (int,int){ //
 	global.CACHE[indicePisar].NroPagina = nroPagina
 	global.CACHE[indicePisar].Contenido = lecturaPagina
 	global.CACHE[indicePisar].BitModificado = 0
-	global.CACHE[nroPagina].BitUso = 1
+	global.CACHE[indicePisar].BitUso = 1
 
 	global.LoggerCpu.Log(fmt.Sprintf("\033[36mPID: %d - Cache Add - Pagina: %d\033[0m", global.PCB_Actual.PID, nroPagina), log.INFO) //!! Página ingresada en Caché - logObligatorio
 

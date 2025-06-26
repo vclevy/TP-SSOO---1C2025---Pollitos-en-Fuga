@@ -40,10 +40,10 @@ func armarListaEntradas(nroPagina int) []int {
 	return entradas
 }
 
-func CalcularMarco() int {
+func CalcularMarco(numeroPagina int) int {
 	if global.TlbHabilitada { //TLB HABILITADA
-		if TlbHIT(nroPagina) { // CASO: esta en la TLB
-			indiceHIT := indicePaginaEnTLB(nroPagina)
+		if TlbHIT(numeroPagina) { // CASO: esta en la TLB
+			indiceHIT := indicePaginaEnTLB(numeroPagina)
 			global.TLB[indiceHIT].UltimoUso = lruCounter
 			return global.TLB[indiceHIT].Marco
 		} else { // CASO: NO esta en la TLB
@@ -51,7 +51,7 @@ func CalcularMarco() int {
 		}
 	}
 	//TLB NO ESTA HABILITADA
-	return BuscarMarcoEnMemoria(nroPagina)
+	return BuscarMarcoEnMemoria(numeroPagina)
 }
 
 func BuscarMarcoEnMemoria(nroPagina int) int {

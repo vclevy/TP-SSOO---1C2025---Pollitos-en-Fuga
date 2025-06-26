@@ -75,14 +75,13 @@ func InitGlobal(idCPU string, configPath string) {
 	}
 }
 
-
 func InicializarTLB() {
 	TLB = make([]estructuras.DatoTLB, CpuConfig.TlbEntries)
 	for i := range TLB {
 		TLB[i] = estructuras.DatoTLB{
 			NroPagina: -1,
 			Marco:     -1,
-			UltimoUso: -1,
+			UltimoUso: 0,
 		}
 	}
 }
@@ -93,7 +92,7 @@ func InicializarCACHE() {
 		CACHE[i] = estructuras.DatoCACHE{
 			BitModificado: -1,
 			NroPagina:     -1,
-			Contenido:		make([]byte, ConfigMMU.Tamanio_pagina),//ver
+			Contenido:		make([]byte, ConfigMMU.Tamanio_pagina),
 			BitUso:        -1,
 		}
 	}

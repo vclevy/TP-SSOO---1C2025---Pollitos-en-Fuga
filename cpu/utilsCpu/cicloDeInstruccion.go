@@ -71,6 +71,7 @@ func Execute(instruccion Instruccion, requiereMMU bool) error {
 	if instruccion.Opcode == "IO" {
 		global.Motivo = "IO"
 		global.Rafaga = float64(time.Since(tiempoInicio).Milliseconds())
+		Desalojo()
 		cortoProceso()
 		Syscall_IO(instruccion)
 		return nil
@@ -85,7 +86,8 @@ func Execute(instruccion Instruccion, requiereMMU bool) error {
 	}
 	if instruccion.Opcode == "EXIT" {
 		global.Motivo = "EXIT"
-		global.Rafaga = float64(time.Since(tiempoInicio).Milliseconds())		
+		global.Rafaga = float64(time.Since(tiempoInicio).Milliseconds())
+		Desalojo()
 		Syscall_Exit()
 		DevolucionPID()
 		global.LoggerCpu.Log(fmt.Sprintf("\033[35mProceso %d finalizado (EXIT). Fin del ciclo\033[0m",global.PCB_Actual.PID), log.INFO)
@@ -141,6 +143,7 @@ func CheckInterrupt() {
 		global.LoggerCpu.Log(("Hay interrupción"), log.DEBUG) 
 		global.Motivo = "READY"
 		global.Rafaga = float64(time.Since(tiempoInicio).Milliseconds())
+		Desalojo()
 		cortoProceso()
 		global.PCB_Actual = global.PCB_Interrupcion
 		global.Interrupcion = false

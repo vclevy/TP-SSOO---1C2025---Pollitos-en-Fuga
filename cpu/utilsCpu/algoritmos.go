@@ -18,7 +18,7 @@ func AlgoritmoTLB() int { // la página no está en la tlb y no hay indice vacio
 	
 	if global.CpuConfig.TlbReplacement == "FIFO" {
 		indice := fifoIndice
-		//fifoIndice = (fifoIndice + 1) % len(global.TLB)
+		fifoIndice = (fifoIndice + 1) % len(global.TLB)
 		global.LoggerCpu.Log(fmt.Sprintf("INDICE A REEMPLAZAR EN TLB POR ALGORTIMO %s es %d", global.CpuConfig.TlbReplacement, indice), log.ERROR)
 		return indice
 	} else if global.CpuConfig.TlbReplacement == "LRU" {
@@ -45,13 +45,13 @@ func AlgoritmoCACHE() int { //CACHE: CLOCK o CLOCK-M
 		for {
 			global.LoggerCpu.Log(fmt.Sprintf("Bit de uso de la página %d: %d", global.CACHE[punteroClock].NroPagina,global.CACHE[punteroClock].BitUso), log.ERROR)
 
-			if global.CACHE[punteroClock].BitUso == 0 {
+			if global.CACHE[punteroClock].BitUso == 0 { //BIT DE USO 0
 				indice := punteroClock
 				punteroClock = (punteroClock + 1) % len(global.CACHE)
 				global.LoggerCpu.Log(fmt.Sprintf("INDICE A REEMPLAZAR EN CACHE POR ALGORTIMO %s es %d", global.CpuConfig.CacheReplacement, indice), log.ERROR)
 
 				return indice
-			} else {
+			} else {//BIT DE USO 1
 				global.CACHE[punteroClock].BitUso = 0
 				punteroClock = (punteroClock + 1) % len(global.CACHE)
 			}
