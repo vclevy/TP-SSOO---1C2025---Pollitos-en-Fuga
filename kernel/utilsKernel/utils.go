@@ -164,7 +164,7 @@ func EnviarInterrupcionCPU(cpu *global.CPU, pid int, pc int) error {
 		return fmt.Errorf("error enviando request HTTP: %w", err)
 	}
 	defer resp.Body.Close()
-
+	
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("respuesta no OK del interrupt: %d", resp.StatusCode)
 	}
@@ -302,4 +302,19 @@ func InicializarProceso(proceso *global.Proceso) bool {
 
 	global.LoggerKernel.Log(fmt.Sprintf("Proceso %d inicializado correctamente en Memoria", proceso.PID), log.DEBUG)
 	return true
+}
+
+func SacarProcesoDeCPU(pid int) {
+	global.MutexCPUs.Lock()
+	defer global.MutexCPUs.Unlock()
+
+	for _, cpu := range global.CPUsConectadas {
+		if cpu.ProcesoEjecutando != nil && cpu.ProcesoEjecutando.PID == pid {
+			global.LoggerKernel.Log(fmt.Sprintf("[TRACE] Liberando CPU %s de proceso PID %d", cpu.ID, pid), log.DEBUG)
+			cpu.ProcesoEjecutando = nil
+			return
+		}
+	}
+
+	global.LoggerKernel.Log(fmt.Sprintf("[WARN] No se encontró CPU ejecutando proceso PID %d para liberar", pid), log.DEBUG)
 }

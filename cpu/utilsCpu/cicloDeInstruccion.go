@@ -72,6 +72,7 @@ func Execute(instruccion Instruccion, requiereMMU bool) error {
 		global.Motivo = "IO"
 		global.Rafaga = float64(time.Since(tiempoInicio).Milliseconds())
 		Desalojo()
+		global.PCB_Actual.PC++
 		cortoProceso()
 		Syscall_IO(instruccion)
 		return nil

@@ -290,11 +290,13 @@ func evaluarDesalojoSRTF(nuevoProceso *global.Proceso) bool {
 	if restanteNuevo < restanteEjecutando {
 		cpu := utilskernel.BuscarCPUPorPID(ejecutando.PCB.PID)
 		if cpu != nil {
+			global.LoggerKernel.Log(fmt.Sprintf("## (%d) - Desalojado por algoritmo SJF/SRT", ejecutando.PCB.PID), log.INFO)
 			global.LoggerKernel.Log(fmt.Sprintf("evaluarDesalojoSRTF: enviando interrupción a CPU %s para proceso %d", cpu.ID, ejecutando.PCB.PID), log.DEBUG)
 			err := utilskernel.EnviarInterrupcionCPU(cpu, ejecutando.PCB.PID, ejecutando.PCB.PC)
 			if err != nil {
 				global.LoggerKernel.Log(fmt.Sprintf("Error enviando interrupción a CPU %s para proceso %d: %v", cpu.ID, ejecutando.PCB.PID, err), log.ERROR)
 			}
+			utilskernel.SacarProcesoDeCPU(ejecutando.PCB.PID)
 		} else {
 			global.LoggerKernel.Log(fmt.Sprintf("No se encontró CPU ejecutando proceso %d para interrupción", ejecutando.PCB.PID), log.ERROR)
 		}
@@ -401,7 +403,7 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 		global.LoggerKernel.Log(fmt.Sprintf("[WARN] Se recibió devolución de CPU para PID %d pero ya estaba en EXIT", proceso.PID), log.DEBUG)
 		return
 	}
-
+	global.LoggerKernel.Log(fmt.Sprintf("[!!] PC QUE MANDA PALEN: %d", resp.PC), log.DEBUG)
 	proceso.TiempoEjecutado += resp.RafagaReal
 	proceso.PCB.PC = resp.PC
 	global.LoggerKernel.Log(fmt.Sprintf("[TRACE] Proceso PID %d - TiempoEjecutado actualizado a %f, PC actualizado a %d", proceso.PCB.PID, proceso.TiempoEjecutado, proceso.PCB.PC), log.DEBUG)
