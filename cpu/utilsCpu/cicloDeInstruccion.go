@@ -11,24 +11,28 @@ import (
 )
 
 var tiempoInicio time.Time
+var sumarPC bool = true
 
 func CicloDeInstruccion() bool {
-
 	var instruccionAEjecutar = Fetch()
 	
 	instruccion, requiereMMU := Decode(instruccionAEjecutar)
 
 	tiempoInicio = time.Now()
 
-	err := Execute(instruccion, requiereMMU)
+	opcode,err := Execute(instruccion, requiereMMU)
 	if err != nil {
 		global.LoggerCpu.Log("Error ejecutando instrucción: "+err.Error(), log.ERROR)
+		return false
+	}
+	if opcode == "EXIT"{
+		global.LoggerCpu.Log("Es EXIT, corta el ciclo de instrucción", log.DEBUG)
 		return false
 	}
 
 	CheckInterrupt()
 	
-	seguirEjecutando := instruccion.Opcode != "EXIT" && instruccion.Opcode != "IO"
+	seguirEjecutando := instruccion.Opcode != "EXIT" && instruccion.Opcode != "IO" && instruccion.Opcode != "DUMP_MEMORY"
 	return seguirEjecutando
 }
 
@@ -63,7 +67,7 @@ func Decode(instruccionAEjecutar string) (Instruccion, bool) {
 	return instruccion, requiereMMU
 }
 
-func Execute(instruccion Instruccion, requiereMMU bool) error {
+func Execute(instruccion Instruccion, requiereMMU bool) (string, error) {
 
 	global.LoggerCpu.Log(fmt.Sprintf("\033[36m## PID: %d - Ejecutando: %s - %s\033[0m", global.PCB_Actual.PID, instruccion.Opcode, instruccion.Parametros), log.INFO) //!! Instrucción Ejecutada - logObligatorio
 
@@ -73,43 +77,49 @@ func Execute(instruccion Instruccion, requiereMMU bool) error {
 		global.Rafaga = float64(time.Since(tiempoInicio).Milliseconds())
 		Desalojo()
 		global.PCB_Actual.PC++
+		sumarPC = false
 		cortoProceso()
 		Syscall_IO(instruccion)
-		return nil
+		return "",nil
 	}
 	if instruccion.Opcode == "INIT_PROC" {
 		Syscall_Init_Proc(instruccion)
-		return nil
+		return "",nil
 	}
 	if instruccion.Opcode == "DUMP_MEMORY" {
 		global.Motivo = "DUMP"
 		global.Rafaga = float64(time.Since(tiempoInicio).Milliseconds())
+		Desalojo()
+		global.PCB_Actual.PC++
+		sumarPC = false
 		cortoProceso()
 		Syscall_Dump_Memory()
-		return nil
+		return "",nil
 	}
 	if instruccion.Opcode == "EXIT" {
 		global.Motivo = "EXIT"
 		global.Rafaga = float64(time.Since(tiempoInicio).Milliseconds())
 		Desalojo()
+		global.PCB_Actual.PC++
+		sumarPC = false
 		Syscall_Exit()
 		DevolucionPID()
 		global.LoggerCpu.Log(fmt.Sprintf("\033[35mProceso %d finalizado (EXIT). Fin del ciclo\033[0m",global.PCB_Actual.PID), log.INFO)
-		return nil
+		return "EXIT",nil
 	}
 
 	//todo OTRAS INSTRUCCIONES
 	if instruccion.Opcode == "NOOP" {
-		return nil
+		return "",nil
 	}
 
 	if instruccion.Opcode == "GOTO" {
 		pcNuevo, err := strconv.Atoi(instruccion.Parametros[1])
 		if err != nil {
-			return fmt.Errorf("error al convertir tiempo estimado")
+			return "",fmt.Errorf("error al convertir tiempo estimado")
 		}
 		global.PCB_Actual.PC = pcNuevo
-		return nil
+		return "",nil
 	}
 
 	//todo INSTRUCCIONES MMU
@@ -119,11 +129,11 @@ func Execute(instruccion Instruccion, requiereMMU bool) error {
 		direccionLogicaStr := instruccion.Parametros[0]
 		direccionLogica, err := strconv.Atoi(direccionLogicaStr)
 		if err != nil {
-			return fmt.Errorf("error al convertir dirección logica")
+			return "",fmt.Errorf("error al convertir dirección logica")
 		} else {
 			if global.ConfigMMU.Tamanio_pagina == 0 {
 				global.LoggerCpu.Log("Error: Tamanio_pagina es 0 antes de calcular el desplazamiento", log.ERROR)
-				return nil
+				return "",nil
 			}
 
 			desplazamiento = direccionLogica % global.ConfigMMU.Tamanio_pagina
@@ -139,7 +149,7 @@ func Execute(instruccion Instruccion, requiereMMU bool) error {
 			global.LoggerCpu.Log(fmt.Sprintf("Contenido CACHE: %v", global.CACHE), log.DEBUG)
 		}
 	}
-	return nil
+	return "",nil
 }
 
 func CheckInterrupt() {
@@ -152,7 +162,10 @@ func CheckInterrupt() {
 		global.PCB_Actual = global.PCB_Interrupcion
 		global.Interrupcion = false
 	}else{
-		global.PCB_Actual.PC = global.PCB_Actual.PC + 1
-		global.LoggerCpu.Log(fmt.Sprintf("NO Hay interrupción, nuevo pc: %d", global.PCB_Actual.PC), log.DEBUG)
+		if(sumarPC){
+			global.PCB_Actual.PC = global.PCB_Actual.PC + 1
+		}
+		global.LoggerCpu.Log(fmt.Sprintf("No hay interrupción, nuevo pc: %d", global.PCB_Actual.PC), log.DEBUG)
+		sumarPC = true
 	}
 }

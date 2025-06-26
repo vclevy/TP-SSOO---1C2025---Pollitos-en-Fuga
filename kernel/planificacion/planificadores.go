@@ -405,11 +405,9 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 		case global.NotifyReady <- struct{}{}:
 		default:
 		}
-	case "DUMP":
-		ActualizarEstadoPCB(&proceso.PCB, BLOCKED)
-		global.AgregarABlocked(proceso)
-	}
 
+	case "DUMP":
+	}
 
 	if resp.Motivo != "READY" {
 		select {

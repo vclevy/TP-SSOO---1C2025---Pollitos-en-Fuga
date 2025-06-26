@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"strconv"
-
 	"github.com/sisoputnfrba/tp-golang/kernel/global"
 	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
 	log "github.com/sisoputnfrba/tp-golang/utils/logger"
@@ -310,11 +309,11 @@ func SacarProcesoDeCPU(pid int) {
 
 	for _, cpu := range global.CPUsConectadas {
 		if cpu.ProcesoEjecutando != nil && cpu.ProcesoEjecutando.PID == pid {
-			global.LoggerKernel.Log(fmt.Sprintf("[TRACE] Liberando CPU %s de proceso PID %d", cpu.ID, pid), log.DEBUG)
+			global.LoggerKernel.Log(fmt.Sprintf("[TRACE] Liberando CPU %s de proceso PID %d", cpu.ID, pid), log.INFO)
 			cpu.ProcesoEjecutando = nil
 			return
 		}
 	}
 
-	global.LoggerKernel.Log(fmt.Sprintf("[WARN] No se encontró CPU ejecutando proceso PID %d para liberar", pid), log.DEBUG)
+	global.LoggerKernel.Log(fmt.Sprintf("[WARN] No se encontró CPU ejecutando proceso PID %d para liberar", pid), log.INFO)
 }
