@@ -121,6 +121,9 @@ func cortoProceso() error {
 }
 
 func Desalojo (){
+
+	global.PCB_Actual = estructuras.PCB{}
+
 	if(global.CacheHabilitada){	
 		for i:= 0; i < global.CpuConfig.CacheEntries ; i++ {	
 			if(global.CACHE[i].BitModificado == 1){

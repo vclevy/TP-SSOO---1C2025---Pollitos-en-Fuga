@@ -1,7 +1,2 @@
-WRITE 0 HOLA
-IO teclado 10000
-READ 0 4
-NOOP
-IO teclado 1000 
 INIT_PROC proceso1.txt 40
 EXIT

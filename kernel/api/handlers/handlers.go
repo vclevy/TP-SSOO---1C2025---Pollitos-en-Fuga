@@ -276,8 +276,10 @@ func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
 			global.MutexBlocked.Unlock()
 			
 			global.AgregarAReady(proceso)
+			global.LoggerKernel.Log("AGREGAR A READY A", log.DEBUG)
 
 			planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.READY)
+			global.LoggerKernel.Log(fmt.Sprintf("## (%d) finalizó IO y pasa a READY", proceso.PID), log.INFO)
 
 			select {
 			case global.NotifyReady <- struct{}{}:
@@ -353,6 +355,8 @@ func DUMP_MEMORY(w http.ResponseWriter, r *http.Request) {
 
     planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.READY)
     global.AgregarAReady(proceso)
+	global.LoggerKernel.Log("AGREGAR A READY B", log.DEBUG)
+
 
     w.WriteHeader(http.StatusOK)
 }
