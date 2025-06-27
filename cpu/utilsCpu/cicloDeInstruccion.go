@@ -91,26 +91,33 @@ func Execute(instruccion Instruccion, requiereMMU bool) (string, error) {
 		return "", nil
 	}
 	if instruccion.Opcode == "DUMP_MEMORY" {
-		global.Motivo = "DUMP"
-		global.Rafaga = float64(time.Since(tiempoInicio).Milliseconds())
-		Desalojo()
-		global.PCB_Actual.PC++
-		sumarPC = false
-		cortoProceso()
-		Syscall_Dump_Memory()
-		return "", nil
-	}
+    global.Motivo = "DUMP"
+    global.Rafaga = float64(time.Since(tiempoInicio).Milliseconds())
+    global.PCB_Actual.PC++
+    sumarPC = false
+
+    Syscall_Dump_Memory()
+    Desalojo()
+
+    go cortoProceso()
+
+    return "", nil
+}
+
 	if instruccion.Opcode == "EXIT" {
-		global.Motivo = "EXIT"
-		global.Rafaga = float64(time.Since(tiempoInicio).Milliseconds())
-		Desalojo()
-		global.PCB_Actual.PC++
-		sumarPC = false
-		Syscall_Exit()
-		DevolucionPID()
-		global.LoggerCpu.Log(fmt.Sprintf("\033[35mProceso %d finalizado (EXIT). Fin del ciclo\033[0m", global.PCB_Actual.PID), log.INFO)
-		return "EXIT", nil
-	}
+	global.Motivo = "EXIT"
+	global.Rafaga = float64(time.Since(tiempoInicio).Milliseconds())
+	global.PCB_Actual.PC++ // avanza antes de cortar
+	sumarPC = false
+
+	Syscall_Exit()         // primero la syscall
+	DevolucionPID()        // luego la devolución
+	Desalojo()             // al final el borrado
+
+	global.LoggerCpu.Log(fmt.Sprintf("\033[35mProceso %d finalizado (EXIT). Fin del ciclo\033[0m", global.PCB_Actual.PID), log.INFO)
+	return "EXIT", nil
+}
+
 
 	//todo OTRAS INSTRUCCIONES
 	if instruccion.Opcode == "NOOP" {

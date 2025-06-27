@@ -317,13 +317,14 @@ func EXIT(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 }
+
 func DUMP_MEMORY(w http.ResponseWriter, r *http.Request) {
     pidStr := r.URL.Query().Get("pid")
     pid, _ := strconv.Atoi(pidStr)
 
     global.LoggerKernel.Log(ColorOrange+"## ("+strconv.Itoa(pid)+") - Solicitó syscall: <DUMP_MEMORY>"+ColorReset, log.INFO)
-
     proceso := utilsKernel.BuscarProcesoPorPID(global.ColaExecuting, pid)
+	utilsKernel.SacarProcesoDeCPU(proceso.PID)
 
     // Cambiar de EXEC a BLOCKED
     global.MutexExecuting.Lock()
@@ -356,7 +357,6 @@ func DUMP_MEMORY(w http.ResponseWriter, r *http.Request) {
     planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.READY)
     global.AgregarAReady(proceso)
 	global.LoggerKernel.Log("AGREGAR A READY B", log.DEBUG)
-
 
     w.WriteHeader(http.StatusOK)
 }

@@ -81,6 +81,7 @@ func Syscall_Dump_Memory() {
 	}
 
 	defer resp.Body.Close() //se cierra la conexión
+
 }
 
 func Syscall_Exit() {

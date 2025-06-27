@@ -120,35 +120,37 @@ func cortoProceso() error {
 	return nil
 }
 
-func Desalojo (){
+func Desalojo() {
+	// Solo vaciar el PCB si el proceso finalizó (EXIT) o fue interrumpido (READY)
+	if global.Motivo == "EXIT" || global.Motivo == "READY" {
+		global.PCB_Actual = estructuras.PCB{}
+	}
 
-	global.PCB_Actual = estructuras.PCB{}
-
-	if(global.CacheHabilitada){	
-		for i:= 0; i < global.CpuConfig.CacheEntries ; i++ {	
-			if(global.CACHE[i].BitModificado == 1){
+	if global.CacheHabilitada {
+		for i := 0; i < global.CpuConfig.CacheEntries; i++ {
+			if global.CACHE[i].BitModificado == 1 {
 				nroPaginaDesalojar := global.CACHE[i].NroPagina
-				desalojar(i,nroPaginaDesalojar)
+				desalojar(i, nroPaginaDesalojar)
 			}
-			
+
 			global.CACHE[i].BitModificado = -1
 			global.CACHE[i].NroPagina = -1
 			global.CACHE[i].Contenido = make([]byte, global.ConfigMMU.Tamanio_pagina)
 			global.CACHE[i].BitUso = -1
 		}
 	}
-	
-	
-	if(global.TlbHabilitada){	
-		for i:= 0; i < global.CpuConfig.CacheEntries ; i++ {	
-			if(global.TLB[i].NroPagina != -1){
+
+	if global.TlbHabilitada {
+		for i := 0; i < global.CpuConfig.CacheEntries; i++ {
+			if global.TLB[i].NroPagina != -1 {
 				global.TLB[i].NroPagina = -1
-				global.TLB[i].Marco =    -1
+				global.TLB[i].Marco = -1
 				global.TLB[i].UltimoUso = 0
 			}
 		}
 	}
 }
+
 
 func desalojar(indicePisar int, nroPaginaPisar int) {
 	marco := CalcularMarco(nroPaginaPisar)
