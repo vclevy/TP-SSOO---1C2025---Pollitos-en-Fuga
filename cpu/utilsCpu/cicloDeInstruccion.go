@@ -15,23 +15,23 @@ var sumarPC bool = true
 
 func CicloDeInstruccion() bool {
 	var instruccionAEjecutar = Fetch()
-	
+
 	instruccion, requiereMMU := Decode(instruccionAEjecutar)
 
 	tiempoInicio = time.Now()
 
-	opcode,err := Execute(instruccion, requiereMMU)
+	opcode, err := Execute(instruccion, requiereMMU)
 	if err != nil {
 		global.LoggerCpu.Log("Error ejecutando instrucción: "+err.Error(), log.ERROR)
 		return false
 	}
-	if opcode == "EXIT"{
+	if opcode == "EXIT" {
 		global.LoggerCpu.Log("Es EXIT, corta el ciclo de instrucción", log.DEBUG)
 		return false
 	}
 
 	CheckInterrupt()
-	
+
 	seguirEjecutando := instruccion.Opcode != "EXIT" && instruccion.Opcode != "IO" && instruccion.Opcode != "DUMP_MEMORY"
 	return seguirEjecutando
 }
@@ -57,6 +57,10 @@ func Fetch() string {
 func Decode(instruccionAEjecutar string) (Instruccion, bool) {
 	instruccionPartida := strings.Fields(instruccionAEjecutar) //?  "MOV AX BX" --> []string{"MOV", "AX", "BX"}
 
+	if len(instruccionPartida) == 0 {
+		return Instruccion{}, false
+	}
+
 	instruccion := Instruccion{
 		Opcode:     instruccionPartida[0],
 		Parametros: instruccionPartida[1:],
@@ -80,11 +84,11 @@ func Execute(instruccion Instruccion, requiereMMU bool) (string, error) {
 		sumarPC = false
 		cortoProceso()
 		Syscall_IO(instruccion)
-		return "",nil
+		return "", nil
 	}
 	if instruccion.Opcode == "INIT_PROC" {
 		Syscall_Init_Proc(instruccion)
-		return "",nil
+		return "", nil
 	}
 	if instruccion.Opcode == "DUMP_MEMORY" {
 		global.Motivo = "DUMP"
@@ -94,7 +98,7 @@ func Execute(instruccion Instruccion, requiereMMU bool) (string, error) {
 		sumarPC = false
 		cortoProceso()
 		Syscall_Dump_Memory()
-		return "",nil
+		return "", nil
 	}
 	if instruccion.Opcode == "EXIT" {
 		global.Motivo = "EXIT"
@@ -104,36 +108,45 @@ func Execute(instruccion Instruccion, requiereMMU bool) (string, error) {
 		sumarPC = false
 		Syscall_Exit()
 		DevolucionPID()
-		global.LoggerCpu.Log(fmt.Sprintf("\033[35mProceso %d finalizado (EXIT). Fin del ciclo\033[0m",global.PCB_Actual.PID), log.INFO)
-		return "EXIT",nil
+		global.LoggerCpu.Log(fmt.Sprintf("\033[35mProceso %d finalizado (EXIT). Fin del ciclo\033[0m", global.PCB_Actual.PID), log.INFO)
+		return "EXIT", nil
 	}
 
 	//todo OTRAS INSTRUCCIONES
 	if instruccion.Opcode == "NOOP" {
-		return "",nil
+		return "", nil
 	}
 
 	if instruccion.Opcode == "GOTO" {
-		pcNuevo, err := strconv.Atoi(instruccion.Parametros[1])
+		if len(instruccion.Parametros) < 1 {
+			return "", fmt.Errorf("GOTO requiere 1 parámetro, recibido: %v", instruccion.Parametros)
+		}
+
+		pcNuevo, err := strconv.Atoi(instruccion.Parametros[0])
 		if err != nil {
-			return "",fmt.Errorf("error al convertir tiempo estimado")
+			return "", fmt.Errorf("error al convertir tiempo estimado")
 		}
 		global.PCB_Actual.PC = pcNuevo
-		return "",nil
+		sumarPC = false
+		return "", nil
 	}
 
 	//todo INSTRUCCIONES MMU
 	if requiereMMU {
 		var desplazamiento int
 
+		if len(instruccion.Parametros) < 1 {
+			return "", fmt.Errorf("instrucción requiere al menos 1 parámetro, recibido: %v", instruccion.Parametros)
+		}
+
 		direccionLogicaStr := instruccion.Parametros[0]
 		direccionLogica, err := strconv.Atoi(direccionLogicaStr)
 		if err != nil {
-			return "",fmt.Errorf("error al convertir dirección logica")
+			return "", fmt.Errorf("error al convertir dirección logica")
 		} else {
 			if global.ConfigMMU.Tamanio_pagina == 0 {
 				global.LoggerCpu.Log("Error: Tamanio_pagina es 0 antes de calcular el desplazamiento", log.ERROR)
-				return "",nil
+				return "", nil
 			}
 
 			desplazamiento = direccionLogica % global.ConfigMMU.Tamanio_pagina
@@ -149,20 +162,20 @@ func Execute(instruccion Instruccion, requiereMMU bool) (string, error) {
 			global.LoggerCpu.Log(fmt.Sprintf("Contenido CACHE: %v", global.CACHE), log.DEBUG)
 		}
 	}
-	return "",nil
+	return "", nil
 }
 
 func CheckInterrupt() {
 	if global.Interrupcion {
-		global.LoggerCpu.Log(("Hay interrupción"), log.DEBUG) 
+		global.LoggerCpu.Log(("Hay interrupción"), log.DEBUG)
 		global.Motivo = "READY"
 		global.Rafaga = float64(time.Since(tiempoInicio).Milliseconds())
 		Desalojo()
 		cortoProceso()
 		global.PCB_Actual = global.PCB_Interrupcion
 		global.Interrupcion = false
-	}else{
-		if(sumarPC){
+	} else {
+		if sumarPC {
 			global.PCB_Actual.PC = global.PCB_Actual.PC + 1
 		}
 		global.LoggerCpu.Log(fmt.Sprintf("No hay interrupción, nuevo pc: %d", global.PCB_Actual.PC), log.DEBUG)
