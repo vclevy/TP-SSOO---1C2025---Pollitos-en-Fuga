@@ -313,12 +313,13 @@ func AsignarCPU(proceso *global.Proceso) bool {
 			break
 		}
 	}
-
 	if cpuLibre == nil {
+		global.LoggerKernel.Log(fmt.Sprintf("[INFO] No hay CPU libre para PID %d", proceso.PID), log.DEBUG)
 		global.MutexCPUs.Unlock()
-		// NO reenviamos NotifyReady para evitar bucle infinito
 		return false
 	}
+
+	global.LoggerKernel.Log(fmt.Sprintf("[INFO] Asignando PID %d a CPU %s", proceso.PID, cpuLibre.ID), log.DEBUG)
 
 	global.MutexReady.Lock()
 	global.EliminarProcesoDeCola(&global.ColaReady, proceso.PID)
@@ -331,17 +332,19 @@ func AsignarCPU(proceso *global.Proceso) bool {
 		ActualizarEstadoPCB(&proceso.PCB, EXEC)
 		global.AgregarAExecuting(proceso)
 
+		global.LoggerKernel.Log(fmt.Sprintf("[INFO] Enviando proceso PID %d a dispatch", proceso.PID), log.DEBUG)
+
 		go func(cpu *global.CPU, proceso *global.Proceso) {
 			err := utilskernel.EnviarADispatch(cpu, proceso.PCB.PID, proceso.PCB.PC)
 			if err != nil {
-				global.LoggerKernel.Log(fmt.Sprintf("[ERROR] Error en dispatch de proceso %d a CPU %s: %v", proceso.PID, cpu.ID, err), log.ERROR)
+				global.LoggerKernel.Log(fmt.Sprintf("[ERROR] Error en dispatch de PID %d a CPU %s: %v", proceso.PID, cpu.ID, err), log.ERROR)
 
 				global.MutexCPUs.Lock()
 				cpu.ProcesoEjecutando = nil
 				global.MutexCPUs.Unlock()
 
 				if proceso.PCB.UltimoEstado != EXIT {
-					global.LoggerKernel.Log(fmt.Sprintf("[TRACE] Reencolando proceso PID %d en READY tras error de dispatch", proceso.PID), log.DEBUG)
+					global.LoggerKernel.Log(fmt.Sprintf("[INFO] Reencolando PID %d en READY tras error de dispatch", proceso.PID), log.DEBUG)
 					global.AgregarAReady(proceso)
 				}
 			}
@@ -352,18 +355,22 @@ func AsignarCPU(proceso *global.Proceso) bool {
 }
 
 func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
-	var proceso *global.Proceso
-	// Liberar CPU que ejecutaba este proceso
-	global.MutexCPUs.Lock()
+	global.LoggerKernel.Log(fmt.Sprintf("[INFO] Se recibió devolución de CPU: PID=%d, Motivo=%s, PC=%d, Ráfaga=%d", resp.PID, resp.Motivo, resp.PC, resp.RafagaReal), log.DEBUG)
 
+	var proceso *global.Proceso
+
+	// Liberar CPU
+	global.MutexCPUs.Lock()
 	for _, cpu := range global.CPUsConectadas {
 		if cpu.ProcesoEjecutando != nil && cpu.ProcesoEjecutando.PID == resp.PID {
+			global.LoggerKernel.Log(fmt.Sprintf("[INFO] Liberando CPU %s del PID %d", cpu.ID, resp.PID), log.DEBUG)
 			cpu.ProcesoEjecutando = nil
 			break
 		}
 	}
 	global.MutexCPUs.Unlock()
 
+	// Buscar el proceso en EXECUTING
 	global.MutexExecuting.Lock()
 	for _, p := range global.ColaExecuting {
 		if p.PCB.PID == resp.PID {
@@ -372,8 +379,9 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 		}
 	}
 	global.MutexExecuting.Unlock()
+
 	if proceso == nil {
-		global.LoggerKernel.Log(fmt.Sprintf("[WARN] Proceso %d no encontrado en EXECUTING al devolver", resp.PID), log.DEBUG)
+		global.LoggerKernel.Log(fmt.Sprintf("[WARN] Proceso PID %d no encontrado en EXECUTING al devolver", resp.PID), log.DEBUG)
 		return
 	}
 
@@ -385,35 +393,40 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 	proceso.TiempoEjecutado += resp.RafagaReal
 	proceso.PCB.PC = resp.PC
 
+	global.LoggerKernel.Log(fmt.Sprintf("[INFO] Recalculando ráfaga de PID %d", proceso.PID), log.DEBUG)
 	RecalcularRafaga(proceso, resp.RafagaReal)
 
 	switch resp.Motivo {
 	case "EXIT":
+		global.LoggerKernel.Log(fmt.Sprintf("[INFO] Finalizando proceso PID %d por EXIT", proceso.PID), log.INFO)
 		FinalizarProceso(proceso)
 
 	case "IO":
-		// Ya fue eliminado de EXECUTING y bloqueado desde la syscall IO
-		// No se hace nada aquí para evitar doble gestión
+		global.LoggerKernel.Log(fmt.Sprintf("[INFO] Proceso PID %d solicitó IO. Nada que hacer aquí.", proceso.PID), log.DEBUG)
 
 	case "READY":
+		global.LoggerKernel.Log(fmt.Sprintf("[INFO] Proceso PID %d vuelve a READY", proceso.PID), log.INFO)
 		global.MutexExecuting.Lock()
 		global.EliminarProcesoDeCola(&global.ColaExecuting, proceso.PID)
 		global.MutexExecuting.Unlock()
 
 		ActualizarEstadoPCB(&proceso.PCB, READY)
 		global.AgregarAReady(proceso)
-		
-		case "DUMP":
+
+	case "DUMP":
+		global.LoggerKernel.Log(fmt.Sprintf("[INFO] Proceso PID %d solicitó DUMP_MEMORY", proceso.PID), log.INFO)
+		// Si querés algo más acá, agregalo
 	}
 
 	if resp.Motivo != "READY" {
 		select {
 		case global.NotifyReady <- struct{}{}:
-		global.LoggerKernel.Log("ESTE SE EJECTUTÓ", log.DEBUG)
+			global.LoggerKernel.Log("[INFO] Señal enviada a planificador corto plazo", log.DEBUG)
 		default:
 		}
 	}
 }
+
 
 func IniciarPlanificadorMedioPlazo() {
 	for {

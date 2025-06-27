@@ -90,16 +90,22 @@ func Execute(instruccion Instruccion, requiereMMU bool) (string, error) {
 		Syscall_Init_Proc(instruccion)
 		return "", nil
 	}
+	
 	if instruccion.Opcode == "DUMP_MEMORY" {
-		global.Motivo = "DUMP"
-		global.Rafaga = float64(time.Since(tiempoInicio).Milliseconds())
-		Desalojo()
-		global.PCB_Actual.PC++
-		sumarPC = false
-		cortoProceso()
-		Syscall_Dump_Memory()
-		return "", nil
-	}
+	Syscall_Dump_Memory() // ← LLAMÁ PRIMERO
+
+	global.Motivo = "DUMP"
+	global.Rafaga = float64(time.Since(tiempoInicio).Milliseconds())
+
+	DevolucionPID() // ← OPCIONAL pero recomendable
+
+	Desalojo() // ← recién ahora borrás el PCB
+
+	global.PCB_Actual.PC++
+	sumarPC = false
+	cortoProceso()
+	return "", nil
+}
 	if instruccion.Opcode == "EXIT" {
 		global.Motivo = "EXIT"
 		global.Rafaga = float64(time.Since(tiempoInicio).Milliseconds())
