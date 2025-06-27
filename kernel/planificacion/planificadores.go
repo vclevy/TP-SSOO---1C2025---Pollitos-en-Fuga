@@ -342,7 +342,8 @@ func AsignarCPU(proceso *global.Proceso) bool {
 func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 	var proceso *global.Proceso
 	// Liberar CPU que ejecutaba este proceso
-	
+	global.LoggerKernel.Log(fmt.Sprintf("[DEBUG] Kernel recibe proceso PID %d con PC %d", resp.PID, resp.PC), log.DEBUG)
+
 	global.MutexExecuting.Lock()
 	for _, p := range global.ColaExecuting {
 		if p.PCB.PID == resp.PID {
@@ -365,6 +366,7 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 	proceso.TiempoEjecutado += resp.RafagaReal
 	proceso.PCB.PC = resp.PC
 	RecalcularRafaga(proceso, resp.RafagaReal)
+	global.LoggerKernel.Log(fmt.Sprintf("[DEBUG] Asignando a CPU proceso PID %d con PC %d", proceso.PID, proceso.PC), log.DEBUG)
 
 	switch resp.Motivo {
 	case "EXIT":
@@ -384,13 +386,12 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 		global.AgregarAReady(proceso)
 
 	case "DUMP":
+		utilskernel.SacarProcesoDeCPU(proceso.PID)
 		global.MutexExecuting.Lock()
 		global.EliminarProcesoDeCola(&global.ColaExecuting, proceso.PID)
 		global.MutexExecuting.Unlock()
-
 		ActualizarEstadoPCB(&proceso.PCB, BLOCKED)
 		global.AgregarABlocked(proceso)
-
 	}
 
 	if resp.Motivo != "READY" {

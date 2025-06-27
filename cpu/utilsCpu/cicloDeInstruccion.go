@@ -93,11 +93,10 @@ func Execute(instruccion Instruccion, requiereMMU bool) (string, error) {
 	if instruccion.Opcode == "DUMP_MEMORY" {
     global.Motivo = "DUMP"
     global.Rafaga = float64(time.Since(tiempoInicio).Milliseconds())
-    global.PCB_Actual.PC++
     sumarPC = false
-
-    Syscall_Dump_Memory()
+    global.PCB_Actual.PC++
     cortoProceso()
+    Syscall_Dump_Memory()
     Desalojo()
 
 
@@ -107,7 +106,6 @@ func Execute(instruccion Instruccion, requiereMMU bool) (string, error) {
 	if instruccion.Opcode == "EXIT" {
 	global.Motivo = "EXIT"
 	global.Rafaga = float64(time.Since(tiempoInicio).Milliseconds())
-	global.PCB_Actual.PC++ // avanza antes de cortar
 	sumarPC = false
 	
 	pid := global.PCB_Actual.PID

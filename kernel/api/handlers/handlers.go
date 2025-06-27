@@ -323,8 +323,7 @@ func DUMP_MEMORY(w http.ResponseWriter, r *http.Request) {
     pid, _ := strconv.Atoi(pidStr)
 
     global.LoggerKernel.Log(ColorOrange+"## ("+strconv.Itoa(pid)+") - Solicitó syscall: <DUMP_MEMORY>"+ColorReset, log.INFO)
-    proceso := utilsKernel.BuscarProcesoPorPID(global.ColaExecuting, pid)
-	utilsKernel.SacarProcesoDeCPU(proceso.PID)
+    proceso := utilsKernel.BuscarProcesoPorPID(global.ColaBlocked, pid)
 
     // Solicitar dump
     err := utilsKernel.SolicitarDumpAMemoria(pid)
