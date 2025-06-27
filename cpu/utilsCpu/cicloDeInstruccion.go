@@ -97,9 +97,9 @@ func Execute(instruccion Instruccion, requiereMMU bool) (string, error) {
     sumarPC = false
 
     Syscall_Dump_Memory()
+    cortoProceso()
     Desalojo()
 
-    go cortoProceso()
 
     return "", nil
 }
@@ -109,12 +109,14 @@ func Execute(instruccion Instruccion, requiereMMU bool) (string, error) {
 	global.Rafaga = float64(time.Since(tiempoInicio).Milliseconds())
 	global.PCB_Actual.PC++ // avanza antes de cortar
 	sumarPC = false
+	
+	pid := global.PCB_Actual.PID
 
 	Syscall_Exit()         // primero la syscall
 	DevolucionPID()        // luego la devolución
 	Desalojo()             // al final el borrado
 
-	global.LoggerCpu.Log(fmt.Sprintf("\033[35mProceso %d finalizado (EXIT). Fin del ciclo\033[0m", global.PCB_Actual.PID), log.INFO)
+	global.LoggerCpu.Log(fmt.Sprintf("\033[35mProceso %d finalizado (EXIT). Fin del ciclo\033[0m",pid), log.INFO)
 	return "EXIT", nil
 }
 

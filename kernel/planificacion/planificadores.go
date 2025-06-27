@@ -311,6 +311,7 @@ func AsignarCPU(proceso *global.Proceso) bool {
 	global.MutexCPUs.Unlock()
 
 	if proceso.PCB.UltimoEstado != EXEC {
+
 		ActualizarEstadoPCB(&proceso.PCB, EXEC)
 		global.AgregarAExecuting(proceso)
 
@@ -363,7 +364,6 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 
 	proceso.TiempoEjecutado += resp.RafagaReal
 	proceso.PCB.PC = resp.PC
-
 	RecalcularRafaga(proceso, resp.RafagaReal)
 
 	switch resp.Motivo {
@@ -384,6 +384,12 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 		global.AgregarAReady(proceso)
 
 	case "DUMP":
+		global.MutexExecuting.Lock()
+		global.EliminarProcesoDeCola(&global.ColaExecuting, proceso.PID)
+		global.MutexExecuting.Unlock()
+
+		ActualizarEstadoPCB(&proceso.PCB, BLOCKED)
+		global.AgregarABlocked(proceso)
 
 	}
 

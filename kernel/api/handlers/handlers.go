@@ -326,14 +326,6 @@ func DUMP_MEMORY(w http.ResponseWriter, r *http.Request) {
     proceso := utilsKernel.BuscarProcesoPorPID(global.ColaExecuting, pid)
 	utilsKernel.SacarProcesoDeCPU(proceso.PID)
 
-    // Cambiar de EXEC a BLOCKED
-    global.MutexExecuting.Lock()
-    global.EliminarProcesoDeCola(&global.ColaExecuting, pid)
-    global.MutexExecuting.Unlock()
-
-    planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.BLOCKED)
-    global.AgregarABlocked(proceso)
-
     // Solicitar dump
     err := utilsKernel.SolicitarDumpAMemoria(pid)
     if err != nil {

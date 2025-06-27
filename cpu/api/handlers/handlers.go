@@ -23,7 +23,7 @@ func Interrupcion(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	global.PCB_Interrupcion = data
+	global.PCB_Interrupcion = &data
 
 	global.Interrupcion = true
 	
@@ -43,7 +43,7 @@ func NuevoPCB(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	global.PCB_Actual = data
+	global.PCB_Actual = &data
 
 	global.LoggerCpu.Log(fmt.Sprintf("Fue asignado un nuevo proceso con PID %d y PC: %d", global.PCB_Actual.PID, global.PCB_Actual.PC), log.DEBUG)
 

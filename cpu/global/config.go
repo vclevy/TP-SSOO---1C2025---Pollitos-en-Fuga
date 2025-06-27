@@ -32,13 +32,13 @@ type Config struct {
 
 var CpuID string
 var Interrupcion bool
-var PCB_Actual estructuras.PCB
+var PCB_Actual *estructuras.PCB
 var Motivo string
 var Rafaga float64
 
 var CacheHabilitada bool
 var TlbHabilitada bool
-var PCB_Interrupcion estructuras.PCB
+var PCB_Interrupcion *estructuras.PCB
 var TamPagina int
 var ConfigMMU estructuras.ConfiguracionMMU
 
