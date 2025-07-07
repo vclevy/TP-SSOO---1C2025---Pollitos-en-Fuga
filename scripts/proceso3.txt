@@ -1,4 +1,0 @@
-INIT_PROC proceso1.txt 10
-INIT_PROC proceso4.txt 100
-INIT_PROC proceso5.txt 80
-EXIT

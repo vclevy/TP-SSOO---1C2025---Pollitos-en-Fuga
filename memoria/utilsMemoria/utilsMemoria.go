@@ -87,6 +87,8 @@ func InicializarMetricas (pid int) {
 func CargarProceso(pid int, ruta string) error {
 	
 	contenidoArchivo, err := os.ReadFile(ruta)
+	fmt.Printf("Intentando abrir: %s\n", ruta)
+
 	if err != nil {
 		log.Printf("Error leyendo pseudocódigo del PID %d en ruta '%s': %v", pid, ruta, err)
 		return err

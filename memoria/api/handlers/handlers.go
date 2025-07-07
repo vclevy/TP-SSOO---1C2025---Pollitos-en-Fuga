@@ -118,8 +118,7 @@ func FinalizarProceso(w http.ResponseWriter, r *http.Request) {
 
 	stringMetricas := utilsMemoria.FinalizarProceso(pid)
 	w.WriteHeader(http.StatusOK)
-	global.LoggerMemoria.Log(fmt.Sprintf("\033[31m## PID: <PID> - Proceso Destruido - Métricas - %s\033[0m", stringMetricas),myLogger.INFO)
-	global.LoggerMemoria.Log(stringMetricas, myLogger.INFO)
+	global.LoggerMemoria.Log(fmt.Sprintf("\033[31m## PID: %d - Proceso Destruido - Métricas - %s\033[0m", pid, stringMetricas),myLogger.INFO)
 }
 
 func DumpMemoria(w http.ResponseWriter, r *http.Request){

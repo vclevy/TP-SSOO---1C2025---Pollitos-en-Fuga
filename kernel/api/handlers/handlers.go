@@ -324,7 +324,11 @@ func DUMP_MEMORY(w http.ResponseWriter, r *http.Request) {
 
     global.LoggerKernel.Log(ColorOrange+"## ("+strconv.Itoa(pid)+") - Solicitó syscall: <DUMP_MEMORY>"+ColorReset, log.INFO)
     proceso := utilsKernel.BuscarProcesoPorPID(global.ColaBlocked, pid)
-
+	if proceso == nil {
+		global.LoggerKernel.Log(fmt.Sprintf("ERROR: No se encontró el proceso con PID %d en ColaBlocked", pid), log.ERROR)
+		http.Error(w, "Proceso no encontrado", http.StatusNotFound)
+		return
+	}
     // Solicitar dump
     err := utilsKernel.SolicitarDumpAMemoria(pid)
     if err != nil {
