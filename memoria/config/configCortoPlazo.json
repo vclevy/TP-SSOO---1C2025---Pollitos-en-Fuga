@@ -8,7 +8,7 @@
     "memory_delay": 500,
     "swapfile_path": "swapfile.bin",
     "swap_delay": 15000,
-    "log_level": "DEBUG",
+    "log_level": "INFO",
     "dump_path": "./dump_files/",
     "log_file": "memoria.log",
     "scripts_path": "../scripts/"
