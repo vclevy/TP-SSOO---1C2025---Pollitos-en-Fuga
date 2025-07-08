@@ -36,3 +36,4 @@ var MutexMemoriaUsuario sync.Mutex
 var MutexSwap sync.Mutex
 var MutexInstrucciones sync.Mutex
 var MutexMarcos sync.Mutex
+var MutexMetricas sync.Mutex
