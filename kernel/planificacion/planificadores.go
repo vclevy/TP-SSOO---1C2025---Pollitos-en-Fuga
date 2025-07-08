@@ -429,8 +429,8 @@ func IntentarCargarDesdeSuspReady() bool {
 				continue
 			}
 
-			global.AgregarAReady(proceso)
 			ActualizarEstadoPCB(&proceso.PCB, READY)
+			global.AgregarAReady(proceso)
 			cambio = true
 		} else {
 			nuevaCola = append(nuevaCola, proceso)

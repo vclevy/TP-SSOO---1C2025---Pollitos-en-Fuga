@@ -3,14 +3,15 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"strconv"
+
 	"github.com/sisoputnfrba/tp-golang/kernel/global"
 	planificacion "github.com/sisoputnfrba/tp-golang/kernel/planificacion"
 	utilsKernel "github.com/sisoputnfrba/tp-golang/kernel/utilsKernel"
 	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
-	"github.com/sisoputnfrba/tp-golang/utils/logger"
-	"io"
-	"net/http"
-	"strconv"
+	log "github.com/sisoputnfrba/tp-golang/utils/logger"
 )
 
 const (
@@ -165,8 +166,8 @@ func ManejarSolicitudIO(pid int, nombre string, tiempoUso int) error {
 		TiempoUso: tiempoUso,
 	}
 
-	global.AgregarABlocked(proceso)
 	planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.BLOCKED)
+	global.AgregarABlocked(proceso)
 
 	// buscar un dispositivo libre
 	for _, dispositivo := range dispositivos {
