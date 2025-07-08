@@ -3,25 +3,24 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
-	"strconv"
 	"github.com/sisoputnfrba/tp-golang/kernel/global"
 	planificacion "github.com/sisoputnfrba/tp-golang/kernel/planificacion"
 	utilsKernel "github.com/sisoputnfrba/tp-golang/kernel/utilsKernel"
 	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
 	"github.com/sisoputnfrba/tp-golang/utils/logger"
+	"io"
+	"net/http"
+	"strconv"
 )
 
 const (
-    ColorReset  = "\033[0m"
-    ColorRed    = "\033[31m"
-    ColorGreen  = "\033[32m"
-    ColorYellow = "\033[33m"
-    ColorBlue   = "\033[34m"
-    ColorOrange = "\033[38;5;208m" // naranja aproximado usando color 256
+	ColorReset  = "\033[0m"
+	ColorRed    = "\033[31m"
+	ColorGreen  = "\033[32m"
+	ColorYellow = "\033[33m"
+	ColorBlue   = "\033[34m"
+	ColorOrange = "\033[38;5;208m" // naranja aproximado usando color 256
 )
-
 
 type PaqueteHandshakeIO = estructuras.PaqueteHandshakeIO
 type IODevice = global.IODevice
@@ -83,7 +82,7 @@ func INIT_PROC(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	global.LoggerKernel.Log(ColorGreen + "## ("+strconv.Itoa(syscall.PID)+") - Solicitó syscall: <INIT_PROC>" + ColorReset, log.INFO)
+	global.LoggerKernel.Log(ColorGreen+"## ("+strconv.Itoa(syscall.PID)+") - Solicitó syscall: <INIT_PROC>"+ColorReset, log.INFO)
 	planificacion.CrearProceso(syscall.Tamanio, syscall.ArchivoInstrucciones)
 	//el log ya lo hace crearProceso
 
@@ -140,7 +139,7 @@ func IO(w http.ResponseWriter, r *http.Request) {
 }
 
 func ManejarSolicitudIO(pid int, nombre string, tiempoUso int) error {
-	global.LoggerKernel.Log(ColorBlue + "## ("+strconv.Itoa(pid)+") - Solicitó syscall: <IO>" + ColorReset, log.INFO)
+	global.LoggerKernel.Log(ColorBlue+"## ("+strconv.Itoa(pid)+") - Solicitó syscall: <IO>"+ColorReset, log.INFO)
 
 	global.IOListMutex.Lock()
 	dispositivos := utilsKernel.ObtenerDispositivoIO(nombre)
@@ -258,11 +257,11 @@ func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
 		global.MutexSuspBlocked.Unlock()
 
 		if enSuspBlocked {
-			global.AgregarASuspReady(proceso)
 			planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.SUSP_READY)
+			global.AgregarASuspReady(proceso)
 			select {
-			case global.NotifyNew <- struct{}{}:
-			default:
+			case global.NotifySuspReady <- struct{}{}:
+			default: // si ya había señal pendiente, no bloquear
 			}
 		} else {
 			global.MutexBlocked.Lock()
@@ -278,7 +277,7 @@ func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
 		dispositivo.Mutex.Lock()
 		if len(dispositivo.ColaEspera) > 0 {
 			nuevo := dispositivo.ColaEspera[0]
-			global.LoggerKernel.Log(fmt.Sprintf("## (%d) - Proceso en espera: %d", pid, nuevo.Proceso.PID), log.INFO)
+			//global.LoggerKernel.Log(fmt.Sprintf("## (%d) - Proceso en espera: %d", pid, nuevo.Proceso.PID), log.INFO)
 
 			// Remover de la cola de espera y asignar
 			dispositivo.ColaEspera = utilsKernel.FiltrarColaIO(dispositivo.ColaEspera, nuevo)
@@ -303,47 +302,47 @@ func EXIT(w http.ResponseWriter, r *http.Request) {
 	pidStr := r.URL.Query().Get("pid")
 	PID, _ := strconv.Atoi(pidStr)
 
-	global.LoggerKernel.Log(ColorRed + "## ("+strconv.Itoa(PID)+") - Solicitó syscall: <EXIT>" + ColorReset, log.INFO)
+	global.LoggerKernel.Log(ColorRed+"## ("+strconv.Itoa(PID)+") - Solicitó syscall: <EXIT>"+ColorReset, log.INFO)
 
 	w.WriteHeader(http.StatusOK)
 }
 
 func DUMP_MEMORY(w http.ResponseWriter, r *http.Request) {
-    pidStr := r.URL.Query().Get("pid")
-    pid, _ := strconv.Atoi(pidStr)
+	pidStr := r.URL.Query().Get("pid")
+	pid, _ := strconv.Atoi(pidStr)
 
-    global.LoggerKernel.Log(ColorOrange+"## ("+strconv.Itoa(pid)+") - Solicitó syscall: <DUMP_MEMORY>"+ColorReset, log.INFO)
-    proceso := utilsKernel.BuscarProcesoPorPID(global.ColaBlocked, pid)
+	global.LoggerKernel.Log(ColorOrange+"## ("+strconv.Itoa(pid)+") - Solicitó syscall: <DUMP_MEMORY>"+ColorReset, log.INFO)
+	proceso := utilsKernel.BuscarProcesoPorPID(global.ColaBlocked, pid)
 	if proceso == nil {
 		global.LoggerKernel.Log(fmt.Sprintf("ERROR: No se encontró el proceso con PID %d en ColaBlocked", pid), log.ERROR)
 		http.Error(w, "Proceso no encontrado", http.StatusNotFound)
 		return
 	}
-    // Solicitar dump
-    err := utilsKernel.SolicitarDumpAMemoria(pid)
-    if err != nil {
-        global.LoggerKernel.Log(fmt.Sprintf("Error en dump de memoria para PID %d: %s", pid, err.Error()), log.ERROR)
+	// Solicitar dump
+	err := utilsKernel.SolicitarDumpAMemoria(pid)
+	if err != nil {
+		global.LoggerKernel.Log(fmt.Sprintf("Error en dump de memoria para PID %d: %s", pid, err.Error()), log.ERROR)
 
-        global.MutexBlocked.Lock()
-        global.EliminarProcesoDeCola(&global.ColaBlocked, pid)
-        global.MutexBlocked.Unlock()
+		global.MutexBlocked.Lock()
+		global.EliminarProcesoDeCola(&global.ColaBlocked, pid)
+		global.MutexBlocked.Unlock()
 
-        planificacion.FinalizarProceso(proceso)
+		planificacion.FinalizarProceso(proceso)
 
-        http.Error(w, "Fallo en Dump, proceso finalizado", http.StatusInternalServerError)
-        return
-    }
+		http.Error(w, "Fallo en Dump, proceso finalizado", http.StatusInternalServerError)
+		return
+	}
 
-    // Volver a READY
-    global.MutexBlocked.Lock()
-    global.EliminarProcesoDeCola(&global.ColaBlocked, pid)
-    global.MutexBlocked.Unlock()
+	// Volver a READY
+	global.MutexBlocked.Lock()
+	global.EliminarProcesoDeCola(&global.ColaBlocked, pid)
+	global.MutexBlocked.Unlock()
 
-    planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.READY)
-    global.AgregarAReady(proceso)
+	planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.READY)
+	global.AgregarAReady(proceso)
 	global.LoggerKernel.Log("AGREGAR A READY B", log.DEBUG)
 
-    w.WriteHeader(http.StatusOK)
+	w.WriteHeader(http.StatusOK)
 }
 
 func DevolucionCPUHandler(w http.ResponseWriter, r *http.Request) {
@@ -356,6 +355,6 @@ func DevolucionCPUHandler(w http.ResponseWriter, r *http.Request) {
 
 	go planificacion.ManejarDevolucionDeCPU(devolucion)
 	w.WriteHeader(http.StatusOK)
-	
+
 	global.LoggerKernel.Log(fmt.Sprintf("Llega PID %d y PC %d", devolucion.PID, devolucion.PC), log.DEBUG)
 }

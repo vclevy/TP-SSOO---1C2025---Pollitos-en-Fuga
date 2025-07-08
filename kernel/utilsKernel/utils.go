@@ -39,7 +39,7 @@ func EnviarAIO(dispositivo *IODevice, pid int, tiempoUso int) {
 	jsonData, _ := json.Marshal(paqueteAEnviar)
 	url := fmt.Sprintf("http://%s:%d/procesoRecibido", ip, puerto)
 
-	global.LoggerKernel.Log(fmt.Sprintf(">> Enviando a IO (PID %d) - %d ms - a %s", pid, tiempoUso, url), log.DEBUG)
+	//global.LoggerKernel.Log(fmt.Sprintf(">> Enviando a IO (PID %d) - %d ms - a %s", pid, tiempoUso, url), log.DEBUG)
 
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
@@ -48,7 +48,7 @@ func EnviarAIO(dispositivo *IODevice, pid int, tiempoUso int) {
 	}
 	defer resp.Body.Close()
 
-	global.LoggerKernel.Log(fmt.Sprintf("<< IO aceptó PID %d - status: %s", pid, resp.Status), log.DEBUG)
+	//global.LoggerKernel.Log(fmt.Sprintf("<< IO aceptó PID %d - status: %s", pid, resp.Status), log.DEBUG)
 }
 
 

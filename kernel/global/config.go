@@ -90,11 +90,6 @@ func AgregarASuspReady(p *Proceso) {
     MutexSuspReady.Lock()
     ColaSuspReady = append(ColaSuspReady, p)
     MutexSuspReady.Unlock()
-
-    select {
-    case NotifySuspReady <- struct{}{}:
-    default: // si ya había señal pendiente, no bloquear
-    }
 }
 
 func AgregarANew(p *Proceso) {

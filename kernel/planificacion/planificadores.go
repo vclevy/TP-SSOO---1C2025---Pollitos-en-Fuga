@@ -89,42 +89,40 @@ func IniciarPlanificadorLargoPlazo() {
 	global.LoggerKernel.Log("Iniciando planificación de largo plazo...", log.DEBUG)
 
 	for {
-		// Prioridad: SuspReady
-		for {
-			global.MutexSuspReady.Lock()
-			tieneSuspReady := len(global.ColaSuspReady) > 0
-			global.MutexSuspReady.Unlock()
+		select {
+		case <-global.NotifySuspReady:
+			for {
+				global.MutexSuspReady.Lock()
+				tieneSuspReady := len(global.ColaSuspReady) > 0
+				global.MutexSuspReady.Unlock()
 
-			if !tieneSuspReady || !IntentarCargarDesdeSuspReady() {
-				break
+				if !tieneSuspReady || !IntentarCargarDesdeSuspReady() {
+					break
+				}
 			}
-		}
 
-		<-global.NotifyNew
-
-		global.MutexNew.Lock()
-		colaNewLen := len(global.ColaNew)
-		global.MutexNew.Unlock()
-
-		if colaNewLen > 0 {
+		case <-global.NotifyNew:
 			global.MutexSuspReady.Lock()
 			suspReadyVacio := len(global.ColaSuspReady) == 0
 			global.MutexSuspReady.Unlock()
 
 			if !suspReadyVacio {
+				// Si hay procesos en SUSP_READY, esperar a que se procesen
 				continue
 			}
 
+			global.MutexNew.Lock()
+			if len(global.ColaNew) == 0 {
+				global.MutexNew.Unlock()
+				continue
+			}
+			ordenada := make([]*global.Proceso, len(global.ColaNew))
+			copy(ordenada, global.ColaNew)
+			global.MutexNew.Unlock()
+
 			switch global.ConfigKernel.ReadyIngressAlgorithm {
 			case "FIFO":
-				global.MutexNew.Lock()
-				if len(global.ColaNew) == 0 {
-					global.MutexNew.Unlock()
-					continue
-				}
-				proceso := global.ColaNew[0]
-				global.MutexNew.Unlock()
-
+				proceso := ordenada[0]
 				if utilskernel.InicializarProceso(proceso) {
 					global.MutexNew.Lock()
 					global.ColaNew = global.ColaNew[1:]
@@ -135,11 +133,6 @@ func IniciarPlanificadorLargoPlazo() {
 				}
 
 			case "PMCP":
-				global.MutexNew.Lock()
-				ordenada := make([]*global.Proceso, len(global.ColaNew))
-				copy(ordenada, global.ColaNew)
-				global.MutexNew.Unlock()
-
 				sort.Slice(ordenada, func(i, j int) bool {
 					return ordenada[i].MemoriaRequerida < ordenada[j].MemoriaRequerida
 				})
@@ -164,6 +157,7 @@ func IniciarPlanificadorLargoPlazo() {
 		}
 	}
 }
+
 
 func IniciarPlanificadorCortoPlazo() {
 	for {
@@ -405,13 +399,7 @@ func IniciarPlanificadorMedioPlazo() {
 
 		for _, p := range procesosASuspender {
 			suspenderProceso(p)
-		}
-
-		for range procesosASuspender {
-			select {
-			case global.NotifySuspReady <- struct{}{}:
-			default:
-			}
+			
 		}
 
 		time.Sleep(100 * time.Millisecond)
@@ -552,6 +540,11 @@ func suspenderProceso(proceso *global.Proceso) {
 	}(proceso.PID)
 
 	global.LoggerKernel.Log(fmt.Sprintf("Proceso %d suspendido y movido a SUSP_BLOCKED", proceso.PID), log.INFO)
+
+	select {
+    case global.NotifySuspReady <- struct{}{}:
+    default: // si ya había señal pendiente, no bloquear
+    }
 }
 
 func EstimacionRestante(p *Proceso) float64 {
