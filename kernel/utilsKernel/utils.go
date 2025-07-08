@@ -187,6 +187,9 @@ func EnviarInterrupcionCPU(cpu *global.CPU, pid int, pc int) error {
 }
 
 func HayCPUDisponible() bool {
+	global.MutexCPUs.Lock() //A
+	defer global.MutexCPUs.Unlock()
+
 	for _, cpu := range global.CPUsConectadas {
 		if cpu.ProcesoEjecutando == nil {
 			return true

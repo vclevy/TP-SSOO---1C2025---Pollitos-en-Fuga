@@ -601,8 +601,8 @@ func HayLugar(tamanio int)(bool){
 }
 
 func ListaDeInstrucciones(pid int) ([]string) {
-	global.MutexInstrucciones.Lock()
-	defer global.MutexInstrucciones.Unlock()
+	global.MutexInstrucciones.RLock()
+	defer global.MutexInstrucciones.RUnlock()
     return *instruccionesProcesos[pid]
 }
 
