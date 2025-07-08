@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"runtime"
 	"syscall"
 
 	"github.com/sisoputnfrba/tp-golang/io/api"
@@ -13,7 +14,7 @@ import (
 )
 
 func main() {
-
+	runtime.GOMAXPROCS(runtime.NumCPU())
 	if len(os.Args) < 3 {
 		fmt.Println("Uso: go run ./src/io.go <dispositivo> <path_config>")
 		return

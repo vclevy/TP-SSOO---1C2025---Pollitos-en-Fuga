@@ -132,7 +132,7 @@ func IniciarPlanificadorLargoPlazo() {
 					global.ColaNew = global.ColaNew[1:]
 					global.MutexNew.Unlock()
 
-					ActualizarEstadoPCB(&proceso.PCB, READY)
+					ActualizarEstadoPCB(&proceso.PCB, READY) 
 					global.AgregarAReady(proceso)
 				}
 
