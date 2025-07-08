@@ -40,9 +40,11 @@ func InicializarProceso(w http.ResponseWriter, r *http.Request) {
 
 	//log.Printf("PID %d - archivo: '%s' - ruta: '%s'\n", pid, archivoPseudocodigo, ruta)
 	espacioDisponible := utilsMemoria.HayLugar(tamanio)
+	
 	if !espacioDisponible {
 	http.Error(w, "No hay suficiente espacio", http.StatusConflict)
 	}
+	
 	
 	utilsMemoria.CrearTablaPaginas(pid, tamanio)
 	utilsMemoria.CargarProceso(pid, ruta)

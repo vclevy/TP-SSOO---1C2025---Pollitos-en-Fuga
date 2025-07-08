@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
+	//"io"
 	"net/http"
 	"strconv"
+
 	"github.com/sisoputnfrba/tp-golang/kernel/global"
 	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
 	log "github.com/sisoputnfrba/tp-golang/utils/logger"
@@ -37,6 +38,9 @@ func EnviarAIO(dispositivo *IODevice, pid int, tiempoUso int) {
 
 	jsonData, _ := json.Marshal(paqueteAEnviar)
 	url := fmt.Sprintf("http://%s:%d/procesoRecibido", ip, puerto)
+
+	global.LoggerKernel.Log(fmt.Sprintf(">> Enviando a IO (PID %d) - %d ms - a %s", pid, tiempoUso, url), log.DEBUG)
+
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
 		global.LoggerKernel.Log("Error enviando el paquete a IO: "+err.Error(), log.ERROR)
@@ -44,7 +48,9 @@ func EnviarAIO(dispositivo *IODevice, pid int, tiempoUso int) {
 	}
 	defer resp.Body.Close()
 
+	global.LoggerKernel.Log(fmt.Sprintf("<< IO aceptó PID %d - status: %s", pid, resp.Status), log.DEBUG)
 }
+
 
 func BuscarDispositivoPorPID(pid int) *global.IODevice {
 	global.IOListMutex.RLock()
@@ -237,13 +243,15 @@ func MoverAMemoria(pid int) error {
 		global.ConfigKernel.IPMemory,
 		global.ConfigKernel.Port_Memory,
 		pid)
+
 	resp, err := http.Post(url, "application/json", nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("error al enviar solicitud a memoria: %v", err)
 	}
 	defer resp.Body.Close()
+
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("error en la respuesta del servidor de memoria")
+		return fmt.Errorf("memoria respondió con código de error: %d", resp.StatusCode)
 	}
 	return nil
 }
@@ -293,11 +301,11 @@ func InicializarProceso(proceso *global.Proceso) bool {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		global.LoggerKernel.Log(fmt.Sprintf("Fallo inicialización PID %d. Código %d: %s", proceso.PID, resp.StatusCode, string(body)), log.ERROR)
-		return false
-	}
+ if resp.StatusCode != http.StatusOK {
+ 	//body, _ := io.ReadAll(resp.Body)
+ 	global.LoggerKernel.Log(fmt.Sprintf("Fallo inicialización PID %d. Código %d: %s", proceso.PID, resp.StatusCode), log.ERROR)
+ 	return false
+ }
 
 	global.LoggerKernel.Log(fmt.Sprintf("Proceso %d inicializado correctamente en Memoria", proceso.PID), log.DEBUG)
 	return true

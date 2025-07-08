@@ -322,6 +322,22 @@ func SuspenderProceso(pid int) {
 	dataMarcos := EncontrarDataMarcos(marcosDelProceso)
 	LiberarEspacioMemoria(pid, marcosDelProceso)
 	GuardarInfoSwap(pid, dataMarcos)
+	libre:=EspacioDisponible()
+	fmt.Printf("Espacio libre: %d", libre)
+}
+
+func EspacioDisponible() int {
+	global.MutexMarcos.Lock()
+	defer global.MutexMarcos.Unlock()
+
+	// Contar los marcos libres
+	cantLibres := 0
+	for _, libre := range MarcosLibres {
+		if libre {
+			cantLibres++
+		}
+	}
+	return cantLibres * TamPagina // Devuelve el espacio total disponible en bytes
 }
 
 func DesSuspenderProceso(pid int) {
@@ -561,6 +577,7 @@ func HayLugar(tamanio int)(bool){
 	global.MutexMarcos.Unlock()
 
 	cantMarcosNecesitados:= int(math.Ceil(float64(tamanio) / float64(TamPagina)))
+	fmt.Printf("Lugar libre %d\n", cantMarcosLibres*TamPagina)
 	return cantMarcosNecesitados <= cantMarcosLibres
 }
 

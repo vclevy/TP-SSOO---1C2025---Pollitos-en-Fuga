@@ -13,7 +13,7 @@ func CrearServer() *server.Server {
 		Port: global.IoConfig.Port_Io,
 		Handlers: map[string]http.HandlerFunc{
 			"POST /responder": handlers.RecibirPaquete,
-			"POST /procesoRecibido": handlers.ProcesoRecibidoHandler,
+			"POST /procesoRecibido": handlers.RecibirProceso,
 		},
 	}
 	fmt.Printf("🟢 IO prendido en http://%s:%d\n",global.IoConfig.IPIo, global.IoConfig.Port_Io)

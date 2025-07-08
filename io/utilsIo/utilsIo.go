@@ -78,7 +78,7 @@ func InformarFinalizacionDeIO(pid int) {
 	}
 	defer resp.Body.Close()
 
-	global.LoggerIo.Log(fmt.Sprintf("PID %d - Finalización de IO notificada al Kernel", pid), log.INFO)
+	global.LoggerIo.Log(fmt.Sprintf("## PID: <%d> - Fin de IO", pid), log.INFO)
 }
 
 func NotificarDesconexion(info PaqueteHandshakeIO) error {

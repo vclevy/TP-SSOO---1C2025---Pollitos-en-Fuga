@@ -46,19 +46,16 @@ func RecibirPaquete(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("IO recibió el paquete correctamente"))
 }
 
-func ProcesoRecibidoHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
-		return
-	}
-
+func RecibirProceso(w http.ResponseWriter, r *http.Request) {
 	var tarea estructuras.TareaDeIo
 	if err := json.NewDecoder(r.Body).Decode(&tarea); err != nil {
-		http.Error(w, "Error al parsear JSON", http.StatusBadRequest)
+		http.Error(w, "Error decodificando proceso", http.StatusBadRequest)
 		return
 	}
 
-	fmt.Printf("IO: Recibí PID %d con tiempo %d\n", tarea.PID, tarea.TiempoEstimado)
-	utilsIo.IniciarIo(tarea)
+	global.LoggerIo.Log(fmt.Sprintf("IO: Recibí PID %d con tiempo %d", tarea.PID, tarea.TiempoEstimado), log.DEBUG)
+
+	go utilsIo.IniciarIo(tarea)
+
 	w.WriteHeader(http.StatusOK)
 }

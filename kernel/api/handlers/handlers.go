@@ -188,20 +188,18 @@ func ManejarSolicitudIO(pid int, nombre string, tiempoUso int) error {
 	primero := dispositivos[0]
 	primero.Mutex.Lock()
 	primero.ColaEspera = append(primero.ColaEspera, procesoEncolado)
+	global.LoggerKernel.Log(fmt.Sprintf("## (%d) - Encolado en %s (Ocupado)", pid, primero.Nombre), log.INFO)
 	primero.Mutex.Unlock()
 
 	return nil
 }
-
 func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
-
-	// Si NO hay body desconexión
+	// Si NO hay body → desconexión de dispositivo IO
 	if r.ContentLength == 0 {
 		global.LoggerKernel.Log("[DEBUG] Desconexión recibida", log.DEBUG)
 
 		ip := r.Header.Get("X-IO-IP")
 		puertoStr := r.Header.Get("X-IO-Puerto")
-
 		puerto, err := strconv.Atoi(puertoStr)
 		if err != nil {
 			http.Error(w, "Puerto inválido en header", http.StatusBadRequest)
@@ -241,7 +239,6 @@ func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error al decodificar mensaje de finalización", http.StatusBadRequest)
 		return
 	}
-
 	pid := mensaje.PID
 	global.LoggerKernel.Log(fmt.Sprintf("[DEBUG] Finalizó IO del PID: %d", pid), log.DEBUG)
 
@@ -251,53 +248,46 @@ func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Solo manejamos si efectivamente era el proceso en uso
 	if dispositivo.ProcesoEnUso != nil && dispositivo.ProcesoEnUso.Proceso.PID == pid {
 		proceso := dispositivo.ProcesoEnUso.Proceso
-		dispositivo.ProcesoEnUso = nil
-		// Primero intentar sacar de SUSP_BLOCKED
+
+		// 1) Actualizar estado del proceso que terminó IO, fuera del lock del dispositivo
 		global.MutexSuspBlocked.Lock()
 		enSuspBlocked := global.EliminarProcesoDeCola(&global.ColaSuspBlocked, proceso.PID)
 		global.MutexSuspBlocked.Unlock()
-		
 
 		if enSuspBlocked {
 			global.AgregarASuspReady(proceso)
 			planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.SUSP_READY)
-
 			select {
-			case global.NotifySuspReady <- struct{}{}:
+			case global.NotifyNew <- struct{}{}:
 			default:
 			}
-			return
-		} else{
-			// Si no estaba en SUSP_BLOCKED, asumimos que estaba en BLOCKED
+		} else {
 			global.MutexBlocked.Lock()
 			global.EliminarProcesoDeCola(&global.ColaBlocked, proceso.PID)
 			global.MutexBlocked.Unlock()
-			
-			global.AgregarAReady(proceso)
-			global.LoggerKernel.Log("AGREGAR A READY A", log.DEBUG)
 
 			planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.READY)
-			global.LoggerKernel.Log(fmt.Sprintf("## (%d) finalizó IO y pasa a READY", proceso.PID), log.INFO)
-
-			select {
-			case global.NotifyReady <- struct{}{}:
-			default:
-			}
+			global.AgregarAReady(proceso)
+			global.LoggerKernel.Log("AGREGAR A READY A", log.DEBUG)
 		}
-	
 
-		// Ver si hay proceso esperando en el dispositivo
+		// 2) Ahora, con el dispositivo liberado, asignar IO al siguiente en la cola
 		dispositivo.Mutex.Lock()
 		if len(dispositivo.ColaEspera) > 0 {
 			nuevo := dispositivo.ColaEspera[0]
+			global.LoggerKernel.Log(fmt.Sprintf("## (%d) - Proceso en espera: %d", pid, nuevo.Proceso.PID), log.INFO)
+
+			// Remover de la cola de espera y asignar
 			dispositivo.ColaEspera = utilsKernel.FiltrarColaIO(dispositivo.ColaEspera, nuevo)
 			dispositivo.ProcesoEnUso = nuevo
 			dispositivo.Mutex.Unlock()
-
 			utilsKernel.EnviarAIO(dispositivo, nuevo.Proceso.PID, nuevo.TiempoUso)
 		} else {
+			// Si no hay más en espera, el dispositivo queda libre
+			dispositivo.ProcesoEnUso = nil
 			dispositivo.Ocupado = false
 			dispositivo.Mutex.Unlock()
 		}
