@@ -324,6 +324,8 @@ func SuspenderProceso(pid int) {
 	GuardarInfoSwap(pid, dataMarcos)
 	libre:=EspacioDisponible()
 	fmt.Printf("Espacio libre: %d", libre)
+	
+	metricas[pid].BajadasSWAP++
 }
 
 func EspacioDisponible() int {

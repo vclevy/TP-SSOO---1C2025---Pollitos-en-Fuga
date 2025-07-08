@@ -250,9 +250,9 @@ func MoverAMemoria(pid int) error {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("memoria respondió con código de error: %d", resp.StatusCode)
-	}
+//	if resp.StatusCode != http.StatusOK {
+//		return fmt.Errorf("memoria respondió con código de error: %d", resp.StatusCode)
+//	}
 	return nil
 }
 

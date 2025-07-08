@@ -42,7 +42,8 @@ func InicializarProceso(w http.ResponseWriter, r *http.Request) {
 	espacioDisponible := utilsMemoria.HayLugar(tamanio)
 	
 	if !espacioDisponible {
-	http.Error(w, "No hay suficiente espacio", http.StatusConflict)
+		http.Error(w, "No hay suficiente espacio", http.StatusConflict)
+		return
 	}
 	
 	

@@ -107,7 +107,6 @@ func IniciarPlanificadorLargoPlazo() {
 			global.MutexSuspReady.Unlock()
 
 			if !suspReadyVacio {
-				// Si hay procesos en SUSP_READY, esperar a que se procesen
 				continue
 			}
 
@@ -116,13 +115,18 @@ func IniciarPlanificadorLargoPlazo() {
 				global.MutexNew.Unlock()
 				continue
 			}
-			ordenada := make([]*global.Proceso, len(global.ColaNew))
-			copy(ordenada, global.ColaNew)
 			global.MutexNew.Unlock()
 
 			switch global.ConfigKernel.ReadyIngressAlgorithm {
 			case "FIFO":
-				proceso := ordenada[0]
+				global.MutexNew.Lock()
+				if len(global.ColaNew) == 0 {
+					global.MutexNew.Unlock()
+					continue
+				}
+				proceso := global.ColaNew[0]
+				global.MutexNew.Unlock()
+
 				if utilskernel.InicializarProceso(proceso) {
 					global.MutexNew.Lock()
 					global.ColaNew = global.ColaNew[1:]
@@ -133,6 +137,11 @@ func IniciarPlanificadorLargoPlazo() {
 				}
 
 			case "PMCP":
+				global.MutexNew.Lock()
+				ordenada := make([]*global.Proceso, len(global.ColaNew))
+				copy(ordenada, global.ColaNew)
+				global.MutexNew.Unlock()
+
 				sort.Slice(ordenada, func(i, j int) bool {
 					return ordenada[i].MemoriaRequerida < ordenada[j].MemoriaRequerida
 				})
@@ -140,12 +149,7 @@ func IniciarPlanificadorLargoPlazo() {
 				for _, proc := range ordenada {
 					if utilskernel.InicializarProceso(proc) {
 						global.MutexNew.Lock()
-						for i, p := range global.ColaNew {
-							if p.PCB.PID == proc.PCB.PID {
-								global.ColaNew = append(global.ColaNew[:i], global.ColaNew[i+1:]...)
-								break
-							}
-						}
+						global.EliminarProcesoDeCola(&global.ColaNew, proc.PID)
 						global.MutexNew.Unlock()
 
 						ActualizarEstadoPCB(&proc.PCB, READY)
@@ -157,7 +161,6 @@ func IniciarPlanificadorLargoPlazo() {
 		}
 	}
 }
-
 
 func IniciarPlanificadorCortoPlazo() {
 	for {
