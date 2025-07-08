@@ -77,36 +77,36 @@ func Execute(instruccion Instruccion, requiereMMU bool) (string, error) {
 
 	//todo INSTRUCCIONES SYSCALLS
 	if instruccion.Opcode == "IO" {
+		sumarPC = false
 		global.Motivo = "IO"
 		global.Rafaga = float64(time.Since(tiempoInicio).Milliseconds())
 		Desalojo()
 		global.PCB_Actual.PC++
-		sumarPC = false
 		cortoProceso()
 		Syscall_IO(instruccion)
 		return "", nil
 	}
 	if instruccion.Opcode == "INIT_PROC" {
+		sumarPC = true
 		Syscall_Init_Proc(instruccion)
 		return "", nil
 	}
 	if instruccion.Opcode == "DUMP_MEMORY" {
+    sumarPC = false
     global.Motivo = "DUMP"
     global.Rafaga = float64(time.Since(tiempoInicio).Milliseconds())
-    sumarPC = false
     global.PCB_Actual.PC++
     cortoProceso()
     Syscall_Dump_Memory()
     Desalojo()
 
-
     return "", nil
 }
 
 	if instruccion.Opcode == "EXIT" {
+    sumarPC = false
 	global.Motivo = "EXIT"
 	global.Rafaga = float64(time.Since(tiempoInicio).Milliseconds())
-	sumarPC = false
 	
 	pid := global.PCB_Actual.PID
 
@@ -118,13 +118,14 @@ func Execute(instruccion Instruccion, requiereMMU bool) (string, error) {
 	return "EXIT", nil
 }
 
-
 	//todo OTRAS INSTRUCCIONES
 	if instruccion.Opcode == "NOOP" {
+		sumarPC = true
 		return "", nil
 	}
 
 	if instruccion.Opcode == "GOTO" {
+		sumarPC = false
 		if len(instruccion.Parametros) < 1 {
 			return "", fmt.Errorf("GOTO requiere 1 parámetro, recibido: %v", instruccion.Parametros)
 		}
@@ -134,12 +135,12 @@ func Execute(instruccion Instruccion, requiereMMU bool) (string, error) {
 			return "", fmt.Errorf("error al convertir tiempo estimado")
 		}
 		global.PCB_Actual.PC = pcNuevo
-		sumarPC = false
 		return "", nil
 	}
 
 	//todo INSTRUCCIONES MMU
 	if requiereMMU {
+		sumarPC = true
 		var desplazamiento int
 
 		if len(instruccion.Parametros) < 1 {
@@ -166,8 +167,8 @@ func Execute(instruccion Instruccion, requiereMMU bool) (string, error) {
 
 		if instruccion.Opcode == "WRITE" { // WRITE 0 EJEMPLO_DE_ENUNCIADO - WRITE (Dirección, Datos)
 			WRITE(instruccion, global.CacheHabilitada, desplazamiento, global.TlbHabilitada)
-			global.LoggerCpu.Log(fmt.Sprintf("Contenido CACHE: %v", global.CACHE), log.DEBUG)
-		}
+		/* global.LoggerCpu.Log(fmt.Sprintf("Contenido CACHE: %v", global.CACHE), log.DEBUG)*/	
+ 		}
 	}
 	return "", nil
 }
@@ -185,7 +186,6 @@ func CheckInterrupt() {
 		if sumarPC {
 			global.PCB_Actual.PC = global.PCB_Actual.PC + 1
 		}
-		global.LoggerCpu.Log(fmt.Sprintf("No hay interrupción, nuevo pc: %d", global.PCB_Actual.PC), log.DEBUG)
-		sumarPC = true
+		global.LoggerCpu.Log("No hay interrupción", log.DEBUG)
 	}
 }

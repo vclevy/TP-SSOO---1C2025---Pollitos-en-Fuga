@@ -6,6 +6,7 @@ import (
 	log "github.com/sisoputnfrba/tp-golang/utils/logger"
 	"strconv"
 	"time"
+	"strings"
 )
 
 func WRITE(instruccion Instruccion, cacheHabilitada bool, desplazamiento int, tlbHabilitada bool) {
@@ -45,12 +46,15 @@ func READ(instruccion Instruccion, cacheHabilitada bool, desplazamiento int, tlb
 					return
 				}
 				lectura := paginaCompleta[desplazamiento : desplazamiento + tamanio]
-				global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: LEER - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, 0, lectura), log.INFO) //!! LECTURA SIN ACCEDER A MEMORIA (Desde caché)
+				stringLectura := strings.TrimRight(string(lectura), "\x00")
+
+				global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: LEER - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, 0, stringLectura), log.INFO) //!! LECTURA SIN ACCEDER A MEMORIA (Desde caché)
 		} else {//CACHE MISS
 			indice, dirFisicaSinDespl := actualizarCACHE()
 			paginaCompleta := global.CACHE[indice].Contenido
 			lectura := paginaCompleta[desplazamiento : desplazamiento + tamanio]
-			global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: LEER - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, dirFisicaSinDespl + desplazamiento, lectura), log.INFO)
+			stringLectura := strings.TrimRight(string(lectura), "\x00")
+			global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: LEER - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, dirFisicaSinDespl + desplazamiento, stringLectura), log.INFO)
 		}
 	}else { //CACHE DESHABILITADA
 		marco := CalcularMarco(nroPagina)
@@ -74,11 +78,11 @@ func TlbHIT(pagina int) bool {
 }
 
 func CacheHIT(pagina int) bool {
-	global.LoggerCpu.Log(fmt.Sprintf("Contenido CACHE: %v", global.CACHE), log.DEBUG)
-	time.Sleep(time.Millisecond * time.Duration(global.CpuConfig.CacheDelay)) 
+/* 	global.LoggerCpu.Log(fmt.Sprintf("Contenido CACHE: %v", global.CACHE), log.DEBUG)
+ */	time.Sleep(time.Millisecond * time.Duration(global.CpuConfig.CacheDelay)) 
 	for i := 0; i <= len(global.CACHE)-1; i++ {
 		if global.CACHE[i].NroPagina == pagina {
-			global.CACHE[pagina].BitUso = 1
+			global.CACHE[i].BitUso = 1
 			global.LoggerCpu.Log(fmt.Sprintf("\033[36mPID: %d - Cache Hit - Pagina: %d\033[0m", global.PCB_Actual.PID, pagina), log.INFO) //!! Página encontrada en Caché - logObligatorio (Cache hit)
 			return true
 		}
@@ -102,8 +106,8 @@ func actualizarCACHE() (int,int){ //
 	marco := CalcularMarco(nroPagina)
 	dirFisicaSinDesplazamiento := MMU(0,marco)
 	lecturaPagina := MemoriaLeePaginaCompleta(dirFisicaSinDesplazamiento)
-	global.LoggerCpu.Log(fmt.Sprintf("pagina completa que se lee de memoria: %d", lecturaPagina), log.INFO)
-
+/* 	global.LoggerCpu.Log(fmt.Sprintf("pagina completa que se lee de memoria: %d", lecturaPagina), log.INFO)
+ */
 	global.CACHE[indicePisar].NroPagina = nroPagina
 	global.CACHE[indicePisar].Contenido = lecturaPagina
 	global.CACHE[indicePisar].BitModificado = 0

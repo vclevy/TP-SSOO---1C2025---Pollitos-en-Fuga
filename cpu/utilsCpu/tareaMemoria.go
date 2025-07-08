@@ -9,6 +9,7 @@ import (
 	log "github.com/sisoputnfrba/tp-golang/utils/logger"
 	"net/http"
 	"io"
+	"strings"
 )
 
 func MemoriaLee(direccionFisica int, tamanio int) (string ,error) {
@@ -43,8 +44,8 @@ func MemoriaLee(direccionFisica int, tamanio int) (string ,error) {
 		global.LoggerCpu.Log("Error parseando instruccion de Memoria: "+err.Error(), log.ERROR)
 		return "" , err
 	}
-
-	global.LoggerCpu.Log(fmt.Sprintf("\033[36mPID: %d - Acción: LEER - Dirección Física: %d - Valor: %s\033[0m", global.PCB_Actual.PID, direccionFisica, contenido), log.INFO) //!! Lectura/Escritura Memoria - logObligatorio
+	stringContenido := strings.TrimRight(string(contenido), "\x00")
+	global.LoggerCpu.Log(fmt.Sprintf("\033[36mPID: %d - Acción: LEER - Dirección Física: %d - Valor: %s\033[0m", global.PCB_Actual.PID, direccionFisica, stringContenido), log.INFO) //!! Lectura/Escritura Memoria - logObligatorio
 
 
 	return contenido , nil
@@ -144,9 +145,8 @@ func MemoriaLeePaginaCompleta(direccionFisica int) []byte {
 		global.LoggerCpu.Log("Error parseando instruccion de Memoria: "+err.Error(), log.ERROR)
 		return nil
 	}
-
-	global.LoggerCpu.Log(fmt.Sprintf("\033[36mPID: %d - Acción: LEER - Dirección Física: %d - Valor: %s\033[0m", global.PCB_Actual.PID, direccionFisica, contenido), log.INFO)  //!! Lectura/Escritura Memoria (página completa) - logObligatorio
-
+	stringContenido := strings.TrimRight(string(contenido), "\x00")
+	global.LoggerCpu.Log(fmt.Sprintf("\033[36mPID: %d - Acción: LEER - Dirección Física: %d - Valor: %s\033[0m", global.PCB_Actual.PID, direccionFisica, stringContenido), log.INFO)  //!! Lectura/Escritura Memoria (página completa) - logObligatorio
 
 	return contenido
 }

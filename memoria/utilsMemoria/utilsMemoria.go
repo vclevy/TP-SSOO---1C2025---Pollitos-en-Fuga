@@ -58,6 +58,13 @@ func InicializarMemoria() {
 	SwapDelay = global.ConfigMemoria.Swap_delay
 	SwapPath = global.ConfigMemoria.Swapfile_path
 
+	file, err := os.Create(SwapPath) //El os.Create crea el archivo, pero si ya existe, lo vacia
+	if err != nil {
+		fmt.Printf("Error al crear/vaciar el archivo swap: %v\n", err)
+		os.Exit(1)
+	}
+	defer file.Close()
+
 	instruccionesProcesos = make(map[int]*[]string)
 
     MemoriaUsuario = make([]byte, TamMemoria)
@@ -87,7 +94,6 @@ func InicializarMetricas (pid int) {
 func CargarProceso(pid int, ruta string) error {
 	
 	contenidoArchivo, err := os.ReadFile(ruta)
-	fmt.Printf("Intentando abrir: %s\n", ruta)
 
 	if err != nil {
 		log.Printf("Error leyendo pseudocódigo del PID %d en ruta '%s': %v", pid, ruta, err)
@@ -109,7 +115,10 @@ func CargarProceso(pid int, ruta string) error {
 func CrearTablaPaginas(pid int, tamanio int) {
 	paginas := int(math.Ceil(float64(tamanio) / float64(TamPagina)))
 	marcos := ReservarMarcos(tamanio) // slice con marcos reservados
-	idx := 0                          // índice del próximo marco a asignar
+	if len(marcos) == 0 {
+		fmt.Printf("No se asignaron marcos para proceso PID %d", pid)
+	}
+	idx := 0                    
 
 	raiz := &EntradaTP{
 		Presente:       false,
@@ -133,7 +142,12 @@ func CrearTablaNiveles(nivelActual int, paginasRestantes *int, marcosReservados 
 
 	for i := 0; i < CantEntradas && *paginasRestantes > 0; i++ {
 		if nivelActual == CantNiveles {
+			if *proximoMarco >= len(*marcosReservados) {
+				fmt.Println("❌ Error: se agotaron los marcos reservados en nivel", nivelActual)
+				return nil
+			}
 			tabla[i].Presente = true
+
 			tabla[i].MarcoFisico = (*marcosReservados)[*proximoMarco]
 			*paginasRestantes--
 			*proximoMarco++
@@ -315,12 +329,9 @@ func DesSuspenderProceso(pid int) {
 	info := BuscarDataEnSwap(pid)
 	tamanio := len(info) / TamPagina
 	marcosAginados := ReservarMarcos(tamanio)
-	fmt.Printf("🧩 Marcos asignados: %v (cantidad: %d)\n", marcosAginados, len(marcosAginados))//AUX
-	fmt.Printf("📏 Info len: %d (espera %d marcos)\n", len(info), len(info)/TamPagina)//AUX
 	AsignarMarcosATablaExistente(pid, marcosAginados)
 	
 	PegarInfoEnMemoria(pid, info, marcosAginados)
-	fmt.Printf("📦 Info SWAP recuperada: len = %d, bytes = %v\n", len(info), info) //AUX
 
 }
 
@@ -443,7 +454,6 @@ func DumpMemoriaProceso (pid int){
 		datos:=MemoriaUsuario[inicio:fin]
 		file.Write(datos)
 	}
-	log.Printf("✅ Dump de memoria creado: %s", nombreArchivo)
 }
 
 
@@ -514,7 +524,7 @@ func AsignarMarcosATablaExistente(pid int, marcos []int) {
 func recorrerYAsignar(tabla []*EntradaTP, proximo *int, marcos []int, nivelActual int) {
 	for _, entrada := range tabla {
 		if *proximo >= len(marcos) {
-			return // ✅ Ya asignaste todos los marcos necesarios, corto el recorrido
+			return 
 		}
 
 		if entrada == nil {
@@ -523,7 +533,6 @@ func recorrerYAsignar(tabla []*EntradaTP, proximo *int, marcos []int, nivelActua
 
 		if nivelActual == CantNiveles {
 			if *proximo < len(marcos) {
-				fmt.Printf("📍 Asignando marco %d a entrada\n", marcos[*proximo]) //AUX
 				entrada.MarcoFisico = marcos[*proximo]
 				entrada.Presente = true
 				*proximo += 1
@@ -531,7 +540,6 @@ func recorrerYAsignar(tabla []*EntradaTP, proximo *int, marcos []int, nivelActua
 		} else if entrada.SiguienteNivel != nil {
 			recorrerYAsignar(entrada.SiguienteNivel, proximo, marcos, nivelActual+1)
 		}
-		fmt.Printf("✅ Total marcos asignados: %d\n", proximo)//AUX
 	}
 }
 
