@@ -103,7 +103,3 @@ type DatoCACHE struct {
 	BitUso        int // 0 o 1
 }
 
-type DevolucionCompleta struct {
-	RespuestaCPU RespuestaCPU    `json:"respuesta_cpu"`
-	SyscallIO    *Syscall_IO     `json:"syscall_io,omitempty"`
-}

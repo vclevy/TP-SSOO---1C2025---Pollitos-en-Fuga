@@ -95,35 +95,3 @@ func Syscall_Exit() {
 
 	defer resp.Body.Close() //se cierra la conexión
 }
-
-func EnviarDevolucionCompleta(io *estructuras.Syscall_IO) error {
-	datos := estructuras.DevolucionCompleta{
-		RespuestaCPU: estructuras.RespuestaCPU{
-			PID:        global.PCB_Actual.PID,
-			PC:         global.PCB_Actual.PC,
-			Motivo:     global.Motivo,
-			RafagaReal: global.Rafaga,
-		},
-		SyscallIO: io,
-	}
-
-	jsonData, err := json.Marshal(datos)
-	if err != nil {
-		return fmt.Errorf("error codificando devolución completa: %w", err)
-	}
-
-	url := fmt.Sprintf("http://%s:%d/devolucion", global.CpuConfig.Ip_Kernel, global.CpuConfig.Port_Kernel)
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
-	if err != nil {
-		global.LoggerCpu.Log("Error devolviendo proceso a Kernel: "+err.Error(), log.ERROR)
-		return err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("devolución fallida con status %d", resp.StatusCode)
-	}
-
-	global.LoggerCpu.Log("✅ Devolución completa enviada a Kernel", log.INFO)
-	return nil
-}

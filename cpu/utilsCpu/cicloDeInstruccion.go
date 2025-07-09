@@ -13,8 +13,6 @@ import (
 var tiempoInicio time.Time
 var sumarPC bool = true
 
-
-
 func CicloDeInstruccion() bool {
 	var instruccionAEjecutar = Fetch()
 
@@ -86,27 +84,13 @@ func Execute(instruccion Instruccion, requiereMMU bool) (string, error) {
 		sumarPC = false
 		global.Motivo = "IO"
 		global.Rafaga = float64(time.Since(tiempoInicio).Milliseconds())
-
-		tiempo, err := strconv.Atoi(instruccion.Parametros[1])
-		if err != nil {
-			global.LoggerCpu.Log("Error al convertir tiempo estimado: %v", log.ERROR)
-			return "", err
-		}
-
-		syscall := &estructuras.Syscall_IO{
-			IoSolicitada:   instruccion.Parametros[0],
-			TiempoEstimado: tiempo,
-			PIDproceso:     global.PCB_Actual.PID,
-		}
-
 		Desalojo()
 		global.MutexPCB.Lock()
 		global.PCB_Actual.PC++
 		global.MutexPCB.Unlock()
-
-		EnviarDevolucionCompleta(syscall)
+		cortoProceso()
+		Syscall_IO(instruccion)
 		return "", nil
-
 	}
 	if instruccion.Opcode == "INIT_PROC" {
 		sumarPC = true
@@ -135,9 +119,9 @@ func Execute(instruccion Instruccion, requiereMMU bool) (string, error) {
 		pid := global.PCB_Actual.PID
 		global.MutexPCB.Unlock()
 
-		Syscall_Exit()  // primero la syscall
-		DevolucionPID() // luego la devolución
-		Desalojo()      // al final el borrado
+		Syscall_Exit()         // primero la syscall
+		DevolucionPID()        // luego la devolución
+		Desalojo()             // al final el borrado
 
 		global.LoggerCpu.Log(fmt.Sprintf("\033[35mProceso %d finalizado (EXIT). Fin del ciclo\033[0m", pid), log.INFO)
 		return "EXIT", nil
@@ -199,6 +183,7 @@ func Execute(instruccion Instruccion, requiereMMU bool) (string, error) {
 	}
 	return "", nil
 }
+
 
 func CheckInterrupt() {
 	if global.Interrupcion {
