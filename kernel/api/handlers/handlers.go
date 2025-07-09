@@ -123,78 +123,22 @@ func HandshakeConCPU(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(respuesta)
 }
 
-func IO(w http.ResponseWriter, r *http.Request) {
-	var syscall SyscallIO
-	if err := json.NewDecoder(r.Body).Decode(&syscall); err != nil {
-		http.Error(w, "Error al parsear la syscall", http.StatusBadRequest)
-		return
-	}
+//func IO(w http.ResponseWriter, r *http.Request) {
+//	var syscall SyscallIO
+//	if err := json.NewDecoder(r.Body).Decode(&syscall); err != nil {
+//		http.Error(w, "Error al parsear la syscall", http.StatusBadRequest)
+//		return
+//	}
+//
+//	err := ManejarSolicitudIO(syscall.PIDproceso, syscall.IoSolicitada, syscall.TiempoEstimado)
+//	if err != nil {
+//		http.Error(w, err.Error(), http.StatusInternalServerError)
+//		return
+//	}
+//
+//	w.WriteHeader(http.StatusOK)
+//}
 
-	err := ManejarSolicitudIO(syscall.PIDproceso, syscall.IoSolicitada, syscall.TiempoEstimado)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-}
-
-func ManejarSolicitudIO(pid int, nombre string, tiempoUso int) error {
-	global.LoggerKernel.Log(ColorBlue+"## ("+strconv.Itoa(pid)+") - Solicitó syscall: <IO>"+ColorReset, log.INFO)
-
-	global.IOListMutex.Lock()
-	dispositivos := utilsKernel.ObtenerDispositivoIO(nombre)
-	global.IOListMutex.Unlock()
-
-	global.MutexExecuting.Lock() //Muevo
-	proceso := utilsKernel.BuscarProcesoPorPID(global.ColaExecuting, pid)
-	if proceso == nil {
-		global.MutexExecuting.Unlock()//Actualizo esto xq sino nunca sale del lock
-		return fmt.Errorf("no se pudo obtener el proceso en EXECUTING (PID %d)", pid)
-	}
-
-	
-	global.EliminarProcesoDeCola(&global.ColaExecuting, proceso.PID)
-	global.MutexExecuting.Unlock()
-
-	if len(dispositivos) == 0 {
-		global.LoggerKernel.Log(fmt.Sprintf("Dispositivo IO %s no existe, enviando %d a EXIT", nombre, pid), log.ERROR)
-		planificacion.FinalizarProceso(proceso)
-		return fmt.Errorf("dispositivo IO %s no existe", nombre)
-	}
-
-	procesoEncolado := &global.ProcesoIO{
-		Proceso:   proceso,
-		TiempoUso: tiempoUso,
-	}
-
-	planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.BLOCKED)
-	global.AgregarABlocked(proceso)
-
-	// buscar un dispositivo libre
-	for _, dispositivo := range dispositivos {
-		dispositivo.Mutex.Lock()
-		if !dispositivo.Ocupado {
-			dispositivo.Ocupado = true
-			dispositivo.ProcesoEnUso = procesoEncolado
-			dispositivo.Mutex.Unlock()
-
-			global.LoggerKernel.Log("## ("+strconv.Itoa(pid)+") - Bloqueado por IO: <"+dispositivo.Nombre+">", log.INFO)
-			go utilsKernel.EnviarAIO(dispositivo, pid, tiempoUso)
-			return nil
-		}
-		dispositivo.Mutex.Unlock()
-	}
-
-	// Si todos ocupados, encolar en el primero
-	primero := dispositivos[0]
-	primero.Mutex.Lock()
-	primero.ColaEspera = append(primero.ColaEspera, procesoEncolado)
-	global.LoggerKernel.Log(fmt.Sprintf("## (%d) - Encolado en %s (Ocupado)", pid, primero.Nombre), log.INFO)
-	primero.Mutex.Unlock()
-
-	return nil
-}
 func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
 	// Si NO hay body → desconexión de dispositivo IO
 	if r.ContentLength == 0 {

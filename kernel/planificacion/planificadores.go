@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"time"
-
+	"strconv"
 	"github.com/sisoputnfrba/tp-golang/kernel/global"
 	utilskernel "github.com/sisoputnfrba/tp-golang/kernel/utilsKernel"
 	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
@@ -316,7 +316,6 @@ func AsignarCPU(proceso *global.Proceso) bool {
 	return true
 }
 
-
 func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 	var proceso *global.Proceso
 	// Liberar CPU que ejecutaba este proceso
@@ -352,7 +351,12 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 		FinalizarProceso(proceso)
 
 	case "IO":
-		utilskernel.SacarProcesoDeCPU(proceso.PID)
+	utilskernel.SacarProcesoDeCPU(proceso.PID)
+	err := ManejarSolicitudIO(resp.PID, resp.IO.IoSolicitada, resp.IO.TiempoEstimado)
+	if err != nil {
+		global.LoggerKernel.Log(fmt.Sprintf("Error en syscall IO del PID %d: %v", proceso.PID, err), log.ERROR)
+	}
+
 
 	case "READY":
 		utilskernel.SacarProcesoDeCPU(proceso.PID)
@@ -378,6 +382,64 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 		default:
 		}
 	}
+}
+
+
+func ManejarSolicitudIO(pid int, nombre string, tiempoUso int) error {
+	global.LoggerKernel.Log(ColorBlue+"## ("+strconv.Itoa(pid)+") - Solicitó syscall: <IO>"+ColorReset, log.INFO)
+
+	global.IOListMutex.Lock()
+	dispositivos := utilskernel.ObtenerDispositivoIO(nombre)
+	global.IOListMutex.Unlock()
+
+	global.MutexExecuting.Lock() //Muevo
+	proceso := utilskernel.BuscarProcesoPorPID(global.ColaExecuting, pid)
+	if proceso == nil {
+		global.MutexExecuting.Unlock()//Actualizo esto xq sino nunca sale del lock
+		return fmt.Errorf("no se pudo obtener el proceso en EXECUTING (PID %d)", pid)
+	}
+
+	
+	global.EliminarProcesoDeCola(&global.ColaExecuting, proceso.PID)
+	global.MutexExecuting.Unlock()
+
+	if len(dispositivos) == 0 {
+		global.LoggerKernel.Log(fmt.Sprintf("Dispositivo IO %s no existe, enviando %d a EXIT", nombre, pid), log.ERROR)
+		FinalizarProceso(proceso)
+		return fmt.Errorf("dispositivo IO %s no existe", nombre)
+	}
+
+	procesoEncolado := &global.ProcesoIO{
+		Proceso:   proceso,
+		TiempoUso: tiempoUso,
+	}
+
+	ActualizarEstadoPCB(&proceso.PCB, BLOCKED)
+	global.AgregarABlocked(proceso)
+
+	// buscar un dispositivo libre
+	for _, dispositivo := range dispositivos {
+		dispositivo.Mutex.Lock()
+		if !dispositivo.Ocupado {
+			dispositivo.Ocupado = true
+			dispositivo.ProcesoEnUso = procesoEncolado
+			dispositivo.Mutex.Unlock()
+
+			global.LoggerKernel.Log("## ("+strconv.Itoa(pid)+") - Bloqueado por IO: <"+dispositivo.Nombre+">", log.INFO)
+			go utilskernel.EnviarAIO(dispositivo, pid, tiempoUso)
+			return nil
+		}
+		dispositivo.Mutex.Unlock()
+	}
+
+	// Si todos ocupados, encolar en el primero
+	primero := dispositivos[0]
+	primero.Mutex.Lock()
+	primero.ColaEspera = append(primero.ColaEspera, procesoEncolado)
+	global.LoggerKernel.Log(fmt.Sprintf("## (%d) - Encolado en %s (Ocupado)", pid, primero.Nombre), log.INFO)
+	primero.Mutex.Unlock()
+
+	return nil
 }
 
 func IniciarPlanificadorMedioPlazo() {

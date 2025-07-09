@@ -30,6 +30,8 @@ type Config struct {
 	LogFile          string        `json:"log_file"`
 }
 
+var IO_Request estructuras.Syscall_IO
+
 var CpuID string
 var Interrupcion bool
 var PCB_Actual *estructuras.PCB

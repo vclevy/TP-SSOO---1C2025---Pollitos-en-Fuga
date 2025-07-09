@@ -2,12 +2,13 @@ package utilsIo
 
 import (
 	"fmt"
-	"github.com/sisoputnfrba/tp-golang/cpu/global"
-	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
-	log "github.com/sisoputnfrba/tp-golang/utils/logger"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/sisoputnfrba/tp-golang/cpu/global"
+	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
+	log "github.com/sisoputnfrba/tp-golang/utils/logger"
 )
 
 var tiempoInicio time.Time
@@ -75,48 +76,60 @@ func Execute(instruccion Instruccion, requiereMMU bool) (string, error) {
 
 	global.LoggerCpu.Log(fmt.Sprintf("\033[36m## PID: %d - Ejecutando: %s - %s\033[0m", global.PCB_Actual.PID, instruccion.Opcode, instruccion.Parametros), log.INFO) //!! Instrucción Ejecutada - logObligatorio
 
-	//todo INSTRUCCIONES SYSCALLS
 	if instruccion.Opcode == "IO" {
 		sumarPC = false
 		global.Motivo = "IO"
 		global.Rafaga = float64(time.Since(tiempoInicio).Milliseconds())
 		global.PCB_Actual.PC++
+		
+		tiempo, err := strconv.Atoi(instruccion.Parametros[1])
+		if err != nil {
+			global.LoggerCpu.Log("Error al convertir tiempo estimado: %v", log.ERROR)
+			return "", err
+		}
+		// En lugar de hacer Syscall_IO en CPU, devolvés el motivo y los parámetros
+		global.IO_Request = estructuras.Syscall_IO{
+			PIDproceso:     global.PCB_Actual.PID,
+			IoSolicitada:   instruccion.Parametros[0],
+			TiempoEstimado: tiempo,
+		}
+
 		cortoProceso()
-		Syscall_IO(instruccion)
 		Desalojo()
 		return "", nil
 	}
+
 	if instruccion.Opcode == "INIT_PROC" {
 		sumarPC = true
 		Syscall_Init_Proc(instruccion)
 		return "", nil
 	}
 	if instruccion.Opcode == "DUMP_MEMORY" {
-    sumarPC = false
-    global.Motivo = "DUMP"
-    global.Rafaga = float64(time.Since(tiempoInicio).Milliseconds())
-    global.PCB_Actual.PC++
-    cortoProceso()
-    Syscall_Dump_Memory()
-    Desalojo()
+		sumarPC = false
+		global.Motivo = "DUMP"
+		global.Rafaga = float64(time.Since(tiempoInicio).Milliseconds())
+		global.PCB_Actual.PC++
+		cortoProceso()
+		Syscall_Dump_Memory()
+		Desalojo()
 
-    return "", nil
-}
+		return "", nil
+	}
 
 	if instruccion.Opcode == "EXIT" {
-    sumarPC = false
-	global.Motivo = "EXIT"
-	global.Rafaga = float64(time.Since(tiempoInicio).Milliseconds())
-	
-	pid := global.PCB_Actual.PID
+		sumarPC = false
+		global.Motivo = "EXIT"
+		global.Rafaga = float64(time.Since(tiempoInicio).Milliseconds())
 
-	Syscall_Exit()         // primero la syscall
-	DevolucionPID()        // luego la devolución
-	Desalojo()             // al final el borrado
+		pid := global.PCB_Actual.PID
 
-	global.LoggerCpu.Log(fmt.Sprintf("\033[35mProceso %d finalizado (EXIT). Fin del ciclo\033[0m",pid), log.INFO)
-	return "EXIT", nil
-}
+		Syscall_Exit()  // primero la syscall
+		DevolucionPID() // luego la devolución
+		Desalojo()      // al final el borrado
+
+		global.LoggerCpu.Log(fmt.Sprintf("\033[35mProceso %d finalizado (EXIT). Fin del ciclo\033[0m", pid), log.INFO)
+		return "EXIT", nil
+	}
 
 	//todo OTRAS INSTRUCCIONES
 	if instruccion.Opcode == "NOOP" {
@@ -167,8 +180,8 @@ func Execute(instruccion Instruccion, requiereMMU bool) (string, error) {
 
 		if instruccion.Opcode == "WRITE" { // WRITE 0 EJEMPLO_DE_ENUNCIADO - WRITE (Dirección, Datos)
 			WRITE(instruccion, global.CacheHabilitada, desplazamiento, global.TlbHabilitada)
-		/* global.LoggerCpu.Log(fmt.Sprintf("Contenido CACHE: %v", global.CACHE), log.DEBUG)*/	
- 		}
+			/* global.LoggerCpu.Log(fmt.Sprintf("Contenido CACHE: %v", global.CACHE), log.DEBUG)*/
+		}
 	}
 	return "", nil
 }
