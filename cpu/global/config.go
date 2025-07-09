@@ -1,15 +1,18 @@
 package global
 
 import (
-	"fmt"
-	"time"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"sync"
+	"time"
+
 	utils "github.com/sisoputnfrba/tp-golang/utils/config"
 	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
-	"os"
-	log "github.com/sisoputnfrba/tp-golang/utils/logger")
+	log "github.com/sisoputnfrba/tp-golang/utils/logger"
+)
 
 var CpuConfig *Config
 var LoggerCpu *log.LoggerStruct
@@ -32,7 +35,9 @@ type Config struct {
 
 var CpuID string
 var Interrupcion bool
+
 var PCB_Actual *estructuras.PCB
+var MutexPCBActual sync.Mutex
 var Motivo string
 var Rafaga float64
 
