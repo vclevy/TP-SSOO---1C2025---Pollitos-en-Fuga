@@ -81,7 +81,7 @@ func Execute(instruccion Instruccion, requiereMMU bool) (string, error) {
 		global.Motivo = "IO"
 		global.Rafaga = float64(time.Since(tiempoInicio).Milliseconds())
 		global.PCB_Actual.PC++
-		
+
 		tiempo, err := strconv.Atoi(instruccion.Parametros[1])
 		if err != nil {
 			global.LoggerCpu.Log("Error al convertir tiempo estimado: %v", log.ERROR)
@@ -101,7 +101,21 @@ func Execute(instruccion Instruccion, requiereMMU bool) (string, error) {
 
 	if instruccion.Opcode == "INIT_PROC" {
 		sumarPC = true
-		Syscall_Init_Proc(instruccion)
+		/* Syscall_Init_Proc(instruccion) */
+
+		tamanio, err := strconv.Atoi(instruccion.Parametros[1]) //convieto tamanio de string a int
+		if err != nil {
+			global.LoggerCpu.Log("Error al convertir tamanio: %v", log.ERROR)
+			return "",err
+		}
+
+		global.Init_Proc = estructuras.Syscall_Init_Proc{
+			PID:                  global.PCB_Actual.PID,
+			ArchivoInstrucciones: instruccion.Parametros[0],
+			Tamanio:              tamanio,
+		}
+		cortoProceso()
+
 		return "", nil
 	}
 	if instruccion.Opcode == "DUMP_MEMORY" {
@@ -110,7 +124,7 @@ func Execute(instruccion Instruccion, requiereMMU bool) (string, error) {
 		global.Rafaga = float64(time.Since(tiempoInicio).Milliseconds())
 		global.PCB_Actual.PC++
 		cortoProceso()
-		Syscall_Dump_Memory()
+		/* Syscall_Dump_Memory() */
 		Desalojo()
 
 		return "", nil
@@ -123,9 +137,10 @@ func Execute(instruccion Instruccion, requiereMMU bool) (string, error) {
 
 		pid := global.PCB_Actual.PID
 
-		Syscall_Exit()  // primero la syscall
-		DevolucionPID() // luego la devolución
-		Desalojo()      // al final el borrado
+		/* Syscall_Exit()  // primero la syscall */
+		/* DevolucionPID() // luego la devolución */
+		cortoProceso()
+		Desalojo() // al final el borrado
 
 		global.LoggerCpu.Log(fmt.Sprintf("\033[35mProceso %d finalizado (EXIT). Fin del ciclo\033[0m", pid), log.INFO)
 		return "EXIT", nil

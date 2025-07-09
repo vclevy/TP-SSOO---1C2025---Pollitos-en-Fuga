@@ -245,14 +245,14 @@ func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "No se encontró proceso en uso para este PID", http.StatusNotFound)
 }
 
-func EXIT(w http.ResponseWriter, r *http.Request) {
-	pidStr := r.URL.Query().Get("pid")
-	PID, _ := strconv.Atoi(pidStr)
-
-	global.LoggerKernel.Log(ColorRed+"## ("+strconv.Itoa(PID)+") - Solicitó syscall: <EXIT>"+ColorReset, log.INFO)
-
-	w.WriteHeader(http.StatusOK)
-}
+//func EXIT(w http.ResponseWriter, r *http.Request) {
+//	pidStr := r.URL.Query().Get("pid")
+//	PID, _ := strconv.Atoi(pidStr)
+//
+//	global.LoggerKernel.Log(ColorRed+"## ("+strconv.Itoa(PID)+") - Solicitó syscall: <EXIT>"+ColorReset, log.INFO)
+//
+//	w.WriteHeader(http.StatusOK)
+//}
 
 func DUMP_MEMORY(w http.ResponseWriter, r *http.Request) {
 	pidStr := r.URL.Query().Get("pid")

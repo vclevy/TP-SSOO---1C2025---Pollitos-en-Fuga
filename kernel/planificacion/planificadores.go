@@ -347,6 +347,7 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 
 	switch resp.Motivo {
 	case "EXIT":
+		global.LoggerKernel.Log(ColorRed+"## ("+strconv.Itoa(proceso.PID)+") - Solicitó syscall: <EXIT>"+ColorReset, log.INFO)
 		utilskernel.SacarProcesoDeCPU(proceso.PID)
 		FinalizarProceso(proceso)
 

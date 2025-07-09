@@ -1,15 +1,17 @@
 package global
 
 import (
-	"fmt"
-	"time"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"time"
+
 	utils "github.com/sisoputnfrba/tp-golang/utils/config"
 	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
-	"os"
-	log "github.com/sisoputnfrba/tp-golang/utils/logger")
+	log "github.com/sisoputnfrba/tp-golang/utils/logger"
+)
 
 var CpuConfig *Config
 var LoggerCpu *log.LoggerStruct
@@ -31,7 +33,7 @@ type Config struct {
 }
 
 var IO_Request estructuras.Syscall_IO
-
+var Init_Proc estructuras.Syscall_Init_Proc
 var CpuID string
 var Interrupcion bool
 var PCB_Actual *estructuras.PCB
@@ -63,7 +65,7 @@ func InitGlobal(idCPU string, configPath string) {
 	LoggerCpu.Log("Logger de CPU inicializado", log.DEBUG)
 
 	CacheHabilitada = CpuConfig.CacheEntries > 0
-	TlbHabilitada =  CpuConfig.TlbEntries > 0
+	TlbHabilitada = CpuConfig.TlbEntries > 0
 
 	if err := CargarConfigMMU(); err != nil {
 		LoggerCpu.Log("Error en ConfigMMU: "+err.Error(), log.ERROR)
@@ -94,7 +96,7 @@ func InicializarCACHE() {
 		CACHE[i] = estructuras.DatoCACHE{
 			BitModificado: -1,
 			NroPagina:     -1,
-			Contenido:		make([]byte, ConfigMMU.Tamanio_pagina),
+			Contenido:     make([]byte, ConfigMMU.Tamanio_pagina),
 			BitUso:        -1,
 		}
 	}

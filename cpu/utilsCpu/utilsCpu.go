@@ -99,6 +99,7 @@ func cortoProceso() error {
 		Motivo:     global.Motivo,
 		RafagaReal: global.Rafaga,
 		IO:         global.IO_Request,
+		InitProc:	global.Init_Proc,
 	}
 
 	jsonData, err := json.Marshal(datosEnvio)

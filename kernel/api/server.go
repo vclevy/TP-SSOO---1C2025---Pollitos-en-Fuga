@@ -17,7 +17,7 @@ func CrearServer() *server.Server {
 			//"POST /IO":      		handlers.IO,
 			"POST /finalizacionIO": handlers.FinalizacionIO,
 			"POST /Init_Proc":      handlers.INIT_PROC,
-			"POST /exit":           handlers.EXIT,
+			//"POST /exit":           handlers.EXIT,
 			"POST /dumpMemory":		handlers.DUMP_MEMORY,
 			"POST /devolucion": 	handlers.DevolucionCPUHandler,
 		},
