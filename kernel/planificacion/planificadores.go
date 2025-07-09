@@ -310,6 +310,7 @@ func AsignarCPU(proceso *global.Proceso) bool {
 				if proceso.PCB.UltimoEstado != EXIT {
 					global.LoggerKernel.Log(fmt.Sprintf("[TRACE] Reencolando proceso PID %d en READY tras error de dispatch", proceso.PID), log.DEBUG)
 					global.AgregarAReady(proceso)
+					global.LoggerKernel.Log("PASO ESTO?????????????", log.DEBUG)
 				}
 			}
 		}(cpuLibre, proceso)
