@@ -47,12 +47,11 @@ func NuevoPCB(w http.ResponseWriter, r *http.Request) {
 	global.PCB_Actual = &data
 	pid := global.PCB_Actual.PID
 	pc := global.PCB_Actual.PC
-	
+	global.MutexPCB.Unlock()
 
 	global.LoggerCpu.Log(fmt.Sprintf("Fue asignado un nuevo proceso con PID %d y PC: %d", pid, pc), log.DEBUG)
 	
 
 	for utilsIo.CicloDeInstruccion() {
 }
-global.MutexPCB.Unlock()
 }

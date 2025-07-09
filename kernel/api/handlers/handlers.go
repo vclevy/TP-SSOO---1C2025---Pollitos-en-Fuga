@@ -138,60 +138,62 @@ func IO(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 }
+
 func ManejarSolicitudIO(pid int, nombre string, tiempoUso int) error {
 	global.LoggerKernel.Log(ColorBlue+"## ("+strconv.Itoa(pid)+") - Solicitó syscall: <IO>"+ColorReset, log.INFO)
 
-    // Bloquear MutexExecuting para buscar y eliminar el proceso de forma atómica
-    global.MutexExecuting.Lock()
-    proceso := utilsKernel.BuscarProcesoPorPID(global.ColaExecuting, pid)
-    if proceso == nil {
-        global.MutexExecuting.Unlock()
-        return fmt.Errorf("no se pudo obtener el proceso en EXECUTING (PID %d)", pid)
-    }
-    global.EliminarProcesoDeCola(&global.ColaExecuting, proceso.PID)
-    global.MutexExecuting.Unlock() // Liberar después de la eliminación
+	global.IOListMutex.Lock()
+	dispositivos := utilsKernel.ObtenerDispositivoIO(nombre)
+	global.IOListMutex.Unlock()
 
-    global.IOListMutex.RLock() // Usar RLock ya que solo estamos leyendo la lista de dispositivos
-    dispositivos := utilsKernel.ObtenerDispositivoIO(nombre)
-    global.IOListMutex.RUnlock()
+	global.MutexExecuting.Lock()
+	proceso := utilsKernel.BuscarProcesoPorPID(global.ColaExecuting, pid)
+	global.MutexExecuting.Unlock()
+	if proceso == nil {
+		return fmt.Errorf("no se pudo obtener el proceso en EXECUTING (PID %d)", pid)
+	}
 
-    if len(dispositivos) == 0 {
-        global.LoggerKernel.Log(fmt.Sprintf("Dispositivo IO %s no existe, enviando %d a EXIT", nombre, pid), log.ERROR)
-        planificacion.FinalizarProceso(proceso)
-        return fmt.Errorf("dispositivo IO %s no existe", nombre)
-    }
+	global.MutexExecuting.Lock()
+	global.EliminarProcesoDeCola(&global.ColaExecuting, proceso.PID)
+	global.MutexExecuting.Unlock()
 
-    // Actualizar estado del proceso a BLOCKED inmediatamente
-    planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.BLOCKED)
-    global.AgregarABlocked(proceso)
+	if len(dispositivos) == 0 {
+		global.LoggerKernel.Log(fmt.Sprintf("Dispositivo IO %s no existe, enviando %d a EXIT", nombre, pid), log.ERROR)
+		planificacion.FinalizarProceso(proceso)
+		return fmt.Errorf("dispositivo IO %s no existe", nombre)
+	}
 
-    procesoEncolado := &global.ProcesoIO{
-        Proceso:   proceso,
-        TiempoUso: tiempoUso,
-    }
+	procesoEncolado := &global.ProcesoIO{
+		Proceso:   proceso,
+		TiempoUso: tiempoUso,
+	}
 
-    // Enviar el proceso al primer dispositivo de ese tipo para que lo gestione
-    // Si hay múltiples dispositivos, deberías tener una lógica para elegir cuál.
-    // Por ahora, asumimos que se encola en el primero.
-    // Si quieres un balanceo de carga, aquí sería el lugar para implementarlo
-    // (ej. buscar el dispositivo con la cola de espera más corta).
-    targetDevice := dispositivos[0] // Podrías implementar una selección más inteligente aquí
+	planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.BLOCKED)
+	global.AgregarABlocked(proceso)
 
-    targetDevice.Mutex.Lock() // Bloquear el dispositivo para añadir a su cola
-    if !targetDevice.Ocupado {
-        // Si el dispositivo está libre, lo ocupa directamente
-        targetDevice.Ocupado = true
-        targetDevice.ProcesoEnUso = procesoEncolado
-        global.LoggerKernel.Log("## ("+strconv.Itoa(pid)+") - Bloqueado por IO: <"+targetDevice.Nombre+">", log.INFO)
-        go utilsKernel.EnviarAIO(targetDevice, pid, tiempoUso) // Inicia la operación de IO
-    } else {
-        // Si está ocupado, lo añade a la cola de espera del dispositivo
-        targetDevice.ColaEspera = append(targetDevice.ColaEspera, procesoEncolado)
-        global.LoggerKernel.Log(fmt.Sprintf("## (%d) - Encolado en %s (Ocupado)", pid, targetDevice.Nombre), log.INFO)
-    }
-    targetDevice.Mutex.Unlock() // Liberar el mutex del dispositivo
+	// buscar un dispositivo libre
+	for _, dispositivo := range dispositivos {
+		dispositivo.Mutex.Lock()
+		if !dispositivo.Ocupado {
+			dispositivo.Ocupado = true
+			dispositivo.ProcesoEnUso = procesoEncolado
+			dispositivo.Mutex.Unlock()
 
-    return nil
+			global.LoggerKernel.Log("## ("+strconv.Itoa(pid)+") - Bloqueado por IO: <"+dispositivo.Nombre+">", log.INFO)
+			go utilsKernel.EnviarAIO(dispositivo, pid, tiempoUso)
+			return nil
+		}
+		dispositivo.Mutex.Unlock()
+	}
+
+	// Si todos ocupados, encolar en el primero
+	primero := dispositivos[0]
+	primero.Mutex.Lock()
+	primero.ColaEspera = append(primero.ColaEspera, procesoEncolado)
+	global.LoggerKernel.Log(fmt.Sprintf("## (%d) - Encolado en %s (Ocupado)", pid, primero.Nombre), log.INFO)
+	primero.Mutex.Unlock()
+
+	return nil
 }
 func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
 	// Si NO hay body → desconexión de dispositivo IO
