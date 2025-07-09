@@ -268,13 +268,16 @@ func AsignarCPU(proceso *global.Proceso) bool {
 	}
 
 	global.MutexCPUs.Lock()
+
 	var cpuLibre *global.CPU
 	for _, cpu := range global.CPUsConectadas {
 		if cpu.ProcesoEjecutando == nil {
 			cpuLibre = cpu
+			cpu.ProcesoEjecutando = &proceso.PCB // Asignación directa en la misma región crítica
 			break
 		}
 	}
+
 	global.MutexCPUs.Unlock()
 
 	if cpuLibre == nil {
@@ -289,12 +292,7 @@ func AsignarCPU(proceso *global.Proceso) bool {
 	global.EliminarProcesoDeCola(&global.ColaReady, proceso.PID)
 	global.MutexReady.Unlock()
 
-	global.MutexCPUs.Lock()
-	cpuLibre.ProcesoEjecutando = &proceso.PCB
-	global.MutexCPUs.Unlock()
-
 	if proceso.PCB.UltimoEstado != EXEC {
-
 		ActualizarEstadoPCB(&proceso.PCB, EXEC)
 		global.AgregarAExecuting(proceso)
 
@@ -310,7 +308,6 @@ func AsignarCPU(proceso *global.Proceso) bool {
 				if proceso.PCB.UltimoEstado != EXIT {
 					global.LoggerKernel.Log(fmt.Sprintf("[TRACE] Reencolando proceso PID %d en READY tras error de dispatch", proceso.PID), log.DEBUG)
 					global.AgregarAReady(proceso)
-					global.LoggerKernel.Log("PASO ESTO?????????????", log.DEBUG)
 				}
 			}
 		}(cpuLibre, proceso)
@@ -318,6 +315,7 @@ func AsignarCPU(proceso *global.Proceso) bool {
 
 	return true
 }
+
 
 func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 	var proceso *global.Proceso
@@ -476,13 +474,7 @@ func FinalizarProceso(p *Proceso) {
 	default:
 	}
 
-	global.MutexCPUs.Lock()
-	for _, cpu := range global.CPUsConectadas {
-		if cpu.ProcesoEjecutando != nil && cpu.ProcesoEjecutando.PID == p.PID {
-			cpu.ProcesoEjecutando = nil
-		}
-	}
-	global.MutexCPUs.Unlock()
+	utilskernel.SacarProcesoDeCPU(p.PID)
 }
 
 func liberarPCB(p *Proceso) {
