@@ -149,6 +149,7 @@ func ManejarSolicitudIO(pid int, nombre string, tiempoUso int) error {
 	global.MutexExecuting.Lock() //Muevo
 	proceso := utilsKernel.BuscarProcesoPorPID(global.ColaExecuting, pid)
 	if proceso == nil {
+		global.MutexExecuting.Unlock()//Actualizo esto xq sino nunca sale del lock
 		return fmt.Errorf("no se pudo obtener el proceso en EXECUTING (PID %d)", pid)
 	}
 
