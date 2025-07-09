@@ -356,7 +356,7 @@ func DevolucionCPUHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	go planificacion.ManejarDevolucionDeCPU(devolucion)
+	planificacion.ManejarDevolucionDeCPU(devolucion)
 	w.WriteHeader(http.StatusOK)
 
 	global.LoggerKernel.Log(fmt.Sprintf("Llega PID %d y PC %d", devolucion.PID, devolucion.PC), log.DEBUG)
