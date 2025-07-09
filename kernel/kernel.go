@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
-	"runtime"
+	//"runtime"
 	"strconv"
 
 	"github.com/sisoputnfrba/tp-golang/kernel/api"
@@ -13,7 +13,7 @@ import (
 )
 
 func main() {
-	runtime.GOMAXPROCS(runtime.NumCPU())
+	//runtime.GOMAXPROCS(runtime.NumCPU())
 	archivoConfig := os.Args[1]
 	global.InitGlobal(archivoConfig)
 	defer global.LoggerKernel.CloseLogger()

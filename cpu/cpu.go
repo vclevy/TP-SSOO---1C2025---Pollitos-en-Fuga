@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
-	"runtime"
+	//"runtime"
 
 	"github.com/sisoputnfrba/tp-golang/cpu/api"
 
@@ -13,7 +13,7 @@ import (
 )
 
 func main() {
-	runtime.GOMAXPROCS(runtime.NumCPU())
+	//runtime.GOMAXPROCS(runtime.NumCPU())
 	if len(os.Args) < 3 {
 		fmt.Println("Uso: ./cpu <ID_CPU> <path_config>")
 		return
