@@ -101,9 +101,9 @@ func Execute(instruccion Instruccion, requiereMMU bool) (string, error) {
 
 	if instruccion.Opcode == "INIT_PROC" {
 		sumarPC = true
-		/* Syscall_Init_Proc(instruccion) */
+		Syscall_Init_Proc(instruccion)
 
-		tamanio, err := strconv.Atoi(instruccion.Parametros[1]) //convieto tamanio de string a int
+		/* tamanio, err := strconv.Atoi(instruccion.Parametros[1]) //convieto tamanio de string a int
 		if err != nil {
 			global.LoggerCpu.Log("Error al convertir tamanio: %v", log.ERROR)
 			return "",err
@@ -113,7 +113,7 @@ func Execute(instruccion Instruccion, requiereMMU bool) (string, error) {
 			PID:                  global.PCB_Actual.PID,
 			ArchivoInstrucciones: instruccion.Parametros[0],
 			Tamanio:              tamanio,
-		}
+		} */
 		cortoProceso()
 
 		return "", nil

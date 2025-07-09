@@ -68,8 +68,8 @@ type RespuestaCPU struct {
 	Motivo     string    `json:"Motivo"`
 	RafagaReal float64   `json:"RafagaReal"`
 	IO         Syscall_IO `json:"IO"` // <-- nuevo campo
-	InitProc 	Syscall_Init_Proc `json:"InicProc"`// <-- nuevo campo
-}
+/* 	InitProc 	Syscall_Init_Proc `json:"InicProc"`// <-- nuevo campo
+ */}
 
 type PCB struct {
 	PID int `json:"pid"`

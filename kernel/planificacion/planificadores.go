@@ -385,7 +385,6 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 	}
 }
 
-
 func ManejarSolicitudIO(pid int, nombre string, tiempoUso int) error {
 	global.LoggerKernel.Log(ColorBlue+"## ("+strconv.Itoa(pid)+") - Solicitó syscall: <IO>"+ColorReset, log.INFO)
 

@@ -11,7 +11,7 @@ import (
 	"strconv"
 )
 
-/* func Syscall_IO(instruccion Instruccion) {
+func Syscall_IO(instruccion Instruccion) {
 	tiempo, err := strconv.Atoi(instruccion.Parametros[1])
 	if err != nil {
 		global.LoggerCpu.Log("Error al convertir tiempo estimado: %v", log.ERROR)
@@ -39,7 +39,7 @@ import (
 	}
 
 	defer resp.Body.Close() //se cierra la conexión
-} */
+}
 
 func Syscall_Init_Proc(instruccion Instruccion) {
 	tamanio, err := strconv.Atoi(instruccion.Parametros[1]) //convieto tamanio de string a int

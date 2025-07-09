@@ -33,7 +33,7 @@ type Config struct {
 }
 
 var IO_Request estructuras.Syscall_IO
-var Init_Proc estructuras.Syscall_Init_Proc
+/* var Init_Proc estructuras.Syscall_Init_Proc */
 var CpuID string
 var Interrupcion bool
 var PCB_Actual *estructuras.PCB
