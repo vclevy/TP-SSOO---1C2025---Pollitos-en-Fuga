@@ -80,10 +80,10 @@ func Execute(instruccion Instruccion, requiereMMU bool) (string, error) {
 		sumarPC = false
 		global.Motivo = "IO"
 		global.Rafaga = float64(time.Since(tiempoInicio).Milliseconds())
-		Desalojo()
 		global.PCB_Actual.PC++
 		cortoProceso()
 		Syscall_IO(instruccion)
+		Desalojo()
 		return "", nil
 	}
 	if instruccion.Opcode == "INIT_PROC" {
