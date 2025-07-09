@@ -138,11 +138,13 @@ func Execute(instruccion Instruccion, requiereMMU bool) (string, error) {
 		global.Rafaga = float64(time.Since(tiempoInicio).Milliseconds())
 
 		pid := global.PCB_Actual.PID // ✅ guardás antes de que se limpie
-
+		
 		cortoProceso()
 		Desalojo()
-
+		
 		global.LoggerCpu.Log(fmt.Sprintf("\033[35mProceso %d finalizado (EXIT). Fin del ciclo\033[0m", pid), log.INFO)
+		
+
 		return "EXIT", nil
 	}
 

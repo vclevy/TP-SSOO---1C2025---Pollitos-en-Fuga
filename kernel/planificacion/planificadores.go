@@ -260,7 +260,6 @@ func evaluarDesalojoSRTF(nuevoProceso *global.Proceso) bool {
 
 	return false
 }
-
 func AsignarCPU(proceso *global.Proceso) bool {
 	if proceso.PCB.UltimoEstado == EXIT {
 		global.LoggerKernel.Log(fmt.Sprintf("[ERROR] No se puede asignar PID %d, ya está finalizado", proceso.PID), log.ERROR)
@@ -273,7 +272,7 @@ func AsignarCPU(proceso *global.Proceso) bool {
 	for _, cpu := range global.CPUsConectadas {
 		if cpu.ProcesoEjecutando == nil {
 			cpuLibre = cpu
-			cpu.ProcesoEjecutando = &proceso.PCB // Asignación directa en la misma región crítica
+			cpu.ProcesoEjecutando = &proceso.PCB // asignación protegida
 			break
 		}
 	}
@@ -288,46 +287,52 @@ func AsignarCPU(proceso *global.Proceso) bool {
 		return false
 	}
 
+	// Remover de READY
 	global.MutexReady.Lock()
 	global.EliminarProcesoDeCola(&global.ColaReady, proceso.PID)
 	global.MutexReady.Unlock()
 
+	// Pasar a EXEC
 	if proceso.PCB.UltimoEstado != EXEC {
 		ActualizarEstadoPCB(&proceso.PCB, EXEC)
 		global.AgregarAExecuting(proceso)
+	}
 
-		go func(cpu *global.CPU, proceso *global.Proceso) {
-				err := utilskernel.EnviarADispatch(cpu, proceso.PCB.PID, proceso.PCB.PC)
-			if err != nil {
-				global.LoggerKernel.Log(fmt.Sprintf("[ERROR] Error en dispatch de proceso %d a CPU %s: %v", proceso.PID, cpu.ID, err), log.ERROR)
+	// Enviar a CPU (sin goroutine)
+	err := utilskernel.EnviarADispatch(cpuLibre, proceso.PCB.PID, proceso.PCB.PC)
+	if err != nil {
+		global.LoggerKernel.Log(fmt.Sprintf("[ERROR] Error en dispatch de proceso %d a CPU %s: %v", proceso.PID, cpuLibre.ID, err), log.ERROR)
 
-				global.MutexCPUs.Lock()
-				cpu.ProcesoEjecutando = nil
-				global.MutexCPUs.Unlock()
+		global.MutexCPUs.Lock()
+		cpuLibre.ProcesoEjecutando = nil
+		global.MutexCPUs.Unlock()
 
-				if proceso.PCB.UltimoEstado != EXIT {
-					global.LoggerKernel.Log(fmt.Sprintf("[TRACE] Reencolando proceso PID %d en READY tras error de dispatch", proceso.PID), log.DEBUG)
-					global.AgregarAReady(proceso)
-				}
-			}
-		}(cpuLibre, proceso)
+		if proceso.PCB.UltimoEstado != EXIT {
+			global.LoggerKernel.Log(fmt.Sprintf("[TRACE] Reencolando proceso PID %d en READY tras error de dispatch", proceso.PID), log.DEBUG)
+			global.AgregarAReady(proceso)
+		}
+		return false
 	}
 
 	return true
 }
-
 func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 	var proceso *global.Proceso
-	// Liberar CPU que ejecutaba este proceso
+
 	global.LoggerKernel.Log(fmt.Sprintf("[DEBUG] Kernel recibe proceso PID %d con PC %d", resp.PID, resp.PC), log.DEBUG)
 
+	// Acceso sincronizado a ColaExecuting y CPUsConectadas
 	global.MutexExecuting.Lock()
+	global.MutexCPUs.Lock()
+
 	for _, p := range global.ColaExecuting {
 		if p.PCB.PID == resp.PID {
 			proceso = p
 			break
 		}
 	}
+
+	global.MutexCPUs.Unlock()
 	global.MutexExecuting.Unlock()
 
 	if proceso == nil {
@@ -340,9 +345,11 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 		return
 	}
 
+	// Actualizar datos del proceso
 	proceso.TiempoEjecutado += resp.RafagaReal
 	proceso.PCB.PC = resp.PC
 	RecalcularRafaga(proceso, resp.RafagaReal)
+
 	global.LoggerKernel.Log(fmt.Sprintf("[DEBUG] Asignando a CPU proceso PID %d con PC %d", proceso.PID, proceso.PC), log.DEBUG)
 
 	switch resp.Motivo {
@@ -352,14 +359,15 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 		FinalizarProceso(proceso)
 
 	case "IO":
-	utilskernel.SacarProcesoDeCPU(proceso.PID)
-	err := ManejarSolicitudIO(resp.PID, resp.IO.IoSolicitada, resp.IO.TiempoEstimado)
-	if err != nil {
-		global.LoggerKernel.Log(fmt.Sprintf("Error en syscall IO del PID %d: %v", proceso.PID, err), log.ERROR)
-	}
+		utilskernel.SacarProcesoDeCPU(proceso.PID)
+		err := ManejarSolicitudIO(resp.PID, resp.IO.IoSolicitada, resp.IO.TiempoEstimado)
+		if err != nil {
+			global.LoggerKernel.Log(fmt.Sprintf("Error en syscall IO del PID %d: %v", proceso.PID, err), log.ERROR)
+		}
 
 	case "READY":
 		utilskernel.SacarProcesoDeCPU(proceso.PID)
+
 		global.MutexExecuting.Lock()
 		global.EliminarProcesoDeCola(&global.ColaExecuting, proceso.PID)
 		global.MutexExecuting.Unlock()
@@ -369,9 +377,11 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 
 	case "DUMP":
 		utilskernel.SacarProcesoDeCPU(proceso.PID)
+
 		global.MutexExecuting.Lock()
 		global.EliminarProcesoDeCola(&global.ColaExecuting, proceso.PID)
 		global.MutexExecuting.Unlock()
+
 		ActualizarEstadoPCB(&proceso.PCB, BLOCKED)
 		global.AgregarABlocked(proceso)
 	}
@@ -383,6 +393,7 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 		}
 	}
 }
+
 
 func ManejarSolicitudIO(pid int, nombre string, tiempoUso int) error {
 	global.LoggerKernel.Log(ColorBlue+"## ("+strconv.Itoa(pid)+") - Solicitó syscall: <IO>"+ColorReset, log.INFO)
