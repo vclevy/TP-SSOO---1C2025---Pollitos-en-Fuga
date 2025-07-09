@@ -37,8 +37,10 @@ func CicloDeInstruccion() bool {
 }
 
 func Fetch() string {
+	global.MutexPCB.Lock()
 	pidActual := global.PCB_Actual.PID
 	pcActual := global.PCB_Actual.PC
+	global.MutexPCB.Unlock()
 
 	global.LoggerCpu.Log(fmt.Sprintf("\033[36m## PID: %d - FETCH - Program Counter: %d\033[0m", pidActual, pcActual), log.INFO) //!! Fetch Instrucción - logObligatorio
 
@@ -73,7 +75,9 @@ func Decode(instruccionAEjecutar string) (Instruccion, bool) {
 
 func Execute(instruccion Instruccion, requiereMMU bool) (string, error) {
 
-	global.LoggerCpu.Log(fmt.Sprintf("\033[36m## PID: %d - Ejecutando: %s - %s\033[0m", global.PCB_Actual.PID, instruccion.Opcode, instruccion.Parametros), log.INFO) //!! Instrucción Ejecutada - logObligatorio
+	global.MutexPCB.Lock()
+	global.LoggerCpu.Log(fmt.Sprintf("\033[36m## PID: %d - Ejecutando: %s - %s\033[0m", global.PCB_Actual.PID, instruccion.Opcode, instruccion.Parametros), log.INFO)
+	global.MutexPCB.Unlock() //!! Instrucción Ejecutada - logObligatorio
 
 	//todo INSTRUCCIONES SYSCALLS
 	if instruccion.Opcode == "IO" {
@@ -81,7 +85,9 @@ func Execute(instruccion Instruccion, requiereMMU bool) (string, error) {
 		global.Motivo = "IO"
 		global.Rafaga = float64(time.Since(tiempoInicio).Milliseconds())
 		Desalojo()
+		global.MutexPCB.Lock()
 		global.PCB_Actual.PC++
+		global.MutexPCB.Unlock()
 		cortoProceso()
 		Syscall_IO(instruccion)
 		return "", nil
@@ -92,31 +98,34 @@ func Execute(instruccion Instruccion, requiereMMU bool) (string, error) {
 		return "", nil
 	}
 	if instruccion.Opcode == "DUMP_MEMORY" {
-    sumarPC = false
-    global.Motivo = "DUMP"
-    global.Rafaga = float64(time.Since(tiempoInicio).Milliseconds())
-    global.PCB_Actual.PC++
-    cortoProceso()
-    Syscall_Dump_Memory()
-    Desalojo()
-
-    return "", nil
-}
+		sumarPC = false
+		global.Motivo = "DUMP"
+		global.Rafaga = float64(time.Since(tiempoInicio).Milliseconds())
+		global.MutexPCB.Lock()
+		global.PCB_Actual.PC++
+		global.MutexPCB.Unlock()
+		cortoProceso()
+		Syscall_Dump_Memory()
+		Desalojo()
+		return "", nil
+	}
 
 	if instruccion.Opcode == "EXIT" {
-    sumarPC = false
-	global.Motivo = "EXIT"
-	global.Rafaga = float64(time.Since(tiempoInicio).Milliseconds())
-	
-	pid := global.PCB_Actual.PID
+		sumarPC = false
+		global.Motivo = "EXIT"
+		global.Rafaga = float64(time.Since(tiempoInicio).Milliseconds())
 
-	Syscall_Exit()         // primero la syscall
-	DevolucionPID()        // luego la devolución
-	Desalojo()             // al final el borrado
+		global.MutexPCB.Lock()
+		pid := global.PCB_Actual.PID
+		global.MutexPCB.Unlock()
 
-	global.LoggerCpu.Log(fmt.Sprintf("\033[35mProceso %d finalizado (EXIT). Fin del ciclo\033[0m",pid), log.INFO)
-	return "EXIT", nil
-}
+		Syscall_Exit()         // primero la syscall
+		DevolucionPID()        // luego la devolución
+		Desalojo()             // al final el borrado
+
+		global.LoggerCpu.Log(fmt.Sprintf("\033[35mProceso %d finalizado (EXIT). Fin del ciclo\033[0m", pid), log.INFO)
+		return "EXIT", nil
+	}
 
 	//todo OTRAS INSTRUCCIONES
 	if instruccion.Opcode == "NOOP" {
@@ -134,7 +143,9 @@ func Execute(instruccion Instruccion, requiereMMU bool) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("error al convertir tiempo estimado")
 		}
+		global.MutexPCB.Lock()
 		global.PCB_Actual.PC = pcNuevo
+		global.MutexPCB.Unlock()
 		return "", nil
 	}
 
@@ -167,11 +178,12 @@ func Execute(instruccion Instruccion, requiereMMU bool) (string, error) {
 
 		if instruccion.Opcode == "WRITE" { // WRITE 0 EJEMPLO_DE_ENUNCIADO - WRITE (Dirección, Datos)
 			WRITE(instruccion, global.CacheHabilitada, desplazamiento, global.TlbHabilitada)
-		/* global.LoggerCpu.Log(fmt.Sprintf("Contenido CACHE: %v", global.CACHE), log.DEBUG)*/	
- 		}
+			/* global.LoggerCpu.Log(fmt.Sprintf("Contenido CACHE: %v", global.CACHE), log.DEBUG)*/
+		}
 	}
 	return "", nil
 }
+
 
 func CheckInterrupt() {
 	if global.Interrupcion {
@@ -180,11 +192,17 @@ func CheckInterrupt() {
 		global.Rafaga = float64(time.Since(tiempoInicio).Milliseconds())
 		Desalojo()
 		cortoProceso()
+
+		global.MutexPCB.Lock()
 		global.PCB_Actual = global.PCB_Interrupcion
+		global.MutexPCB.Unlock()
+
 		global.Interrupcion = false
 	} else {
 		if sumarPC {
+			global.MutexPCB.Lock()
 			global.PCB_Actual.PC = global.PCB_Actual.PC + 1
+			global.MutexPCB.Unlock()
 		}
 		global.LoggerCpu.Log("No hay interrupción", log.DEBUG)
 	}
