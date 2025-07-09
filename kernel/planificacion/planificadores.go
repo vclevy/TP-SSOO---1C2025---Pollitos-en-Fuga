@@ -65,6 +65,7 @@ func CrearProceso(tamanio int, archivoPseudoCodigo string) *Proceso {
 }
 
 func ActualizarEstadoPCB(pcb *PCB, nuevoEstado string) {
+	
 	ahora := time.Now()
 
 	if pcb.UltimoEstado != "" {
@@ -295,7 +296,9 @@ func AsignarCPU(proceso *global.Proceso) bool {
 
 	if proceso.PCB.UltimoEstado != EXEC {
 
+		proceso.MutexPCB.Lock()
 		ActualizarEstadoPCB(&proceso.PCB, EXEC)
+		proceso.MutexPCB.Unlock()
 		global.AgregarAExecuting(proceso)
 
 		go func(cpu *global.CPU, proceso *global.Proceso) {
@@ -342,8 +345,10 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 		return
 	}
 
+	proceso.MutexPCB.Lock()
 	proceso.TiempoEjecutado += resp.RafagaReal
 	proceso.PCB.PC = resp.PC
+	proceso.MutexPCB.Unlock()
 	RecalcularRafaga(proceso, resp.RafagaReal)
 	global.LoggerKernel.Log(fmt.Sprintf("[DEBUG] Asignando a CPU proceso PID %d con PC %d", proceso.PID, proceso.PC), log.DEBUG)
 
@@ -360,8 +365,9 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 		global.MutexExecuting.Lock()
 		global.EliminarProcesoDeCola(&global.ColaExecuting, proceso.PID)
 		global.MutexExecuting.Unlock()
-
+		proceso.MutexPCB.Lock()
 		ActualizarEstadoPCB(&proceso.PCB, READY)
+		proceso.MutexPCB.Unlock()
 		global.AgregarAReady(proceso)
 
 	case "DUMP":
@@ -369,7 +375,9 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 		global.MutexExecuting.Lock()
 		global.EliminarProcesoDeCola(&global.ColaExecuting, proceso.PID)
 		global.MutexExecuting.Unlock()
+		proceso.MutexPCB.Lock()
 		ActualizarEstadoPCB(&proceso.PCB, BLOCKED)
+		proceso.MutexPCB.Unlock()
 		global.AgregarABlocked(proceso)
 	}
 

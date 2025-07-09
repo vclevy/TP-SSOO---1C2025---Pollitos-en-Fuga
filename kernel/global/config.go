@@ -26,6 +26,8 @@ type Proceso struct {
     ArchivoPseudo     string
     EstimacionRafaga  float64
     TiempoEjecutado   float64 
+	MutexPCB 		  sync.Mutex
+
 }
 
 func NuevoPCB() *PCB {
