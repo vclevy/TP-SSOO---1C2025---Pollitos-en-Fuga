@@ -37,11 +37,6 @@ func CicloDeInstruccion() bool {
 }
 
 func Fetch() string {
-	if global.PCB_Actual == nil { //A
-		global.LoggerCpu.Log("ERROR: PCB_Actual es nil en Fetch", log.ERROR)
-		return ""
-	}
-
 	pidActual := global.PCB_Actual.PID
 	pcActual := global.PCB_Actual.PC
 
@@ -77,10 +72,6 @@ func Decode(instruccionAEjecutar string) (Instruccion, bool) {
 }
 
 func Execute(instruccion Instruccion, requiereMMU bool) (string, error) {
-	if global.PCB_Actual == nil { //A
-	global.LoggerCpu.Log("ERROR: PCB_Actual es nil en Execute", log.ERROR)
-	return "", fmt.Errorf("PCB_Actual es nil")
-	}
 
 	global.LoggerCpu.Log(fmt.Sprintf("\033[36m## PID: %d - Ejecutando: %s - %s\033[0m", global.PCB_Actual.PID, instruccion.Opcode, instruccion.Parametros), log.INFO) //!! Instrucción Ejecutada - logObligatorio
 
