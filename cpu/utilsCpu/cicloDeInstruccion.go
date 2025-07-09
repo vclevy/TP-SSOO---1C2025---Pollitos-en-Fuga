@@ -75,7 +75,9 @@ func Decode(instruccionAEjecutar string) (Instruccion, bool) {
 func Execute(instruccion Instruccion, requiereMMU bool) (string, error) {
 
 	global.LoggerCpu.Log(fmt.Sprintf("\033[36m## PID: %d - Ejecutando: %s - %s\033[0m", global.PCB_Actual.PID, instruccion.Opcode, instruccion.Parametros), log.INFO) //!! Instrucción Ejecutada - logObligatorio
-
+	if global.PCB_Actual == nil {
+		return "", fmt.Errorf("PCB_Actual es nil: no se puede ejecutar instrucción")
+	}
 	if instruccion.Opcode == "IO" {
 		sumarPC = false
 		global.Motivo = "IO"
@@ -145,8 +147,6 @@ func Execute(instruccion Instruccion, requiereMMU bool) (string, error) {
 		global.LoggerCpu.Log(fmt.Sprintf("\033[35mProceso %d finalizado (EXIT). Fin del ciclo\033[0m", pid), log.INFO)
 		return "EXIT", nil
 	}
-
-	//todo OTRAS INSTRUCCIONES
 	if instruccion.Opcode == "NOOP" {
 		sumarPC = true
 		return "", nil
@@ -166,7 +166,6 @@ func Execute(instruccion Instruccion, requiereMMU bool) (string, error) {
 		return "", nil
 	}
 
-	//todo INSTRUCCIONES MMU
 	if requiereMMU {
 		sumarPC = true
 		var desplazamiento int

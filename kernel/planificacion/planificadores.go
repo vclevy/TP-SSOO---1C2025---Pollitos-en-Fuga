@@ -297,7 +297,7 @@ func AsignarCPU(proceso *global.Proceso) bool {
 		global.AgregarAExecuting(proceso)
 
 		go func(cpu *global.CPU, proceso *global.Proceso) {
-			err := utilskernel.EnviarADispatch(cpu, proceso.PCB.PID, proceso.PCB.PC)
+				err := utilskernel.EnviarADispatch(cpu, proceso.PCB.PID, proceso.PCB.PC)
 			if err != nil {
 				global.LoggerKernel.Log(fmt.Sprintf("[ERROR] Error en dispatch de proceso %d a CPU %s: %v", proceso.PID, cpu.ID, err), log.ERROR)
 
@@ -357,7 +357,6 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 	if err != nil {
 		global.LoggerKernel.Log(fmt.Sprintf("Error en syscall IO del PID %d: %v", proceso.PID, err), log.ERROR)
 	}
-
 
 	case "READY":
 		utilskernel.SacarProcesoDeCPU(proceso.PID)

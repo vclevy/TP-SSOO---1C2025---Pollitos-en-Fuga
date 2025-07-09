@@ -186,7 +186,7 @@ func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	pid := mensaje.PID
-	global.LoggerKernel.Log(fmt.Sprintf("[DEBUG] Finalizó IO del PID: %d", pid), log.DEBUG)
+	global.LoggerKernel.Log(fmt.Sprintf("Finalizó IO del PID: %d", pid), log.DEBUG)
 
 	dispositivo := utilsKernel.BuscarDispositivoPorPID(pid)
 	if dispositivo == nil {

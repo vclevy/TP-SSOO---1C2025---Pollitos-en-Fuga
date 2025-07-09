@@ -327,5 +327,5 @@ func SacarProcesoDeCPU(pid int) {
 		}
 	}
 
-	global.LoggerKernel.Log(fmt.Sprintf("[WARN] No se encontró CPU ejecutando proceso PID %d para liberar", pid), log.INFO)
+	//global.LoggerKernel.Log(fmt.Sprintf("[WARN] No se encontró CPU ejecutando proceso PID %d para liberar", pid), log.DEBUG)
 }
