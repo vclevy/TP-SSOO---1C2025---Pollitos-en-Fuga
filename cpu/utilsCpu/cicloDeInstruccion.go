@@ -50,7 +50,7 @@ func Fetch() string {
 
 	var instruccionAEjecutar = instruccionAEjecutar(solicitudInstruccion)
 
-	global.LoggerCpu.Log(fmt.Sprintf("Memoria respondió con la instrucción: %s", instruccionAEjecutar), log.INFO)
+	/* global.LoggerCpu.Log(fmt.Sprintf("Memoria respondió con la instrucción: %s", instruccionAEjecutar), log.INFO) */
 
 	return instruccionAEjecutar
 }

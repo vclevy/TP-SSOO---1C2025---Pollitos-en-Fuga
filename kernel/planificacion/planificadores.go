@@ -260,6 +260,7 @@ func evaluarDesalojoSRTF(nuevoProceso *global.Proceso) bool {
 
 	return false
 }
+
 func AsignarCPU(proceso *global.Proceso) bool {
 	if proceso.PCB.UltimoEstado == EXIT {
 		global.LoggerKernel.Log(fmt.Sprintf("No se puede asignar PID %d, ya está finalizado", proceso.PID), log.ERROR)

@@ -118,7 +118,7 @@ func cortoProceso() error {
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("devolución proceso fallido con status %d", resp.StatusCode)
 	}
-	global.LoggerCpu.Log("✅ Devolución proceso enviado a Kernel con éxito", log.INFO)
+	/* global.LoggerCpu.Log("✅ Devolución proceso enviado a Kernel con éxito", log.INFO) */
 	return nil
 }
 

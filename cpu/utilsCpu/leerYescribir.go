@@ -48,14 +48,14 @@ func READ(instruccion Instruccion, cacheHabilitada bool, desplazamiento int, tlb
 			lectura := paginaCompleta[desplazamiento : desplazamiento+tamanio]
 			stringLectura := strings.TrimRight(string(lectura), "\x00")
 
-			global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: LEER CACHÉ - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, 0, stringLectura), log.INFO) //!! LECTURA SIN ACCEDER A MEMORIA (Desde caché)
+			global.LoggerCpu.Log(fmt.Sprintf("\033[36mPID: %d - Acción: LEER CACHÉ - Dirección Física: %d - Valor: %s\033[0m", global.PCB_Actual.PID, 0, stringLectura), log.INFO) //!! LECTURA SIN ACCEDER A MEMORIA (Desde caché)
 
 		} else { //CACHE MISS
 			indice, dirFisicaSinDespl := actualizarCACHE()
 			paginaCompleta := global.CACHE[indice].Contenido
 			lectura := paginaCompleta[desplazamiento : desplazamiento+tamanio]
 			stringLectura := strings.TrimRight(string(lectura), "\x00")
-			global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: LEER - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, dirFisicaSinDespl+desplazamiento, stringLectura), log.INFO)
+			global.LoggerCpu.Log(fmt.Sprintf("\033[36mPID: %d - Acción: LEER - Dirección Física: %d - Valor: %s\033[0m", global.PCB_Actual.PID, dirFisicaSinDespl+desplazamiento, stringLectura), log.INFO)
 		}
 	} else { //CACHE DESHABILITADA
 		marco := CalcularMarco(nroPagina)

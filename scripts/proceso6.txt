@@ -1,3 +1,0 @@
-INIT_PROC proceso1.txt 100
-IO disco 10000
-EXIT
