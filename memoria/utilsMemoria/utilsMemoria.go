@@ -286,13 +286,11 @@ func EncontrarMarco(pid int, entradas []int) int {
 	if actual == nil {
 		return -1 // error: no hay raíz
 	}
-	//fmt.Printf("Entradas: %v (len = %d), cantNiveles = %d\n", entradas, len(entradas),  CantNiveles)
+	
 
 	for i := 0; i < len(entradas); i++ {
 
 		idx := entradas[i]
-
-		//fmt.Printf("→ Nivel %d, idx %d, tabla len = %d\n", i+1, idx, len(actual.SiguienteNivel))
 
 		//si esta fuera de rango
 		if idx < 0 || idx >= len(actual.SiguienteNivel) {

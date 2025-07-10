@@ -27,7 +27,7 @@ func Interrupcion(w http.ResponseWriter, r *http.Request) {
 
 	global.Interrupcion = true
 	
-	global.LoggerCpu.Log(("\033[36m## Llega interrupción al puerto Interrupt\033[0m"), log.INFO) //!! Interrupción Recibida - logObligatorio
+	global.LoggerCpu.Log(("## Llega interrupción al puerto Interrupt"), log.INFO) //!! Interrupción Recibida - logObligatorio
 }
 
 

@@ -21,7 +21,6 @@ type LoggerStruct struct {
 	environment string
 }
 
-// Permite definir el formato de los logs (en modo prod no se ve los logs DEBUG)
 func (l *LoggerStruct) Log(message string, level LogLevel) {
 	if l.environment == "prod" && level == "DEBUG" {
 		return
@@ -35,7 +34,6 @@ func (l *LoggerStruct) CloseLogger() {
 	l.LogFile.Close()
 }
 
-// Inicializo el log segun el archivo que le mande
 func ConfigurarLogger(filename, env string) *LoggerStruct {
 	logFile, err := os.OpenFile(filename, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
 	if err != nil {

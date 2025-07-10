@@ -31,15 +31,6 @@ var estado = []string{
 	SUSP_BLOCKED,
 }
 
-const (
-	ColorReset  = "\033[0m"
-	ColorRed    = "\033[31m"
-	ColorGreen  = "\033[32m"
-	ColorYellow = "\033[33m"
-	ColorBlue   = "\033[34m"
-	ColorOrange = "\033[38;5;208m" // naranja aproximado usando color 256
-)
-
 type PCB = global.PCB
 type Proceso = global.Proceso
 
@@ -59,7 +50,7 @@ func CrearProceso(tamanio int, archivoPseudoCodigo string) *Proceso {
 		EstimacionRafaga: float64(global.ConfigKernel.InitialEstimate),
 	}
 
-	global.LoggerKernel.Log(ColorYellow+fmt.Sprintf("## (%d) Se crea el proceso - Estado: NEW", pcb.PID)+ColorReset, log.INFO)
+	global.LoggerKernel.Log(fmt.Sprintf("## (%d) Se crea el proceso - Estado: NEW", pcb.PID), log.INFO)
 	global.AgregarANew(&proceso)
 	return &proceso
 }
@@ -193,11 +184,16 @@ func IniciarPlanificadorCortoPlazo() {
 
 			
 			if global.ConfigKernel.SchedulerAlgorithm == "SRTF" {
+				ejecutando := global.ColaExecuting[0]
+				estimacionEjecutando := EstimacionRestante(ejecutando)
+				estimacionNuevo := EstimacionRestante(nuevoProceso)
+
+				global.LoggerKernel.Log(fmt.Sprintf("[DEBUG] [SRTF] Evaluando desalojo: Ejecutando PID %d (%.2f ms) vs Nuevo PID %d (%.2f ms)",ejecutando.PCB.PID, estimacionEjecutando,nuevoProceso.PCB.PID, estimacionNuevo,), log.DEBUG)
 			
 				if evaluarDesalojoSRTF(nuevoProceso) {
 					// Se pidió un desalojo, esperamos a que se libere CPU
 					global.LoggerKernel.Log(fmt.Sprintf("Se solicitó desalojo para asignar PID %d (SRTF)", nuevoProceso.PCB.PID), log.DEBUG)
-					break // no continuar hasta que se libere CPU
+					break 
 				}
 				global.LoggerKernel.Log(fmt.Sprintf("No hay tal desalojo para PID %d (SRTF)", nuevoProceso.PCB.PID), log.DEBUG)
 			}
@@ -244,7 +240,7 @@ func evaluarDesalojoSRTF(nuevoProceso *global.Proceso) bool {
 
 	restanteNuevo := EstimacionRestante(nuevoProceso)
 	var candidatoDesalojo *global.Proceso
-	var minRestante float64 = 1<<63 - 1 // número grande
+	var minRestante float64 = 1<<63 - 1 
 
 	for _, ejecutando := range global.ColaExecuting {
 		restanteEjecutando := EstimacionRestante(ejecutando)
@@ -289,7 +285,7 @@ func AsignarCPU(proceso *global.Proceso) bool {
 	for _, cpu := range global.CPUsConectadas {
 		if cpu.ProcesoEjecutando == nil {
 			cpuLibre = cpu
-			cpu.ProcesoEjecutando = &proceso.PCB // asignación protegida
+			cpu.ProcesoEjecutando = &proceso.PCB 
 			break
 		}
 	}
@@ -301,18 +297,15 @@ func AsignarCPU(proceso *global.Proceso) bool {
 		return false
 	}
 
-	// Remover de READY
 	global.MutexReady.Lock()
 	global.EliminarProcesoDeCola(&global.ColaReady, proceso.PID)
 	global.MutexReady.Unlock()
 
-	// Pasar a EXEC
 	if proceso.PCB.UltimoEstado != EXEC {
 		ActualizarEstadoPCB(&proceso.PCB, EXEC)
 		global.AgregarAExecuting(proceso)
 	}
 
-	// Enviar a CPU (sin goroutine)
 	err := utilskernel.EnviarADispatch(cpuLibre, proceso.PCB.PID, proceso.PCB.PC)
 	if err != nil {
 		global.LoggerKernel.Log(fmt.Sprintf("Error en dispatch de proceso %d a CPU %s: %v", proceso.PID, cpuLibre.ID, err), log.ERROR)
@@ -336,7 +329,6 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 
 	global.LoggerKernel.Log(fmt.Sprintf("Kernel recibe proceso PID %d con PC %d", resp.PID, resp.PC), log.DEBUG)
 
-	// Acceso sincronizado a ColaExecuting y CPUsConectadas
 	global.MutexExecuting.Lock()
 	global.MutexCPUs.Lock()
 
@@ -360,7 +352,6 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 		return
 	}
 
-	// Actualizar datos del proceso
 	proceso.TiempoEjecutado += resp.RafagaReal
 	proceso.PCB.PC = resp.PC
 	RecalcularRafaga(proceso, resp.RafagaReal)
@@ -369,7 +360,7 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 
 	switch resp.Motivo {
 	case "EXIT":
-		global.LoggerKernel.Log(ColorRed+"## ("+strconv.Itoa(proceso.PID)+") - Solicitó syscall: <EXIT>"+ColorReset, log.INFO)
+		global.LoggerKernel.Log("## ("+strconv.Itoa(proceso.PID)+") - Solicitó syscall: <EXIT>", log.INFO)
 		utilskernel.SacarProcesoDeCPU(proceso.PID)
 		FinalizarProceso(proceso)
 
@@ -400,7 +391,7 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 		ActualizarEstadoPCB(&proceso.PCB, BLOCKED)
 		global.AgregarABlocked(proceso)
 
-		global.LoggerKernel.Log(ColorOrange+"## ("+strconv.Itoa(proceso.PID)+") - Solicitó syscall: <DUMP_MEMORY>"+ColorReset, log.INFO)
+		global.LoggerKernel.Log("## ("+strconv.Itoa(proceso.PID)+") - Solicitó syscall: <DUMP_MEMORY>", log.INFO)
 
 		err := utilskernel.SolicitarDumpAMemoria(proceso.PID)
 		if err != nil {
@@ -428,16 +419,16 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 }
 
 func ManejarSolicitudIO(pid int, nombre string, tiempoUso int) error {
-	global.LoggerKernel.Log(ColorBlue+"## ("+strconv.Itoa(pid)+") - Solicitó syscall: <IO>"+ColorReset, log.INFO)
+	global.LoggerKernel.Log("## ("+strconv.Itoa(pid)+") - Solicitó syscall: <IO>", log.INFO)
 
 	global.IOListMutex.Lock()
 	dispositivos := utilskernel.ObtenerDispositivoIO(nombre)
 	global.IOListMutex.Unlock()
 
-	global.MutexExecuting.Lock() //Muevo
+	global.MutexExecuting.Lock() 
 	proceso := utilskernel.BuscarProcesoPorPID(global.ColaExecuting, pid)
 	if proceso == nil {
-		global.MutexExecuting.Unlock() //Actualizo esto xq sino nunca sale del lock
+		global.MutexExecuting.Unlock() 
 		return fmt.Errorf("no se pudo obtener el proceso en EXECUTING (PID %d)", pid)
 	}
 
@@ -458,7 +449,6 @@ func ManejarSolicitudIO(pid int, nombre string, tiempoUso int) error {
 	ActualizarEstadoPCB(&proceso.PCB, BLOCKED)
 	global.AgregarABlocked(proceso)
 
-	// buscar un dispositivo libre
 	for _, dispositivo := range dispositivos {
 		dispositivo.Mutex.Lock()
 		if !dispositivo.Ocupado {
@@ -571,7 +561,7 @@ func FinalizarProceso(p *Proceso) {
 
 	_ = IntentarCargarDesdeSuspReady()
 
-	// 2. Siempre notificar al planificador de largo plazo para intentar NEW
+	// Siempre notificar al planificador de largo plazo para intentar NEW
 	select {
 	case global.NotifyNew <- struct{}{}:
 	default:
@@ -619,7 +609,6 @@ func RecalcularRafaga(proceso *Proceso, rafagaReal float64) {
 }
 
 func suspenderProceso(proceso *global.Proceso) {
-	// Verificar que el proceso aún siga en BLOCKED antes de continuar
 	if proceso.PCB.UltimoEstado != BLOCKED {
 		return
 	}
@@ -642,7 +631,7 @@ func suspenderProceso(proceso *global.Proceso) {
 
 	select {
 	case global.NotifySuspReady <- struct{}{}:
-	default: // si ya había señal pendiente, no bloquear
+	default: 
 	}
 }
 

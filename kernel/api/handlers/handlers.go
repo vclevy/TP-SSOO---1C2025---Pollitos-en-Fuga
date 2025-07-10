@@ -14,15 +14,6 @@ import (
 	log "github.com/sisoputnfrba/tp-golang/utils/logger"
 )
 
-const (
-	ColorReset  = "\033[0m"
-	ColorRed    = "\033[31m"
-	ColorGreen  = "\033[32m"
-	ColorYellow = "\033[33m"
-	ColorBlue   = "\033[34m"
-	ColorOrange = "\033[38;5;208m" // naranja aproximado usando color 256
-)
-
 type PaqueteHandshakeIO = estructuras.PaqueteHandshakeIO
 type IODevice = global.IODevice
 type PCB = planificacion.PCB
@@ -83,7 +74,7 @@ func INIT_PROC(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	global.LoggerKernel.Log(ColorGreen+"## ("+strconv.Itoa(syscall.PID)+") - Solicitó syscall: <INIT_PROC>"+ColorReset, log.INFO)
+	global.LoggerKernel.Log("## ("+strconv.Itoa(syscall.PID)+") - Solicitó syscall: <INIT_PROC>", log.INFO)
 	planificacion.CrearProceso(syscall.Tamanio, syscall.ArchivoInstrucciones)
 	//el log ya lo hace crearProceso
 

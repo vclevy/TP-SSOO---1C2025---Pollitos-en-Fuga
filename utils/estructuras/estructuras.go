@@ -1,6 +1,4 @@
 package estructuras
-
-// esto se lo manda el kernel a memoria cuando quiere inicializar un proceso
 type PaqueteMemoria struct {
 	PID                 int    `json:"pid"`
 	ArchivoPseudocodigo string `json:"archivoPseudocodigo"`
@@ -15,10 +13,10 @@ type IOData struct {
 }
 type MensajeIO struct {
 	NombreIO string `json:"nombre_io"`
-	Evento   string `json:"evento"` // "registro", "fin", "desconexion"
-	PID      int    `json:"pid"`    // Opcional, solo si es fin
-	IP       string `json:"ip"`     // Solo para registro
-	Puerto   int    `json:"puerto"` // Solo para registro
+	Evento   string `json:"evento"` 
+	PID      int    `json:"pid"`    
+	IP       string `json:"ip"`    
+	Puerto   int    `json:"puerto"` 
 }
 
 type PaqueteHandshakeIO struct {
@@ -32,8 +30,6 @@ type ConfiguracionMMU struct {
 	Cant_entradas_tabla int `json:"cant_entradas_tabla"`
 	Cant_N_Niveles      int `json:"cant_N_Niveles"`
 }
-
-// Syscalls
 type Syscall_IO struct {
 	IoSolicitada   string `json:"ioSolicitada"`
 	TiempoEstimado int    `json:"tiempoEstimado"`
@@ -67,9 +63,9 @@ type RespuestaCPU struct {
 	PC         int       `json:"PC"`
 	Motivo     string    `json:"Motivo"`
 	RafagaReal float64   `json:"RafagaReal"`
-	IO         Syscall_IO `json:"IO"` // <-- nuevo campo
-/* 	InitProc 	Syscall_Init_Proc `json:"InicProc"`// <-- nuevo campo
- */}
+	IO         Syscall_IO `json:"IO"` 
+/* 	InitProc 	Syscall_Init_Proc `json:"InicProc"`// <-- nuevo campo */
+}
 
 type PCB struct {
 	PID int `json:"pid"`

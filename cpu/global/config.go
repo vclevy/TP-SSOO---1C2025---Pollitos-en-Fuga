@@ -62,7 +62,7 @@ func InitGlobal(idCPU string, configPath string) {
 
 	// 3. Inicializar archivo logger
 	LoggerCpu = log.ConfigurarLogger(logFileName, CpuConfig.LogLevel)
-	LoggerCpu.Log("Logger de CPU inicializado", log.INFO)
+	LoggerCpu.Log("Logger de CPU inicializado", log.DEBUG)
 
 	CacheHabilitada = CpuConfig.CacheEntries > 0
 	TlbHabilitada = CpuConfig.TlbEntries > 0

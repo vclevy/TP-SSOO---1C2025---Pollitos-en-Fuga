@@ -12,6 +12,7 @@ var ConfigKernel *Config
 var LoggerKernel *logger.LoggerStruct
 var UltimoPID int = 0
 var MutexUltimoPID sync.Mutex
+
 type PCB struct {
 	PID          int
 	PC           int
@@ -99,7 +100,7 @@ func AgregarANew(p *Proceso) {
 
 	select {
 	case NotifyNew <- struct{}{}:
-	default: // si ya había señal pendiente, no bloquear
+	default: 
 	}
 }
 
@@ -112,7 +113,7 @@ func AgregarAReady(p *Proceso) {
 
 	select {
 	case NotifyReady <- struct{}{}:
-	default: // si ya había señal pendiente, no bloquear
+	default: 
 	}
 }
 
