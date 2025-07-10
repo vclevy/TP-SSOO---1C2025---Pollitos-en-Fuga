@@ -264,7 +264,10 @@ func evaluarDesalojoSRTF(nuevoProceso *global.Proceso) bool {
 			global.LoggerKernel.Log(fmt.Sprintf("No se encontró CPU ejecutando proceso %d para interrupción", ejecutando.PCB.PID), log.ERROR)
 		}
 		return true
-	}
+		}else {
+    		global.LoggerKernel.Log(fmt.Sprintf(
+        	"No se desaloja: PID %d (%.2f ms) no es menor que ejecutando PID %d (%.2f ms)", nuevoProceso.PCB.PID, restanteNuevo, ejecutando.PCB.PID, restanteEjecutando,), log.DEBUG)
+		}
 
 	return false
 }
