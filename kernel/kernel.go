@@ -3,7 +3,9 @@ package main
 import (
 	"fmt"
 	"os"
+	//"runtime"
 	"strconv"
+
 	"github.com/sisoputnfrba/tp-golang/kernel/api"
 	"github.com/sisoputnfrba/tp-golang/kernel/global"
 	"github.com/sisoputnfrba/tp-golang/kernel/planificacion"
@@ -11,7 +13,7 @@ import (
 )
 
 func main() {
-
+	//runtime.GOMAXPROCS(runtime.NumCPU())
 	archivoConfig := os.Args[1]
 	global.InitGlobal(archivoConfig)
 	defer global.LoggerKernel.CloseLogger()

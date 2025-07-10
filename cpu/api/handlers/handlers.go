@@ -30,7 +30,6 @@ func Interrupcion(w http.ResponseWriter, r *http.Request) {
 	global.LoggerCpu.Log(("\033[36m## Llega interrupción al puerto Interrupt\033[0m"), log.DEBUG) //!! Interrupción Recibida - logObligatorio
 }
 
-
 func NuevoPCB(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
@@ -38,18 +37,20 @@ func NuevoPCB(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var data estructuras.PCB
+
 	if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
 		http.Error(w, "Error al leer el cuerpo de la solicitud", http.StatusBadRequest)
 		return
 	}
 
+
 	global.PCB_Actual = &data
-	global.LoggerCpu.Log(fmt.Sprintf("Fue asignado un nuevo proceso con PID %d y PC: %d", data.PID, data.PC), log.DEBUG)
-
-	// ✅ RESPONDE AL KERNEL ANTES DE EJECUTAR
-	w.WriteHeader(http.StatusOK)
-
-	// ✅ Ahora ejecutás el ciclo normalmente
+	pid := global.PCB_Actual.PID
+	pc := global.PCB_Actual.PC
+	
+	global.LoggerCpu.Log(fmt.Sprintf("Fue asignado un nuevo proceso con PID %d y PC: %d", pid, pc), log.DEBUG)
+	
+	
 	for utilsIo.CicloDeInstruccion() {
 	}
 }

@@ -98,8 +98,6 @@ func cortoProceso() error {
 		PC:         global.PCB_Actual.PC,
 		Motivo:     global.Motivo,
 		RafagaReal: global.Rafaga,
-		IO:         global.IO_Request,
-		/* InitProc:	global.Init_Proc, */
 	}
 
 	jsonData, err := json.Marshal(datosEnvio)

@@ -34,5 +34,6 @@ func InitGlobal(configPath string) {
 
 var MutexMemoriaUsuario sync.Mutex
 var MutexSwap sync.Mutex
-var MutexInstrucciones sync.Mutex
+var MutexInstrucciones sync.RWMutex
 var MutexMarcos sync.Mutex
+var MutexMetricas sync.Mutex

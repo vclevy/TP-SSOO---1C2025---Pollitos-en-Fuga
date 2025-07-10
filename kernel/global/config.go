@@ -26,6 +26,8 @@ type Proceso struct {
     ArchivoPseudo     string
     EstimacionRafaga  float64
     TiempoEjecutado   float64 
+	MutexPCB 		  sync.Mutex
+
 }
 
 func NuevoPCB() *PCB {
@@ -177,11 +179,4 @@ func EliminarProcesoDeCola(cola *[]*Proceso, pid int) bool {
 		}
 	}
 	return false
-}
-
-func NotificarReady() {
-	select {
-	case NotifyReady <- struct{}{}:
-	default:
-	}
 }

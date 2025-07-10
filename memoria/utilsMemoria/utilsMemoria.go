@@ -84,9 +84,11 @@ func InicializarMemoria() {
 }
 
 func InicializarMetricas (pid int) {
+	global.MutexMetricas.Lock()
 	if metricas[pid] == nil {
 		metricas[pid] = &MetricasProceso{}
 	}	
+	global.MutexMetricas.Unlock()
 }
 
 //---------------------------------------------------------------------CASOS DE USO---------------------------------------------------------------------
@@ -174,7 +176,9 @@ func FinalizarProceso(pid int) string{
 	delete(TablasPorProceso, pid)
 
 	//devolver metricas
+	global.MutexMetricas.Lock()
 	m := metricas[pid]
+	global.MutexMetricas.Unlock()
 
 	metricasLoggear :=
 		"Acc.T.Pag: " + strconv.Itoa(m.AcesosTP) + "; " +
@@ -184,7 +188,9 @@ func FinalizarProceso(pid int) string{
 		"Lec.Mem.: " + strconv.Itoa(m.LecturasMemo) + "; " +
 		"Esc.Mem.: " + strconv.Itoa(m.EscriturasMemo) + ";"
 
+		global.MutexMetricas.Lock()
 		delete(metricas,pid)
+		global.MutexMetricas.Unlock()
 
 		return metricasLoggear
 }
@@ -197,7 +203,9 @@ func LeerMemoria(pid int, direccionFisica int, tamanio int) []byte {
 	datos := MemoriaUsuario[direccionFisica : direccionFisica+tamanio] 
 	global.MutexMemoriaUsuario.Unlock()
 
+	global.MutexMetricas.Lock()
 	metricas[pid].LecturasMemo++
+	global.MutexMetricas.Unlock()
 
 	return datos
 }
@@ -228,7 +236,9 @@ func EscribirDatos(pid int, direccionFisica int, datos []byte) {
     copy(MemoriaUsuario[direccionFisica:], datos)
 	global.MutexMemoriaUsuario.Unlock()
 
+	global.MutexMetricas.Lock()
     metricas[pid].EscriturasMemo++
+	global.MutexMetricas.Unlock()
 }
 
 func ActualizarPaginaCompleta (pid int, direccionFisica int, datos []byte) {
@@ -249,7 +259,9 @@ func ActualizarPaginaCompleta (pid int, direccionFisica int, datos []byte) {
     copy(MemoriaUsuario[direccionFisica:direccionFisica+TamPagina], datos)
 	global.MutexMemoriaUsuario.Unlock()
 
+	global.MutexMetricas.Lock()
     metricas[pid].EscriturasMemo++
+	global.MutexMetricas.Unlock()
 }
 
 
@@ -261,8 +273,11 @@ func ObtenerInstruccion(pid int, pc int) (string, error) { //ESTO SIRVE PARA CPU
 	if pc < 0 || pc >= len(instrucciones) { //Si PC es menor a 0 o mayor al lista de instrucciones -> ERROR
 		return "", fmt.Errorf("PC %d fuera de rango", pc)
 	}
+
+	global.MutexMetricas.Lock()
 	metricas[pid].InstruccionesSolicitadas++
-	
+	global.MutexMetricas.Unlock()
+
 	return instrucciones[pc], nil
 	
 }
@@ -300,7 +315,9 @@ func EncontrarMarco(pid int, entradas []int) int {
 
 		time.Sleep(time.Millisecond * time.Duration(global.ConfigMemoria.Memory_delay))
 
+		global.MutexMetricas.Lock()
 		metricas[pid].AcesosTP++
+		global.MutexMetricas.Unlock()
 	}
 
 	if !actual.Presente {
@@ -584,6 +601,8 @@ func HayLugar(tamanio int)(bool){
 }
 
 func ListaDeInstrucciones(pid int) ([]string) {
+	global.MutexInstrucciones.RLock()
+	defer global.MutexInstrucciones.RUnlock()
     return *instruccionesProcesos[pid]
 }
 
