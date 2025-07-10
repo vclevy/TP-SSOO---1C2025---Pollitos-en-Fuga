@@ -348,9 +348,16 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 		return
 	}
 
-	proceso.TiempoEjecutado += resp.RafagaReal
 	proceso.PCB.PC = resp.PC
+
+	// Guardamos estimación previa para calcular el restante después
+	estimacionAnterior := proceso.EstimacionRafaga
+
+	// Actualizamos la estimación
 	RecalcularRafaga(proceso, resp.RafagaReal)
+
+	// Solo después acumulamos el tiempo real ejecutado
+	proceso.TiempoEjecutado += resp.RafagaReal
 
 	global.LoggerKernel.Log(
 		fmt.Sprintf("PID %d - Ráfaga ejecutada: %.2f ms | Total ejecutado: %.2f ms",
@@ -358,7 +365,10 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 		log.DEBUG,
 	)
 
-	restante := EstimacionRestante(proceso)
+	restante := estimacionAnterior - proceso.TiempoEjecutado
+	if restante < 0 {
+		restante = 0
+	}
 	global.LoggerKernel.Log(
 		fmt.Sprintf("PID %d - Estimación restante: %.2f ms", proceso.PID, restante),
 		log.DEBUG,
@@ -375,9 +385,6 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 	case "IO":
 		utilskernel.SacarProcesoDeCPU(proceso.PID)
 		ManejarSolicitudIO(resp.PID, resp.IO.IoSolicitada, resp.IO.TiempoEstimado)
-		//if err != nil {
-			//global.LoggerKernel.Log(fmt.Sprintf("Error en syscall IO del PID %d: %v", proceso.PID, err), log.ERROR)
-		//}
 
 	case "READY":
 		utilskernel.SacarProcesoDeCPU(proceso.PID)
@@ -419,12 +426,11 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 			global.AgregarAReady(proceso)
 			global.LoggerKernel.Log("AGREGAR A READY (desde syscall DUMP)", log.DEBUG)
 		}
-
 	}
 
 	global.NotificarReady()
-
 }
+
 
 func ManejarSolicitudIO(pid int, nombre string, tiempoUso int) error {
 	global.LoggerKernel.Log("## ("+strconv.Itoa(pid)+") - Solicitó syscall: <IO>", log.INFO)
