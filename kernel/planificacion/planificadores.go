@@ -266,7 +266,6 @@ func evaluarDesalojoSRTF(nuevoProceso *global.Proceso) bool {
 
 	return false
 }
-
 func AsignarCPU(proceso *global.Proceso) bool {
 	if proceso.PCB.UltimoEstado == EXIT {
 		global.LoggerKernel.Log(fmt.Sprintf("No se puede asignar PID %d, ya está finalizado", proceso.PID), log.ERROR)
@@ -281,7 +280,7 @@ func AsignarCPU(proceso *global.Proceso) bool {
 	for _, cpu := range global.CPUsConectadas {
 		if cpu.ProcesoEjecutando == nil {
 			cpuLibre = cpu
-			cpu.ProcesoEjecutando = &proceso.PCB 
+			cpu.ProcesoEjecutando = &proceso.PCB
 			break
 		}
 	}
@@ -297,10 +296,11 @@ func AsignarCPU(proceso *global.Proceso) bool {
 	global.EliminarProcesoDeCola(&global.ColaReady, proceso.PID)
 	global.MutexReady.Unlock()
 
+	// ✅ Siempre agregar a EXEC y actualizar estado si es necesario
 	if proceso.PCB.UltimoEstado != EXEC {
 		ActualizarEstadoPCB(&proceso.PCB, EXEC)
-		global.AgregarAExecuting(proceso)
 	}
+	global.AgregarAExecuting(proceso)
 
 	err := utilskernel.EnviarADispatch(cpuLibre, proceso.PCB.PID, proceso.PCB.PC)
 	if err != nil {
@@ -319,6 +319,7 @@ func AsignarCPU(proceso *global.Proceso) bool {
 
 	return true
 }
+
 
 func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 	var proceso *global.Proceso
@@ -348,9 +349,18 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 		return
 	}
 
-	proceso.TiempoEjecutado += resp.RafagaReal
 	proceso.PCB.PC = resp.PC
-	RecalcularRafaga(proceso, resp.RafagaReal)
+
+	// Guardamos estimación previa para calcular el restante después
+	estimacionAnterior := proceso.EstimacionRafaga
+
+	// ✅ Recalcular solo si terminó su ráfaga
+	if resp.Motivo == "EXIT" || resp.Motivo == "IO" || resp.Motivo == "DUMP" {
+		RecalcularRafaga(proceso, resp.RafagaReal)
+	}
+
+	// Acumulamos el tiempo ejecutado (siempre)
+	proceso.TiempoEjecutado += resp.RafagaReal
 
 	global.LoggerKernel.Log(
 		fmt.Sprintf("PID %d - Ráfaga ejecutada: %.2f ms | Total ejecutado: %.2f ms",
@@ -358,7 +368,10 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 		log.DEBUG,
 	)
 
-	restante := EstimacionRestante(proceso)
+	restante := estimacionAnterior - proceso.TiempoEjecutado
+	if restante < 0 {
+		restante = 0
+	}
 	global.LoggerKernel.Log(
 		fmt.Sprintf("PID %d - Estimación restante: %.2f ms", proceso.PID, restante),
 		log.DEBUG,
@@ -375,9 +388,6 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 	case "IO":
 		utilskernel.SacarProcesoDeCPU(proceso.PID)
 		ManejarSolicitudIO(resp.PID, resp.IO.IoSolicitada, resp.IO.TiempoEstimado)
-		//if err != nil {
-			//global.LoggerKernel.Log(fmt.Sprintf("Error en syscall IO del PID %d: %v", proceso.PID, err), log.ERROR)
-		//}
 
 	case "READY":
 		utilskernel.SacarProcesoDeCPU(proceso.PID)
@@ -419,12 +429,11 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 			global.AgregarAReady(proceso)
 			global.LoggerKernel.Log("AGREGAR A READY (desde syscall DUMP)", log.DEBUG)
 		}
-
 	}
 
 	global.NotificarReady()
-
 }
+
 
 func ManejarSolicitudIO(pid int, nombre string, tiempoUso int) error {
 	global.LoggerKernel.Log("## ("+strconv.Itoa(pid)+") - Solicitó syscall: <IO>", log.INFO)
