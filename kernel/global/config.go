@@ -178,3 +178,10 @@ func EliminarProcesoDeCola(cola *[]*Proceso, pid int) bool {
 	}
 	return false
 }
+
+func NotificarReady() {
+	select {
+	case NotifyReady <- struct{}{}:
+	default:
+	}
+}

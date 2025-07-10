@@ -118,6 +118,7 @@ func SolicitarDumpAMemoria(pid int) error {
 func BuscarCPUPorPID(pid int) *global.CPU {
 	global.MutexCPUs.Lock()
 	defer global.MutexCPUs.Unlock()
+
 	for _, cpu := range global.CPUsConectadas {
 		if cpu.ProcesoEjecutando != nil && cpu.ProcesoEjecutando.PID == pid {
 			return cpu
@@ -125,6 +126,7 @@ func BuscarCPUPorPID(pid int) *global.CPU {
 	}
 	return nil
 }
+
 
 func EnviarADispatch(cpu *global.CPU, pid int, pc int) error {
 	url := fmt.Sprintf("http://%s:%d/dispatch", cpu.IP, cpu.Puerto)

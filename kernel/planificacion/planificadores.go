@@ -280,12 +280,10 @@ func AsignarCPU(proceso *global.Proceso) bool {
 	global.MutexCPUs.Unlock()
 
 	if cpuLibre == nil {
-		select {
-		case global.NotifyReady <- struct{}{}:
-		default:
-		}
-		return false
-	}
+    global.NotificarReady()
+    return false
+}
+
 
 	// Remover de READY
 	global.MutexReady.Lock()
@@ -316,6 +314,7 @@ func AsignarCPU(proceso *global.Proceso) bool {
 
 	return true
 }
+
 func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 	var proceso *global.Proceso
 
@@ -387,11 +386,8 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 	}
 
 	if resp.Motivo != "READY" {
-		select {
-		case global.NotifyReady <- struct{}{}:
-		default:
-		}
-	}
+    global.NotificarReady()
+}
 }
 
 
