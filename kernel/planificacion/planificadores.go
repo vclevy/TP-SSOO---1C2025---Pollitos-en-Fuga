@@ -383,6 +383,28 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 
 		ActualizarEstadoPCB(&proceso.PCB, BLOCKED)
 		global.AgregarABlocked(proceso)
+
+		global.LoggerKernel.Log(ColorOrange+"## ("+strconv.Itoa(proceso.PID)+") - Solicitó syscall: <DUMP_MEMORY>"+ColorReset, log.INFO)
+
+		err := utilskernel.SolicitarDumpAMemoria(proceso.PID)
+		if err != nil {
+		global.LoggerKernel.Log(fmt.Sprintf("Error en dump de memoria para PID %d: %s", proceso.PID, err.Error()), log.ERROR)
+
+		global.MutexBlocked.Lock()
+		global.EliminarProcesoDeCola(&global.ColaBlocked, proceso.PID)
+		global.MutexBlocked.Unlock()
+
+		FinalizarProceso(proceso)
+		} else {
+		global.MutexBlocked.Lock()
+		global.EliminarProcesoDeCola(&global.ColaBlocked, proceso.PID)
+		global.MutexBlocked.Unlock()
+
+		ActualizarEstadoPCB(&proceso.PCB, READY)
+		global.AgregarAReady(proceso)
+		global.LoggerKernel.Log("AGREGAR A READY (desde syscall DUMP)", log.DEBUG)
+	}
+
 	}
 
 	if resp.Motivo != "READY" {

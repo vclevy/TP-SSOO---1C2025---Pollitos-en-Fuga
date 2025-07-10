@@ -254,43 +254,43 @@ func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
 //	w.WriteHeader(http.StatusOK)
 //}
 
-func DUMP_MEMORY(w http.ResponseWriter, r *http.Request) {
-	pidStr := r.URL.Query().Get("pid")
-	pid, _ := strconv.Atoi(pidStr)
-
-	global.LoggerKernel.Log(ColorOrange+"## ("+strconv.Itoa(pid)+") - Solicitó syscall: <DUMP_MEMORY>"+ColorReset, log.INFO)
-	proceso := utilsKernel.BuscarProcesoPorPID(global.ColaBlocked, pid)
-	if proceso == nil {
-		global.LoggerKernel.Log(fmt.Sprintf("ERROR: No se encontró el proceso con PID %d en ColaBlocked", pid), log.ERROR)
-		http.Error(w, "Proceso no encontrado", http.StatusNotFound)
-		return
-	}
-	// Solicitar dump
-	err := utilsKernel.SolicitarDumpAMemoria(pid)
-	if err != nil {
-		global.LoggerKernel.Log(fmt.Sprintf("Error en dump de memoria para PID %d: %s", pid, err.Error()), log.ERROR)
-
-		global.MutexBlocked.Lock()
-		global.EliminarProcesoDeCola(&global.ColaBlocked, pid)
-		global.MutexBlocked.Unlock()
-
-		planificacion.FinalizarProceso(proceso)
-
-		http.Error(w, "Fallo en Dump, proceso finalizado", http.StatusInternalServerError)
-		return
-	}
-
-	// Volver a READY
-	global.MutexBlocked.Lock()
-	global.EliminarProcesoDeCola(&global.ColaBlocked, pid)
-	global.MutexBlocked.Unlock()
-
-	planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.READY)
-	global.AgregarAReady(proceso)
-	global.LoggerKernel.Log("AGREGAR A READY B", log.DEBUG)
-
-	w.WriteHeader(http.StatusOK)
-}
+//func DUMP_MEMORY(w http.ResponseWriter, r *http.Request) {
+//	pidStr := r.URL.Query().Get("pid")
+//	pid, _ := strconv.Atoi(pidStr)
+//
+//	global.LoggerKernel.Log(ColorOrange+"## ("+strconv.Itoa(pid)+") - Solicitó syscall: <DUMP_MEMORY>"+ColorReset, log.INFO)
+//	proceso := utilsKernel.BuscarProcesoPorPID(global.ColaBlocked, pid)
+//	if proceso == nil {
+//		global.LoggerKernel.Log(fmt.Sprintf("ERROR: No se encontró el proceso con PID %d en ColaBlocked", pid), log.ERROR)
+//		http.Error(w, "Proceso no encontrado", http.StatusNotFound)
+//		return
+//	}
+//	// Solicitar dump
+//	err := utilsKernel.SolicitarDumpAMemoria(pid)
+//	if err != nil {
+//		global.LoggerKernel.Log(fmt.Sprintf("Error en dump de memoria para PID %d: %s", pid, err.Error()), log.ERROR)
+//
+//		global.MutexBlocked.Lock()
+//		global.EliminarProcesoDeCola(&global.ColaBlocked, pid)
+//		global.MutexBlocked.Unlock()
+//
+//		planificacion.FinalizarProceso(proceso)
+//
+//		http.Error(w, "Fallo en Dump, proceso finalizado", http.StatusInternalServerError)
+//		return
+//	}
+//
+//	// Volver a READY
+//	global.MutexBlocked.Lock()
+//	global.EliminarProcesoDeCola(&global.ColaBlocked, pid)
+//	global.MutexBlocked.Unlock()
+//
+//	planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.READY)
+//	global.AgregarAReady(proceso)
+//	global.LoggerKernel.Log("AGREGAR A READY B", log.DEBUG)
+//
+//	w.WriteHeader(http.StatusOK)
+//}
 
 func DevolucionCPUHandler(w http.ResponseWriter, r *http.Request) {
 	var devolucion estructuras.RespuestaCPU
