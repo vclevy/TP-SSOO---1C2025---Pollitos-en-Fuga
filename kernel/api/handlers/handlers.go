@@ -14,15 +14,6 @@ import (
 	log "github.com/sisoputnfrba/tp-golang/utils/logger"
 )
 
-const (
-	ColorReset  = "\033[0m"
-	ColorRed    = "\033[31m"
-	ColorGreen  = "\033[32m"
-	ColorYellow = "\033[33m"
-	ColorBlue   = "\033[34m"
-	ColorOrange = "\033[38;5;208m" // naranja aproximado usando color 256
-)
-
 type PaqueteHandshakeIO = estructuras.PaqueteHandshakeIO
 type IODevice = global.IODevice
 type PCB = planificacion.PCB
@@ -78,12 +69,12 @@ func INIT_PROC(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if syscall.ArchivoInstrucciones == "" || syscall.Tamanio <0 {
+	if syscall.ArchivoInstrucciones == "" || syscall.Tamanio < 0 {
 		http.Error(w, "Parámetros inválidos", http.StatusBadRequest)
 		return
 	}
 
-	global.LoggerKernel.Log(ColorGreen+"## ("+strconv.Itoa(syscall.PID)+") - Solicitó syscall: <INIT_PROC>"+ColorReset, log.INFO)
+	global.LoggerKernel.Log("## ("+strconv.Itoa(syscall.PID)+") - Solicitó syscall: <INIT_PROC>", log.INFO)
 	planificacion.CrearProceso(syscall.Tamanio, syscall.ArchivoInstrucciones)
 	//el log ya lo hace crearProceso
 
@@ -107,7 +98,11 @@ func HandshakeConCPU(w http.ResponseWriter, r *http.Request) {
 		ProcesoEjecutando: nil,
 	}
 
+	global.MutexCPUs.Lock()
 	global.CPUsConectadas = append(global.CPUsConectadas, &nuevaCpu)
+	global.MutexCPUs.Unlock()
+
+	global.LoggerKernel.Log(fmt.Sprintf("Total CPUs conectadas: %d", len(global.CPUsConectadas)), log.DEBUG)
 	global.LoggerKernel.Log(fmt.Sprintf("Handshake recibido de CPU %s en %s:%s", nuevoHandshake.ID, nuevoHandshake.IP, strconv.Itoa(nuevoHandshake.Puerto)), log.DEBUG)
 
 	w.WriteHeader(http.StatusOK)
@@ -138,7 +133,6 @@ func HandshakeConCPU(w http.ResponseWriter, r *http.Request) {
 //
 //	w.WriteHeader(http.StatusOK)
 //}
-
 func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
 	// Si NO hay body → desconexión de dispositivo IO
 	if r.ContentLength == 0 {
@@ -158,24 +152,28 @@ func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		proc := dispositivo.ProcesoEnUso.Proceso
+		if dispositivo.ProcesoEnUso == nil {
+			global.LoggerKernel.Log(fmt.Sprintf("[WARN] IO %s:%d se desconectó sin proceso en uso", ip, puerto), log.DEBUG)
+		} else {
+			proc := dispositivo.ProcesoEnUso.Proceso
 
-		global.MutexSuspBlocked.Lock()
-		global.EliminarProcesoDeCola(&global.ColaSuspBlocked, proc.PID)
-		global.MutexSuspBlocked.Unlock()
+			global.MutexSuspBlocked.Lock()
+			global.EliminarProcesoDeCola(&global.ColaSuspBlocked, proc.PID)
+			global.MutexSuspBlocked.Unlock()
 
-		global.MutexBlocked.Lock()
-		global.EliminarProcesoDeCola(&global.ColaBlocked, proc.PID)
-		global.MutexBlocked.Unlock()
+			global.MutexBlocked.Lock()
+			global.EliminarProcesoDeCola(&global.ColaBlocked, proc.PID)
+			global.MutexBlocked.Unlock()
+
+			planificacion.FinalizarProceso(proc)
+		}
 
 		global.IOListMutex.Lock()
 		global.IOConectados = utilsKernel.FiltrarIODevice(global.IOConectados, dispositivo)
 		global.IOListMutex.Unlock()
 
-		planificacion.FinalizarProceso(proc)
-
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, "Proceso %d desconectado y marcado como EXIT.\n", proc.PID)
+		fmt.Fprintf(w, "IO %s:%d desconectado.\n", ip, puerto)
 		return
 	}
 
@@ -198,7 +196,6 @@ func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
 	if dispositivo.ProcesoEnUso != nil && dispositivo.ProcesoEnUso.Proceso.PID == pid {
 		proceso := dispositivo.ProcesoEnUso.Proceso
 
-		// 1) Actualizar estado del proceso que terminó IO, fuera del lock del dispositivo
 		global.MutexSuspBlocked.Lock()
 		enSuspBlocked := global.EliminarProcesoDeCola(&global.ColaSuspBlocked, proceso.PID)
 		global.MutexSuspBlocked.Unlock()
@@ -208,7 +205,7 @@ func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
 			global.AgregarASuspReady(proceso)
 			select {
 			case global.NotifySuspReady <- struct{}{}:
-			default: // si ya había señal pendiente, no bloquear
+			default:
 			}
 		} else {
 			global.MutexBlocked.Lock()
@@ -217,22 +214,17 @@ func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
 
 			planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.READY)
 			global.AgregarAReady(proceso)
-			global.LoggerKernel.Log("AGREGAR A READY A", log.DEBUG)
 		}
 
-		// 2) Ahora, con el dispositivo liberado, asignar IO al siguiente en la cola
+		// Reasignar IO si hay alguien más esperando
 		dispositivo.Mutex.Lock()
 		if len(dispositivo.ColaEspera) > 0 {
 			nuevo := dispositivo.ColaEspera[0]
-			//global.LoggerKernel.Log(fmt.Sprintf("## (%d) - Proceso en espera: %d", pid, nuevo.Proceso.PID), log.INFO)
-
-			// Remover de la cola de espera y asignar
 			dispositivo.ColaEspera = utilsKernel.FiltrarColaIO(dispositivo.ColaEspera, nuevo)
 			dispositivo.ProcesoEnUso = nuevo
 			dispositivo.Mutex.Unlock()
 			utilsKernel.EnviarAIO(dispositivo, nuevo.Proceso.PID, nuevo.TiempoUso)
 		} else {
-			// Si no hay más en espera, el dispositivo queda libre
 			dispositivo.ProcesoEnUso = nil
 			dispositivo.Ocupado = false
 			dispositivo.Mutex.Unlock()

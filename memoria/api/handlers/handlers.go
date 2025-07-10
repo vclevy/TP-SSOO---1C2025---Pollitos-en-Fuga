@@ -50,7 +50,7 @@ func InicializarProceso(w http.ResponseWriter, r *http.Request) {
 	utilsMemoria.CrearTablaPaginas(pid, tamanio)
 	utilsMemoria.CargarProceso(pid, ruta)
 	utilsMemoria.InicializarMetricas(pid)
-	global.LoggerMemoria.Log(fmt.Sprintf("\033[33m## PID: %d - Proceso Creado - Tamaño: %d\033[0m", pid, tamanio),myLogger.INFO)
+	global.LoggerMemoria.Log(fmt.Sprintf("## PID: %d - Proceso Creado - Tamaño: %d", pid, tamanio),myLogger.INFO)
 
 	w.WriteHeader(http.StatusOK)
 }
@@ -121,7 +121,7 @@ func FinalizarProceso(w http.ResponseWriter, r *http.Request) {
 
 	stringMetricas := utilsMemoria.FinalizarProceso(pid)
 	w.WriteHeader(http.StatusOK)
-	global.LoggerMemoria.Log(fmt.Sprintf("\033[31m## PID: %d - Proceso Destruido - Métricas - %s\033[0m", pid, stringMetricas),myLogger.INFO)
+	global.LoggerMemoria.Log(fmt.Sprintf("## PID: %d - Proceso Destruido - Métricas - %s", pid, stringMetricas),myLogger.INFO)
 }
 
 func DumpMemoria(w http.ResponseWriter, r *http.Request){
@@ -172,7 +172,7 @@ func DevolverInstruccion(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error al enviar la instrucción", http.StatusInternalServerError)
 		return
 	}
-	global.LoggerMemoria.Log(fmt.Sprintf("\033[36m## PID: %d - Obtener instrucción: %d - Instrucción: %s\033[0m", pid, pc, instruccion),myLogger.INFO)
+	global.LoggerMemoria.Log(fmt.Sprintf("## PID: %d - Obtener instrucción: %d - Instrucción: %s", pid, pc, instruccion),myLogger.INFO)
 }
 
 //CPU lo pide
@@ -243,7 +243,7 @@ func LeerMemoria(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	global.LoggerMemoria.Log(fmt.Sprintf("\033[35m## PID: %d - Lectura - Dir. Física: %d - Tamaño: %d\033[0m", pid, direccionFisica,tamanio), myLogger.INFO)
+	global.LoggerMemoria.Log(fmt.Sprintf("## PID: %d - Lectura - Dir. Física: %d - Tamaño: %d", pid, direccionFisica,tamanio), myLogger.INFO)
 
 }
 
@@ -268,7 +268,7 @@ func EscribirMemoria(w http.ResponseWriter, r *http.Request) {
 	
 	tamanio := len(datos)
 	
-	global.LoggerMemoria.Log(fmt.Sprintf("\033[35m## PID: %d - Escritura - Dir. Física: %d - Tamaño: %d \033[0m", pid, direccionFisica,tamanio), myLogger.INFO) //!! Fetch Instrucción - logObligatorio
+	global.LoggerMemoria.Log(fmt.Sprintf("## PID: %d - Escritura - Dir. Física: %d - Tamaño: %d ", pid, direccionFisica,tamanio), myLogger.INFO) //!! Fetch Instrucción - logObligatorio
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -295,7 +295,7 @@ func LeerPaginaCompleta(w http.ResponseWriter, r *http.Request){
 		http.Error(w, "Error al enviar el marco", http.StatusInternalServerError)
 		return
 	}
-	global.LoggerMemoria.Log(fmt.Sprintf("\033[35m## PID: %d - Lectura - Dir. Física: %d - Tamaño: %d\033[0m", pid, direccionFisica,len(lectura)), myLogger.INFO)
+	global.LoggerMemoria.Log(fmt.Sprintf("## PID: %d - Lectura - Dir. Física: %d - Tamaño: %d", pid, direccionFisica,len(lectura)), myLogger.INFO)
 }
 
 func EscribirPaginaCompleta(w http.ResponseWriter, r *http.Request){
@@ -315,7 +315,7 @@ func EscribirPaginaCompleta(w http.ResponseWriter, r *http.Request){
 	datos := paquete.Datos
 	
 	utilsMemoria.ActualizarPaginaCompleta(pid, direccionFisica, datos)
-	global.LoggerMemoria.Log(fmt.Sprintf("\033[35m## PID: %d - Escritura - Dir. Física: %d - Tamaño: %d\033[0m", pid, direccionFisica,len(datos)), myLogger.INFO)
+	global.LoggerMemoria.Log(fmt.Sprintf("## PID: %d - Escritura - Dir. Física: %d - Tamaño: %d", pid, direccionFisica,len(datos)), myLogger.INFO)
 
 	w.WriteHeader(http.StatusOK)
 }

@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
-	"math"
-	"net/http"
 	"github.com/sisoputnfrba/tp-golang/cpu/global"
 	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
 	log "github.com/sisoputnfrba/tp-golang/utils/logger"
+	"io"
+	"math"
+	"net/http"
 )
 
 func armarListaEntradas(nroPagina int) []int {
@@ -19,23 +19,23 @@ func armarListaEntradas(nroPagina int) []int {
 	entradas := make([]int, cantNiveles)
 
 	for i := 1; i <= cantNiveles; i++ {
-		/* global.LoggerCpu.Log(fmt.Sprintf("Dividiendo para nivel %d", i), log.DEBUG) */ 
-	
+		/* global.LoggerCpu.Log(fmt.Sprintf("Dividiendo para nivel %d", i), log.DEBUG) */
+
 		exponente := cantNiveles - i
 		if exponente < 0 {
 			global.LoggerCpu.Log(fmt.Sprintf("ERROR: Exponente negativo. Nivel: %d, cantNiveles: %d", i, cantNiveles), log.ERROR)
 			return nil // o panic, o manejo de error
 		}
-	
+
 		divisor := math.Pow(float64(cantEntradas), float64(exponente))
 		if divisor == 0 {
 			global.LoggerCpu.Log("ERROR: División por cero en armarListaEntradas", log.ERROR)
 			return nil
 		}
-	
+
 		entradas[i-1] = int(math.Floor(float64(nroPagina)/divisor)) % cantEntradas
 	}
-	
+
 	return entradas
 }
 
@@ -67,7 +67,7 @@ func BuscarMarcoEnMemoria(nroPagina int) int {
 }
 
 func MMU(desplazamiento int, marco int) int {
-	direccionFisica = marco* global.ConfigMMU.Tamanio_pagina + desplazamiento
+	direccionFisica = marco*global.ConfigMMU.Tamanio_pagina + desplazamiento
 	return direccionFisica
 }
 
@@ -98,7 +98,7 @@ func pedirMarco(accesoTP estructuras.AccesoTP) int {
 		return -1
 	}
 
-	global.LoggerCpu.Log(fmt.Sprintf("\033[36mPID: %d - OBTENER MARCO - Página: %d - Marco: %d\033[0m", global.PCB_Actual.PID, nroPagina, marco), log.INFO) //!! Obtener Marco - logObligatorio
+	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - OBTENER MARCO - Página: %d - Marco: %d", global.PCB_Actual.PID, nroPagina, marco), log.INFO) //!! Obtener Marco - logObligatorio
 
 	return marco
 }

@@ -15,6 +15,7 @@ import (
 
 var CpuConfig *Config
 var LoggerCpu *log.LoggerStruct
+var TiempoInicio time.Time
 
 type Config struct {
 	Ip_Memoria       string        `json:"ip_memory"`
@@ -62,7 +63,7 @@ func InitGlobal(idCPU string, configPath string) {
 
 	// 3. Inicializar archivo logger
 	LoggerCpu = log.ConfigurarLogger(logFileName, CpuConfig.LogLevel)
-	LoggerCpu.Log("Logger de CPU inicializado", log.INFO)
+	LoggerCpu.Log("Logger de CPU inicializado", log.DEBUG)
 
 	CacheHabilitada = CpuConfig.CacheEntries > 0
 	TlbHabilitada = CpuConfig.TlbEntries > 0

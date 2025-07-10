@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"github.com/sisoputnfrba/tp-golang/cpu/global"
 	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
 	log "github.com/sisoputnfrba/tp-golang/utils/logger"
+	"io"
+	"net/http"
+	"time"
 )
 
 var instruccionesConMMU = map[string]bool{
@@ -24,10 +25,9 @@ var instruccionesConMMU = map[string]bool{
 }
 
 type Instruccion struct {
-	Opcode     string   `json:"opcode"`     // El tipo de operación (e.g. WRITE, READ, GOTO, etc.)
-	Parametros []string `json:"parametros"` // Los parámetros de la instrucción
+	Opcode     string   `json:"opcode"`
+	Parametros []string `json:"parametros"`
 }
-
 
 var direccionFisica int
 
@@ -77,9 +77,6 @@ func instruccionAEjecutar(solicitudInstruccion estructuras.PCB) string {
 		return ""
 	}
 	defer resp.Body.Close() //se cierra la conexión
-
-/* 	global.LoggerCpu.Log("✅ Solicitud enviada a Memoria de forma exitosa", log.INFO)
- */
 	//respuesta
 	body, _ := io.ReadAll(resp.Body)
 
@@ -92,14 +89,15 @@ func instruccionAEjecutar(solicitudInstruccion estructuras.PCB) string {
 	return instruccionAEjecutar
 }
 
-func cortoProceso() error {
+func cortoProceso() error {	
+	global.Rafaga = float64(time.Since(global.TiempoInicio).Milliseconds())
+
 	datosEnvio := estructuras.RespuestaCPU{
 		PID:        global.PCB_Actual.PID,
 		PC:         global.PCB_Actual.PC,
 		Motivo:     global.Motivo,
 		RafagaReal: global.Rafaga,
 		IO:         global.IO_Request,
-		/* InitProc:	global.Init_Proc, */
 	}
 
 	jsonData, err := json.Marshal(datosEnvio)
@@ -118,13 +116,10 @@ func cortoProceso() error {
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("devolución proceso fallido con status %d", resp.StatusCode)
 	}
-	/* global.LoggerCpu.Log("✅ Devolución proceso enviado a Kernel con éxito", log.INFO) */
 	return nil
 }
 
 func Desalojo() {
-	// Solo vaciar el PCB si el proceso finalizó (EXIT) o fue interrumpido (READY)
-	
 	if global.CacheHabilitada {
 		for i := 0; i < global.CpuConfig.CacheEntries; i++ {
 			if global.CACHE[i].BitModificado == 1 {
@@ -158,7 +153,7 @@ func desalojar(indicePisar int, nroPaginaPisar int) {
 	direccionFisica := MMU(0, marco)
 
 	MemoriaEscribePaginaCompleta(direccionFisica, global.CACHE[indicePisar].Contenido)
-	global.LoggerCpu.Log(fmt.Sprintf("\033[36mPID: %d - Memory Update - Página: %d - Frame: %d\033[0m", global.PCB_Actual.PID, global.CACHE[indicePisar].NroPagina, marco), log.INFO) //!! Página Actualizada de Caché a Memoria - LogObligatorio
+	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Memory Update - Página: %d - Frame: %d", global.PCB_Actual.PID, global.CACHE[indicePisar].NroPagina, marco), log.INFO) //!! Página Actualizada de Caché a Memoria - LogObligatorio
 }
 
 func DevolucionPID() error {
@@ -185,7 +180,6 @@ func DevolucionPID() error {
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("devolución a kernel fallida con status %d", resp.StatusCode)
 	}
-	/* global.LoggerCpu.Log("✅ Devolución de PID enviado a Kernel con éxito", log.INFO) */
 
 	return nil
 }

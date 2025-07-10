@@ -2,18 +2,14 @@ package main
 
 import (
 	"fmt"
-	"os"
-	//"runtime"
-
 	"github.com/sisoputnfrba/tp-golang/cpu/api"
-
 	"github.com/sisoputnfrba/tp-golang/cpu/global"
 	utilsCpu "github.com/sisoputnfrba/tp-golang/cpu/utilsCpu"
 	log "github.com/sisoputnfrba/tp-golang/utils/logger"
+	"os"
 )
 
 func main() {
-	//runtime.GOMAXPROCS(runtime.NumCPU())
 	if len(os.Args) < 3 {
 		fmt.Println("Uso: ./cpu <ID_CPU> <path_config>")
 		return
@@ -41,4 +37,3 @@ func main() {
 
 	select {}
 }
-

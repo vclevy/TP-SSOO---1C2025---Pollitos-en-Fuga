@@ -13,7 +13,6 @@ var punteroClockModificado int = 0
 var lruCounter int = 0
 
 func AlgoritmoTLB() int { // la página no está en la tlb y no hay indice vacio
-
 	/* global.LoggerCpu.Log(fmt.Sprintf("Contenido TLB ANTES DE REEMPLAZAR: %v", global.TLB), log.DEBUG) */
 
 	if global.CpuConfig.TlbReplacement == "FIFO" {
@@ -40,8 +39,8 @@ func AlgoritmoTLB() int { // la página no está en la tlb y no hay indice vacio
 }
 
 func AlgoritmoCACHE() int { //CACHE: CLOCK o CLOCK-M
-	/* global.LoggerCpu.Log(fmt.Sprintf("Contenido CACHE ANTES DE REEMPLAZAR: %v", global.CACHE), log.DEBUG)
-	 */
+	/* global.LoggerCpu.Log(fmt.Sprintf("Contenido CACHE ANTES DE REEMPLAZAR: %v", global.CACHE), log.DEBUG) */
+
 	if global.CpuConfig.CacheReplacement == "CLOCK" {
 		for {
 			global.LoggerCpu.Log(fmt.Sprintf("Bit de uso de la página %d: %d", global.CACHE[punteroClock].NroPagina, global.CACHE[punteroClock].BitUso), log.ERROR)
