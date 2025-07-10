@@ -184,12 +184,6 @@ func IniciarPlanificadorCortoPlazo() {
 
 			
 			if global.ConfigKernel.SchedulerAlgorithm == "SRTF" {
-				ejecutando := global.ColaExecuting[0]
-				estimacionEjecutando := EstimacionRestante(ejecutando)
-				estimacionNuevo := EstimacionRestante(nuevoProceso)
-
-				global.LoggerKernel.Log(fmt.Sprintf("[DEBUG] [SRTF] Evaluando desalojo: Ejecutando PID %d (%.2f ms) vs Nuevo PID %d (%.2f ms)",ejecutando.PCB.PID, estimacionEjecutando,nuevoProceso.PCB.PID, estimacionNuevo,), log.DEBUG)
-			
 				if evaluarDesalojoSRTF(nuevoProceso) {
 					// Se pidió un desalojo, esperamos a que se libere CPU
 					global.LoggerKernel.Log(fmt.Sprintf("Se solicitó desalojo para asignar PID %d (SRTF)", nuevoProceso.PCB.PID), log.DEBUG)
