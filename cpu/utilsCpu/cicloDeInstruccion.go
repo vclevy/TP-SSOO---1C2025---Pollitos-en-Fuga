@@ -103,6 +103,7 @@ func Execute(instruccion Instruccion, requiereMMU bool) (string, error) {
 
 	if instruccion.Opcode == "INIT_PROC" {
 		sumarPC = true
+		global.LoggerCpu.Log("Antes de mandar syscall INIT PROC", log.DEBUG)
 		Syscall_Init_Proc(instruccion)
 		cortoProceso()
 

@@ -191,18 +191,21 @@ func IniciarPlanificadorCortoPlazo() {
 				break
 			}
 
+			asignado := false
 			if global.ConfigKernel.SchedulerAlgorithm == "SRTF" {
 				if evaluarDesalojoSRTF(nuevoProceso) {
 					global.LoggerKernel.Log(fmt.Sprintf("Proceso PID %d no asignado por desalojo SRTF", nuevoProceso.PCB.PID), log.DEBUG)
 					continue
 				}
-				if AsignarCPU(nuevoProceso) {
-					continue
-				}
+				asignado = AsignarCPU(nuevoProceso)
 			} else {
-				if AsignarCPU(nuevoProceso) {
-					continue
-				}
+				asignado = AsignarCPU(nuevoProceso)
+			}
+
+			if asignado {
+				continue // 💡 seguir buscando otro proceso para otra CPU
+			} else {
+				break // 💡 salir si no se pudo asignar (ej. no hay CPU libre ahora)
 			}
 
 		}
@@ -408,9 +411,8 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 
 	}
 
-	if resp.Motivo != "READY" {
-		global.NotificarReady()
-	}
+	global.NotificarReady()
+
 }
 
 func ManejarSolicitudIO(pid int, nombre string, tiempoUso int) error {

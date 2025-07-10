@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"strconv"
+
 	"github.com/sisoputnfrba/tp-golang/cpu/global"
 	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
 	log "github.com/sisoputnfrba/tp-golang/utils/logger"
-	"net/http"
-	"strconv"
 )
 
 func Syscall_IO(instruccion Instruccion) {
@@ -49,7 +50,7 @@ func Syscall_Init_Proc(instruccion Instruccion) {
 	}
 
 	syscall_Init_Proc := estructuras.Syscall_Init_Proc{
-		PID: global.PCB_Actual.PID,
+		PID:                  global.PCB_Actual.PID,
 		ArchivoInstrucciones: instruccion.Parametros[0],
 		Tamanio:              tamanio,
 	}
@@ -67,13 +68,13 @@ func Syscall_Init_Proc(instruccion Instruccion) {
 		global.LoggerCpu.Log("Error enviando solicitud de instrucción a Kernel: "+err.Error(), log.ERROR)
 		return
 	}
-
+	global.LoggerCpu.Log(fmt.Sprintf("Se envió solicitud de INIT PROC a Kernel: con PID %d y Tamaño %d", syscall_Init_Proc.PID ,syscall_Init_Proc.Tamanio), log.DEBUG)
 	defer resp.Body.Close() //se cierra la conexión
 }
 
 func Syscall_Dump_Memory() {
 	url := fmt.Sprintf("http://%s:%d/dumpMemory?pid=%d", global.CpuConfig.Ip_Kernel, global.CpuConfig.Port_Kernel, global.PCB_Actual.PID) //url a la que se va a conectar
-	resp, err := http.Post(url, "application/json", nil)                                                                                   //se abre la conexión
+	resp, err := http.Post(url, "application/json", nil)                                                                                  //se abre la conexión
 
 	if err != nil {
 		global.LoggerCpu.Log("Error enviando solicitud de instrucción a Kernel: "+err.Error(), log.ERROR)

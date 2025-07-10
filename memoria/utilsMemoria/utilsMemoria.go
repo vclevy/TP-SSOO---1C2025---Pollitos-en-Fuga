@@ -112,6 +112,8 @@ func CargarProceso(pid int, ruta string) error {
 
 func CrearTablaPaginas(pid int, tamanio int) {
 	paginas := int(math.Ceil(float64(tamanio) / float64(TamPagina)))
+
+	
 	marcos := ReservarMarcos(tamanio) // slice con marcos reservados
 	if len(marcos) == 0 {
 		fmt.Printf("No se asignaron marcos para proceso PID %d", pid)

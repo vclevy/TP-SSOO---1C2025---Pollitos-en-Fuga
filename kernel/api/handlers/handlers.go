@@ -78,7 +78,7 @@ func INIT_PROC(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if syscall.ArchivoInstrucciones == "" || syscall.Tamanio <= 0 {
+	if syscall.ArchivoInstrucciones == "" || syscall.Tamanio <0 {
 		http.Error(w, "Parámetros inválidos", http.StatusBadRequest)
 		return
 	}
