@@ -184,6 +184,7 @@ func IniciarPlanificadorCortoPlazo() {
 
 			
 			if global.ConfigKernel.SchedulerAlgorithm == "SRTF" {
+				global.LoggerKernel.Log(fmt.Sprintf("Evaluando desalojo SRTF con PID %d", nuevoProceso.PCB.PID), log.DEBUG)
 				if evaluarDesalojoSRTF(nuevoProceso) {
 					// Se pidió un desalojo, esperamos a que se libere CPU
 					global.LoggerKernel.Log(fmt.Sprintf("Se solicitó desalojo para asignar PID %d (SRTF)", nuevoProceso.PCB.PID), log.DEBUG)
@@ -251,6 +252,7 @@ func evaluarDesalojoSRTF(nuevoProceso *global.Proceso) bool {
 	), log.DEBUG)
 
 	if restanteNuevo < peorRestante {
+		global.LoggerKernel.Log(fmt.Sprintf("→ Desalojo: %.2f < %.2f", restanteNuevo, peorRestante), log.DEBUG)
 		cpu := utilskernel.BuscarCPUPorPID(peorProceso.PCB.PID)
 		if cpu != nil {
 			global.LoggerKernel.Log(fmt.Sprintf("## (%d) - Desalojado por SRTF (nuevo PID %d)", peorProceso.PCB.PID, nuevoProceso.PID), log.INFO)
@@ -262,6 +264,8 @@ func evaluarDesalojoSRTF(nuevoProceso *global.Proceso) bool {
 			return true
 		}
 		global.LoggerKernel.Log(fmt.Sprintf("No se encontró CPU ejecutando proceso %d para interrupción", peorProceso.PCB.PID), log.ERROR)
+	}else {
+		global.LoggerKernel.Log(fmt.Sprintf("→ NO Desalojo: %.2f >= %.2f", restanteNuevo, peorRestante), log.DEBUG)
 	}
 
 	return false
@@ -320,7 +324,6 @@ func AsignarCPU(proceso *global.Proceso) bool {
 	return true
 }
 
-
 func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 	var proceso *global.Proceso
 
@@ -351,15 +354,7 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 
 	proceso.PCB.PC = resp.PC
 
-	// Guardamos estimación previa para calcular el restante después
-	estimacionAnterior := proceso.EstimacionRafaga
-
-	// ✅ Recalcular solo si terminó su ráfaga
-	if resp.Motivo == "EXIT" || resp.Motivo == "IO" || resp.Motivo == "DUMP" {
-		RecalcularRafaga(proceso, resp.RafagaReal)
-	}
-
-	// Acumulamos el tiempo ejecutado (siempre)
+	// ✅ Acumulamos el tiempo ejecutado siempre
 	proceso.TiempoEjecutado += resp.RafagaReal
 
 	global.LoggerKernel.Log(
@@ -368,10 +363,14 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 		log.DEBUG,
 	)
 
-	restante := estimacionAnterior - proceso.TiempoEjecutado
-	if restante < 0 {
-		restante = 0
+	// ✅ Solo recalculamos si el motivo es fin de ráfaga (evitamos recalcular con ráfagas muy pequeñas)
+	if resp.Motivo == "EXIT" || resp.Motivo == "IO" || resp.Motivo == "DUMP" {
+		if resp.RafagaReal > 0 {
+			RecalcularRafaga(proceso, resp.RafagaReal)
+		}
 	}
+
+	restante := EstimacionRestante(proceso)
 	global.LoggerKernel.Log(
 		fmt.Sprintf("PID %d - Estimación restante: %.2f ms", proceso.PID, restante),
 		log.DEBUG,
@@ -433,6 +432,7 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 
 	global.NotificarReady()
 }
+
 
 
 func ManejarSolicitudIO(pid int, nombre string, tiempoUso int) error {
