@@ -623,6 +623,7 @@ func LoguearMetricas(p *Proceso) {
 func RecalcularRafaga(proceso *Proceso, rafagaReal float64) {
 	alpha := global.ConfigKernel.Alpha
 	proceso.EstimacionRafaga = alpha*rafagaReal + (1-alpha)*proceso.EstimacionRafaga
+	proceso.TiempoEjecutado = 0 // RESET al recalcular estimación (fin de ráfaga)
 }
 
 func suspenderProceso(proceso *global.Proceso) {
