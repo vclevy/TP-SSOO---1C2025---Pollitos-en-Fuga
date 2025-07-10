@@ -224,6 +224,7 @@ func seleccionarProcesoSJF(usandoRestante bool) *global.Proceso {
 	//global.LoggerKernel.Log(fmt.Sprintf("Longitud de Cola Ready: %d", len(global.ColaReady)), log.INFO)
 
 	return proceso
+
 }
 
 func evaluarDesalojoSRTF(nuevoProceso *global.Proceso) bool {
@@ -235,41 +236,56 @@ func evaluarDesalojoSRTF(nuevoProceso *global.Proceso) bool {
 	}
 
 	restanteNuevo := EstimacionRestante(nuevoProceso)
+
 	var peorProceso *global.Proceso
 	var peorRestante float64 = -1
+	var cpuDesalojar *global.CPU = nil
 
-	for _, ejecutando := range global.ColaExecuting {
-		restante := EstimacionRestante(ejecutando)
-		if restante > peorRestante {
-			peorRestante = restante
-			peorProceso = ejecutando
+	for _, cpu := range global.CPUsConectadas {
+		if cpu.ProcesoEjecutando != nil {
+			// Buscar proceso completo por PID
+			procesoEjecutando := utilskernel.BuscarProcesoPorPID(global.ColaExecuting, cpu.ProcesoEjecutando.PID)
+			if procesoEjecutando == nil {
+				global.LoggerKernel.Log(fmt.Sprintf("No se encontró proceso completo para PID %d", cpu.ProcesoEjecutando.PID), log.ERROR)
+				continue
+			}
+
+			restanteEjecutando := EstimacionRestante(procesoEjecutando)
+			if restanteEjecutando > peorRestante {
+				peorRestante = restanteEjecutando
+				peorProceso = procesoEjecutando
+				cpuDesalojar = cpu
+			}
 		}
+	}
+
+	if peorProceso == nil {
+		return false
 	}
 
 	global.LoggerKernel.Log(fmt.Sprintf(
 		"[DEBUG] SRTF: nuevo PID %d (%.2f) vs peor ejecutando PID %d (%.2f)",
-		nuevoProceso.PID, restanteNuevo, peorProceso.PCB.PID, peorRestante,
+		nuevoProceso.PID, restanteNuevo, peorProceso.PID, peorRestante,
 	), log.DEBUG)
 
 	if restanteNuevo < peorRestante {
 		global.LoggerKernel.Log(fmt.Sprintf("→ Desalojo: %.2f < %.2f", restanteNuevo, peorRestante), log.DEBUG)
-		cpu := utilskernel.BuscarCPUPorPID(peorProceso.PCB.PID)
-		if cpu != nil {
-			global.LoggerKernel.Log(fmt.Sprintf("## (%d) - Desalojado por SRTF (nuevo PID %d)", peorProceso.PCB.PID, nuevoProceso.PID), log.INFO)
-			err := utilskernel.EnviarInterrupcionCPU(cpu, peorProceso.PCB.PID, peorProceso.PCB.PC)
-			if err != nil {
-				global.LoggerKernel.Log(fmt.Sprintf("Error enviando interrupción a CPU %s para proceso %d: %v", cpu.ID, peorProceso.PCB.PID, err), log.ERROR)
-			}
-			utilskernel.SacarProcesoDeCPU(peorProceso.PCB.PID)
-			return true
+
+		err := utilskernel.EnviarInterrupcionCPU(cpuDesalojar, peorProceso.PID, peorProceso.PCB.PC)
+		if err != nil {
+			global.LoggerKernel.Log(fmt.Sprintf("Error enviando interrupción a CPU %s para proceso %d: %v", cpuDesalojar.ID, peorProceso.PID, err), log.ERROR)
+			return false
 		}
-		global.LoggerKernel.Log(fmt.Sprintf("No se encontró CPU ejecutando proceso %d para interrupción", peorProceso.PCB.PID), log.ERROR)
-	}else {
-		global.LoggerKernel.Log(fmt.Sprintf("→ NO Desalojo: %.2f >= %.2f", restanteNuevo, peorRestante), log.DEBUG)
+
+		global.LoggerKernel.Log(fmt.Sprintf("## (%d) - Desalojado por SRTF (nuevo PID %d)", peorProceso.PID, nuevoProceso.PID), log.INFO)
+
+		return true
 	}
 
+	global.LoggerKernel.Log(fmt.Sprintf("→ NO Desalojo: %.2f >= %.2f", restanteNuevo, peorRestante), log.DEBUG)
 	return false
 }
+
 func AsignarCPU(proceso *global.Proceso) bool {
 	if proceso.PCB.UltimoEstado == EXIT {
 		global.LoggerKernel.Log(fmt.Sprintf("No se puede asignar PID %d, ya está finalizado", proceso.PID), log.ERROR)
@@ -654,9 +670,9 @@ func suspenderProceso(proceso *global.Proceso) {
 }
 
 func EstimacionRestante(p *Proceso) float64 {
-	restante := p.EstimacionRafaga - p.TiempoEjecutado
-	if restante < 0 {
+	if p.TiempoEjecutado >= p.EstimacionRafaga {
 		return 0
 	}
-	return restante
+	return p.EstimacionRafaga - p.TiempoEjecutado
 }
+

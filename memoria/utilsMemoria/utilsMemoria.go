@@ -342,8 +342,7 @@ func SuspenderProceso(pid int) {
 func DesSuspenderProceso(pid int) {
 	time.Sleep(time.Millisecond * time.Duration(SwapDelay))
 	info := BuscarDataEnSwap(pid)
-	tamanio := len(info) / TamPagina
-	marcosAginados := ReservarMarcos(tamanio)
+	marcosAginados := ReservarMarcos(len(info))
 	AsignarMarcosATablaExistente(pid, marcosAginados)
 	PegarInfoEnMemoria(pid, info, marcosAginados)
 	BorrarEnSwap(pid)
