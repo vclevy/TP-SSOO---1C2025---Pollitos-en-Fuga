@@ -122,9 +122,7 @@ func cortoProceso() error {
 
 func Desalojo() {
 	// Solo vaciar el PCB si el proceso finalizó (EXIT) o fue interrumpido (READY)
-	if global.Motivo == "EXIT" || global.Motivo == "READY" {
-		global.PCB_Actual = nil
-
+	
 	if global.CacheHabilitada {
 		for i := 0; i < global.CpuConfig.CacheEntries; i++ {
 			if global.CACHE[i].BitModificado == 1 {
@@ -148,7 +146,9 @@ func Desalojo() {
 			}
 		}
 	}
-}
+	if global.Motivo == "EXIT" || global.Motivo == "READY" {
+		global.PCB_Actual = nil
+	}
 }
 
 func desalojar(indicePisar int, nroPaginaPisar int) {

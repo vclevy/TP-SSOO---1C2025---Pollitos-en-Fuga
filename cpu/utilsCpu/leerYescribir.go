@@ -176,5 +176,5 @@ func escribirCache(indice int, datos string, desplazamiento int){
 	contenido := global.CACHE[indice].Contenido
 	copy(contenido[desplazamiento:], []byte(datos))
 	global.CACHE[indice].BitModificado = 1
-	
+	global.CACHE[indice].BitUso = 1
 }
