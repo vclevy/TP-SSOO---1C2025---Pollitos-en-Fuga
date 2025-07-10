@@ -2,28 +2,28 @@ package utilsIo
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
+	"time"
 	"github.com/sisoputnfrba/tp-golang/cpu/global"
 	log "github.com/sisoputnfrba/tp-golang/utils/logger"
-	"strconv"
-	"time"
-	"strings"
 )
 
 func WRITE(instruccion Instruccion, cacheHabilitada bool, desplazamiento int, tlbHabilitada bool) {
 	datos := instruccion.Parametros[1]
 	//bit uso ver
 	if cacheHabilitada { //CACHE HABILITADA
-		if CacheHIT(nroPagina) {//CACHE HIT
-			indice := indicePaginaEnCache(nroPagina)			
+		if CacheHIT(nroPagina) { //CACHE HIT
+			indice := indicePaginaEnCache(nroPagina)
 			escribirCache(indice, datos, desplazamiento)
-			global.LoggerCpu.Log(fmt.Sprintf("\033[36mPID: %d - Acción: ESCRIBIR - Dirección Física: %d - Valor: %s\033[0m", global.PCB_Actual.PID, 0, datos), log.INFO) //!! Lectura/Escritura Memoria - logObligatorio	
-			
-		} else {//CACHE MISS
-			indiceEscribir,dirFisicaSinDespl := actualizarCACHE()
+			global.LoggerCpu.Log(fmt.Sprintf("\033[36mPID: %d - Acción: ESCRIBIR - Dirección Física: %d - Valor: %s\033[0m", global.PCB_Actual.PID, 0, datos), log.INFO) //!! Lectura/Escritura Memoria - logObligatorio
+
+		} else { //CACHE MISS
+			indiceEscribir, dirFisicaSinDespl := actualizarCACHE()
 			escribirCache(indiceEscribir, datos, desplazamiento)
-			global.LoggerCpu.Log(fmt.Sprintf("\033[36mPID: %d - Acción: ESCRIBIR - Dirección Física: %d - Valor: %s\033[0m", global.PCB_Actual.PID, (dirFisicaSinDespl + desplazamiento), datos), log.INFO)
+			global.LoggerCpu.Log(fmt.Sprintf("\033[36mPID: %d - Acción: ESCRIBIR - Dirección Física: %d - Valor: %s\033[0m", global.PCB_Actual.PID, (dirFisicaSinDespl+desplazamiento), datos), log.INFO)
 		}
-	}else { //CACHE DESHABILITADA
+	} else { //CACHE DESHABILITADA
 		marco := CalcularMarco(nroPagina)
 		direccionFisica := MMU(desplazamiento, marco)
 		MemoriaEscribe(direccionFisica, datos)
@@ -32,31 +32,32 @@ func WRITE(instruccion Instruccion, cacheHabilitada bool, desplazamiento int, tl
 
 func READ(instruccion Instruccion, cacheHabilitada bool, desplazamiento int, tlbHabilitada bool, direccionLogica int) {
 	tamanioStr := instruccion.Parametros[1]
-    tamanio, err := strconv.Atoi(tamanioStr)
+	tamanio, err := strconv.Atoi(tamanioStr)
 
 	if err != nil {
-        global.LoggerCpu.Log("error al convertir tamanio", log.ERROR)
-    }
-	if(global.CacheHabilitada){//CACHE HABILITADA
-		if CacheHIT(nroPagina) {//CACHE HIT
+		global.LoggerCpu.Log("error al convertir tamanio", log.ERROR)
+	}
+	if global.CacheHabilitada { //CACHE HABILITADA
+		if CacheHIT(nroPagina) { //CACHE HIT
 			indice := indicePaginaEnCache(nroPagina)
-				paginaCompleta := global.CACHE[indice].Contenido
-				if desplazamiento+tamanio > len(paginaCompleta) {
-					global.LoggerCpu.Log("❌ Lectura fuera de rango en caché", log.ERROR)
-					return
-				}
-				lectura := paginaCompleta[desplazamiento : desplazamiento + tamanio]
-				stringLectura := strings.TrimRight(string(lectura), "\x00")
+			paginaCompleta := global.CACHE[indice].Contenido
+			if desplazamiento+tamanio > len(paginaCompleta) {
+				global.LoggerCpu.Log("Lectura fuera de rango en caché", log.ERROR)
+				return
+			}
+			lectura := paginaCompleta[desplazamiento : desplazamiento+tamanio]
+			stringLectura := strings.TrimRight(string(lectura), "\x00")
 
-				global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: LEER - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, 0, stringLectura), log.INFO) //!! LECTURA SIN ACCEDER A MEMORIA (Desde caché)
-		} else {//CACHE MISS
+			global.LoggerCpu.Log(fmt.Sprintf("\033[36mPID: %d - Acción: LEER CACHÉ - Dirección Física: %d - Valor: %s\033[0m", global.PCB_Actual.PID, 0, stringLectura), log.INFO) //!! LECTURA SIN ACCEDER A MEMORIA (Desde caché)
+
+		} else { //CACHE MISS
 			indice, dirFisicaSinDespl := actualizarCACHE()
 			paginaCompleta := global.CACHE[indice].Contenido
-			lectura := paginaCompleta[desplazamiento : desplazamiento + tamanio]
+			lectura := paginaCompleta[desplazamiento : desplazamiento+tamanio]
 			stringLectura := strings.TrimRight(string(lectura), "\x00")
-			global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: LEER - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, dirFisicaSinDespl + desplazamiento, stringLectura), log.INFO)
+			global.LoggerCpu.Log(fmt.Sprintf("\033[36mPID: %d - Acción: LEER - Dirección Física: %d - Valor: %s\033[0m", global.PCB_Actual.PID, dirFisicaSinDespl+desplazamiento, stringLectura), log.INFO)
 		}
-	}else { //CACHE DESHABILITADA
+	} else { //CACHE DESHABILITADA
 		marco := CalcularMarco(nroPagina)
 		direccionFisica := MMU(desplazamiento, marco)
 		MemoriaLee(direccionFisica, tamanio)
@@ -64,8 +65,8 @@ func READ(instruccion Instruccion, cacheHabilitada bool, desplazamiento int, tlb
 }
 
 func TlbHIT(pagina int) bool {
-	lruCounter ++
-	global.LoggerCpu.Log(fmt.Sprintf("Contenido TLB: %v", global.TLB), log.DEBUG)
+	lruCounter++
+	/* global.LoggerCpu.Log(fmt.Sprintf("Contenido TLB: %v", global.TLB), log.DEBUG) */
 	for i := 0; i <= len(global.TLB)-1; i++ {
 		if global.TLB[i].NroPagina == pagina {
 			global.TLB[i].UltimoUso = lruCounter
@@ -78,8 +79,8 @@ func TlbHIT(pagina int) bool {
 }
 
 func CacheHIT(pagina int) bool {
-/* 	global.LoggerCpu.Log(fmt.Sprintf("Contenido CACHE: %v", global.CACHE), log.DEBUG)
- */	time.Sleep(time.Millisecond * time.Duration(global.CpuConfig.CacheDelay)) 
+	/* 	global.LoggerCpu.Log(fmt.Sprintf("Contenido CACHE: %v", global.CACHE), log.DEBUG)*/
+	time.Sleep(time.Millisecond * time.Duration(global.CpuConfig.CacheDelay))
 	for i := 0; i <= len(global.CACHE)-1; i++ {
 		if global.CACHE[i].NroPagina == pagina {
 			global.CACHE[i].BitUso = 1
@@ -91,23 +92,23 @@ func CacheHIT(pagina int) bool {
 	return false
 }
 
-func actualizarCACHE() (int,int){ //
+func actualizarCACHE() (int, int) { //
 	time.Sleep(time.Millisecond * time.Duration(global.CpuConfig.CacheDelay))
-	indicePisar := indiceVacioCACHE() 
-	
+	indicePisar := indiceVacioCACHE()
+
 	if indicePisar == -1 { // no hay espacio vacio en cachce
 		indicePisar = AlgoritmoCACHE()
 	}
 	if global.CACHE[indicePisar].BitModificado == 1 {
 		nroPaginaPisar := global.CACHE[indicePisar].NroPagina
-		desalojar(indicePisar,nroPaginaPisar)
+		desalojar(indicePisar, nroPaginaPisar)
 	}
-	
+
 	marco := CalcularMarco(nroPagina)
-	dirFisicaSinDesplazamiento := MMU(0,marco)
+	dirFisicaSinDesplazamiento := MMU(0, marco)
 	lecturaPagina := MemoriaLeePaginaCompleta(dirFisicaSinDesplazamiento)
-/* 	global.LoggerCpu.Log(fmt.Sprintf("pagina completa que se lee de memoria: %d", lecturaPagina), log.INFO)
- */
+	/* 	global.LoggerCpu.Log(fmt.Sprintf("pagina completa que se lee de memoria: %d", lecturaPagina), log.INFO) */
+
 	global.CACHE[indicePisar].NroPagina = nroPagina
 	global.CACHE[indicePisar].Contenido = lecturaPagina
 	global.CACHE[indicePisar].BitModificado = 0
@@ -117,13 +118,13 @@ func actualizarCACHE() (int,int){ //
 
 	return indicePisar, dirFisicaSinDesplazamiento
 }
-//PISA UN VALOR DE TLB Y SE LO TRAE
-func actualizarTLB() int{	
+
+func actualizarTLB() int {
 	indicePisar := indiceVacioTLB()
 	if indicePisar == -1 {
 		indicePisar = AlgoritmoTLB()
 	}
-	lruCounter++	
+	lruCounter++
 	marco := BuscarMarcoEnMemoria(nroPagina)
 	global.TLB[indicePisar].Marco = marco
 	global.TLB[indicePisar].NroPagina = nroPagina
@@ -131,9 +132,8 @@ func actualizarTLB() int{
 	return marco
 }
 
-
 func indicePaginaEnCache(pagina int) int {
-	time.Sleep(time.Millisecond * time.Duration(global.CpuConfig.CacheDelay)) 
+	time.Sleep(time.Millisecond * time.Duration(global.CpuConfig.CacheDelay))
 	for i := 0; i <= len(global.CACHE)-1; i++ {
 		if global.CACHE[i].NroPagina == pagina {
 			return i
@@ -163,7 +163,7 @@ func indiceVacioTLB() int {
 }
 
 func indiceVacioCACHE() int {
-	time.Sleep(time.Millisecond * time.Duration(global.CpuConfig.CacheDelay)) 
+	time.Sleep(time.Millisecond * time.Duration(global.CpuConfig.CacheDelay))
 	for i := 0; i <= len(global.CACHE)-1; i++ {
 		if global.CACHE[i].NroPagina == -1 {
 			return i
@@ -172,9 +172,9 @@ func indiceVacioCACHE() int {
 	return -1
 }
 
-func escribirCache(indice int, datos string, desplazamiento int){
+func escribirCache(indice int, datos string, desplazamiento int) {
 	contenido := global.CACHE[indice].Contenido
 	copy(contenido[desplazamiento:], []byte(datos))
 	global.CACHE[indice].BitModificado = 1
-	
+	global.CACHE[indice].BitUso = 1
 }

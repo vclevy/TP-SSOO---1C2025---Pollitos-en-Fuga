@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"sync"
 	"time"
 
 	utils "github.com/sisoputnfrba/tp-golang/utils/config"
@@ -33,9 +32,8 @@ type Config struct {
 	LogFile          string        `json:"log_file"`
 }
 
-var MutexPCB sync.Mutex
-
-
+var IO_Request estructuras.Syscall_IO
+/* var Init_Proc estructuras.Syscall_Init_Proc */
 var CpuID string
 var Interrupcion bool
 var PCB_Actual *estructuras.PCB
@@ -64,10 +62,10 @@ func InitGlobal(idCPU string, configPath string) {
 
 	// 3. Inicializar archivo logger
 	LoggerCpu = log.ConfigurarLogger(logFileName, CpuConfig.LogLevel)
-	LoggerCpu.Log("Logger de CPU inicializado", log.DEBUG)
+	LoggerCpu.Log("Logger de CPU inicializado", log.INFO)
 
 	CacheHabilitada = CpuConfig.CacheEntries > 0
-	TlbHabilitada =  CpuConfig.TlbEntries > 0
+	TlbHabilitada = CpuConfig.TlbEntries > 0
 
 	if err := CargarConfigMMU(); err != nil {
 		LoggerCpu.Log("Error en ConfigMMU: "+err.Error(), log.ERROR)
@@ -98,7 +96,7 @@ func InicializarCACHE() {
 		CACHE[i] = estructuras.DatoCACHE{
 			BitModificado: -1,
 			NroPagina:     -1,
-			Contenido:		make([]byte, ConfigMMU.Tamanio_pagina),
+			Contenido:     make([]byte, ConfigMMU.Tamanio_pagina),
 			BitUso:        -1,
 		}
 	}

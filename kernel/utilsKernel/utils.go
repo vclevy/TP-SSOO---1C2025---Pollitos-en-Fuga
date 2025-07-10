@@ -118,6 +118,7 @@ func SolicitarDumpAMemoria(pid int) error {
 func BuscarCPUPorPID(pid int) *global.CPU {
 	global.MutexCPUs.Lock()
 	defer global.MutexCPUs.Unlock()
+
 	for _, cpu := range global.CPUsConectadas {
 		if cpu.ProcesoEjecutando != nil && cpu.ProcesoEjecutando.PID == pid {
 			return cpu
@@ -125,6 +126,7 @@ func BuscarCPUPorPID(pid int) *global.CPU {
 	}
 	return nil
 }
+
 
 func EnviarADispatch(cpu *global.CPU, pid int, pc int) error {
 	url := fmt.Sprintf("http://%s:%d/dispatch", cpu.IP, cpu.Puerto)
@@ -187,7 +189,7 @@ func EnviarInterrupcionCPU(cpu *global.CPU, pid int, pc int) error {
 }
 
 func HayCPUDisponible() bool {
-	global.MutexCPUs.Lock() //A
+	global.MutexCPUs.Lock()
 	defer global.MutexCPUs.Unlock()
 
 	for _, cpu := range global.CPUsConectadas {
@@ -197,6 +199,7 @@ func HayCPUDisponible() bool {
 	}
 	return false
 }
+
 
 func VerificarEspacioDisponible(tamanio int) bool {
 	cliente := &http.Client{}
@@ -217,10 +220,10 @@ func VerificarEspacioDisponible(tamanio int) bool {
 	}
 	defer respuesta.Body.Close()
 
-	if respuesta.StatusCode != http.StatusOK {
-		global.LoggerKernel.Log(fmt.Sprintf("Memoria respondió con status %d para solicitud de %d bytes", respuesta.StatusCode, tamanio), log.ERROR)
-		return false
-	}
+//	if respuesta.StatusCode != http.StatusOK {
+//		global.LoggerKernel.Log(fmt.Sprintf("Memoria respondió con status %d para solicitud de %d bytes", respuesta.StatusCode, tamanio), log.ERROR)
+//		return false
+//	}
 
 	return true
 }
@@ -306,7 +309,7 @@ func InicializarProceso(proceso *global.Proceso) bool {
 
  if resp.StatusCode != http.StatusOK {
  	//body, _ := io.ReadAll(resp.Body)
- 	global.LoggerKernel.Log(fmt.Sprintf("Fallo inicialización PID %d. Código %d: %s", proceso.PID, resp.StatusCode), log.ERROR)
+ 	global.LoggerKernel.Log(fmt.Sprintf("Fallo inicialización PID %d. Código %d", proceso.PID, resp.StatusCode), log.ERROR)
  	return false
  }
 
@@ -320,11 +323,11 @@ func SacarProcesoDeCPU(pid int) {
 
 	for _, cpu := range global.CPUsConectadas {
 		if cpu.ProcesoEjecutando != nil && cpu.ProcesoEjecutando.PID == pid {
-			global.LoggerKernel.Log(fmt.Sprintf("[TRACE] Liberando CPU %s de proceso PID %d", cpu.ID, pid), log.INFO)
+			global.LoggerKernel.Log(fmt.Sprintf("Liberando CPU %s de proceso PID %d", cpu.ID, pid), log.INFO)
 			cpu.ProcesoEjecutando = nil
 			return
 		}
 	}
 
-	global.LoggerKernel.Log(fmt.Sprintf("[WARN] No se encontró CPU ejecutando proceso PID %d para liberar", pid), log.INFO)
+	//global.LoggerKernel.Log(fmt.Sprintf("[WARN] No se encontró CPU ejecutando proceso PID %d para liberar", pid), log.DEBUG)
 }

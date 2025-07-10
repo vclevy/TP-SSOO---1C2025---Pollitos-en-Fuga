@@ -2,13 +2,13 @@ package planificacion
 
 import (
 	"fmt"
-	"sort"
-	"time"
-
 	"github.com/sisoputnfrba/tp-golang/kernel/global"
 	utilskernel "github.com/sisoputnfrba/tp-golang/kernel/utilsKernel"
 	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
 	log "github.com/sisoputnfrba/tp-golang/utils/logger"
+	"sort"
+	"strconv"
+	"time"
 )
 
 const (
@@ -65,7 +65,6 @@ func CrearProceso(tamanio int, archivoPseudoCodigo string) *Proceso {
 }
 
 func ActualizarEstadoPCB(pcb *PCB, nuevoEstado string) {
-	
 	ahora := time.Now()
 
 	if pcb.UltimoEstado != "" {
@@ -133,7 +132,7 @@ func IniciarPlanificadorLargoPlazo() {
 					global.ColaNew = global.ColaNew[1:]
 					global.MutexNew.Unlock()
 
-					ActualizarEstadoPCB(&proceso.PCB, READY) 
+					ActualizarEstadoPCB(&proceso.PCB, READY)
 					global.AgregarAReady(proceso)
 				}
 
@@ -168,7 +167,7 @@ func IniciarPlanificadorCortoPlazo() {
 		<-global.NotifyReady
 
 		for {
-			if !utilskernel.HayCPUDisponible() && global.ConfigKernel.SchedulerAlgorithm != "SRTF" {
+			if !utilskernel.HayCPUDisponible() {
 				break
 			}
 
@@ -184,7 +183,7 @@ func IniciarPlanificadorCortoPlazo() {
 				nuevoProceso = global.ColaReady[0]
 
 			case "SJF", "SRTF":
-				nuevoProceso = seleccionarProcesoSJF(global.ConfigKernel.SchedulerAlgorithm == "SRTF") 
+				nuevoProceso = seleccionarProcesoSJF(global.ConfigKernel.SchedulerAlgorithm == "SRTF")
 			}
 			global.MutexReady.Unlock()
 
@@ -192,19 +191,23 @@ func IniciarPlanificadorCortoPlazo() {
 				break
 			}
 
+			asignado := false
 			if global.ConfigKernel.SchedulerAlgorithm == "SRTF" {
 				if evaluarDesalojoSRTF(nuevoProceso) {
 					global.LoggerKernel.Log(fmt.Sprintf("Proceso PID %d no asignado por desalojo SRTF", nuevoProceso.PCB.PID), log.DEBUG)
 					continue
 				}
-				if AsignarCPU(nuevoProceso) {
-					break
-				}
+				asignado = AsignarCPU(nuevoProceso)
 			} else {
-				if AsignarCPU(nuevoProceso) {
-					break
-				}
+				asignado = AsignarCPU(nuevoProceso)
 			}
+
+			if asignado {
+				continue // 💡 seguir buscando otro proceso para otra CPU
+			} else {
+				break // 💡 salir si no se pudo asignar (ej. no hay CPU libre ahora)
+			}
+
 		}
 	}
 }
@@ -264,58 +267,53 @@ func evaluarDesalojoSRTF(nuevoProceso *global.Proceso) bool {
 
 func AsignarCPU(proceso *global.Proceso) bool {
 	if proceso.PCB.UltimoEstado == EXIT {
-		global.LoggerKernel.Log(fmt.Sprintf("[ERROR] No se puede asignar PID %d, ya está finalizado", proceso.PID), log.ERROR)
+		global.LoggerKernel.Log(fmt.Sprintf("No se puede asignar PID %d, ya está finalizado", proceso.PID), log.ERROR)
 		return false
 	}
 
 	global.MutexCPUs.Lock()
+
 	var cpuLibre *global.CPU
 	for _, cpu := range global.CPUsConectadas {
 		if cpu.ProcesoEjecutando == nil {
 			cpuLibre = cpu
+			cpu.ProcesoEjecutando = &proceso.PCB // asignación protegida
 			break
 		}
 	}
+
 	global.MutexCPUs.Unlock()
 
 	if cpuLibre == nil {
-		select {
-		case global.NotifyReady <- struct{}{}:
-		default:
-		}
+		global.NotificarReady()
 		return false
 	}
 
+	// Remover de READY
 	global.MutexReady.Lock()
 	global.EliminarProcesoDeCola(&global.ColaReady, proceso.PID)
 	global.MutexReady.Unlock()
 
-	global.MutexCPUs.Lock()
-	cpuLibre.ProcesoEjecutando = &proceso.PCB
-	global.MutexCPUs.Unlock()
-
+	// Pasar a EXEC
 	if proceso.PCB.UltimoEstado != EXEC {
-
-		proceso.MutexPCB.Lock()
 		ActualizarEstadoPCB(&proceso.PCB, EXEC)
-		proceso.MutexPCB.Unlock()
 		global.AgregarAExecuting(proceso)
+	}
 
-		go func(cpu *global.CPU, proceso *global.Proceso) {
-			err := utilskernel.EnviarADispatch(cpu, proceso.PCB.PID, proceso.PCB.PC)
-			if err != nil {
-				global.LoggerKernel.Log(fmt.Sprintf("[ERROR] Error en dispatch de proceso %d a CPU %s: %v", proceso.PID, cpu.ID, err), log.ERROR)
+	// Enviar a CPU (sin goroutine)
+	err := utilskernel.EnviarADispatch(cpuLibre, proceso.PCB.PID, proceso.PCB.PC)
+	if err != nil {
+		global.LoggerKernel.Log(fmt.Sprintf("Error en dispatch de proceso %d a CPU %s: %v", proceso.PID, cpuLibre.ID, err), log.ERROR)
 
-				global.MutexCPUs.Lock()
-				cpu.ProcesoEjecutando = nil
-				global.MutexCPUs.Unlock()
+		global.MutexCPUs.Lock()
+		cpuLibre.ProcesoEjecutando = nil
+		global.MutexCPUs.Unlock()
 
-				if proceso.PCB.UltimoEstado != EXIT {
-					global.LoggerKernel.Log(fmt.Sprintf("[TRACE] Reencolando proceso PID %d en READY tras error de dispatch", proceso.PID), log.DEBUG)
-					global.AgregarAReady(proceso)
-				}
-			}
-		}(cpuLibre, proceso)
+		if proceso.PCB.UltimoEstado != EXIT {
+			global.LoggerKernel.Log(fmt.Sprintf("Reencolando proceso PID %d en READY tras error de dispatch", proceso.PID), log.DEBUG)
+			global.AgregarAReady(proceso)
+		}
+		return false
 	}
 
 	return true
@@ -323,70 +321,154 @@ func AsignarCPU(proceso *global.Proceso) bool {
 
 func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 	var proceso *global.Proceso
-	// Liberar CPU que ejecutaba este proceso
-	global.LoggerKernel.Log(fmt.Sprintf("[DEBUG] Kernel recibe proceso PID %d con PC %d", resp.PID, resp.PC), log.DEBUG)
 
+	global.LoggerKernel.Log(fmt.Sprintf("Kernel recibe proceso PID %d con PC %d", resp.PID, resp.PC), log.DEBUG)
+
+	// Acceso sincronizado a ColaExecuting y CPUsConectadas
 	global.MutexExecuting.Lock()
+	global.MutexCPUs.Lock()
+
 	for _, p := range global.ColaExecuting {
 		if p.PCB.PID == resp.PID {
 			proceso = p
 			break
 		}
 	}
+
+	global.MutexCPUs.Unlock()
 	global.MutexExecuting.Unlock()
 
 	if proceso == nil {
-		global.LoggerKernel.Log(fmt.Sprintf("[WARN] Proceso %d no encontrado en EXECUTING al devolver", resp.PID), log.DEBUG)
+		global.LoggerKernel.Log(fmt.Sprintf("Proceso %d no encontrado en EXECUTING al devolver", resp.PID), log.DEBUG)
 		return
 	}
 
 	if proceso.PCB.UltimoEstado == EXIT {
-		global.LoggerKernel.Log(fmt.Sprintf("[WARN] Se recibió devolución de CPU para PID %d pero ya estaba en EXIT", proceso.PID), log.DEBUG)
+		global.LoggerKernel.Log(fmt.Sprintf("Se recibió devolución de CPU para PID %d pero ya estaba en EXIT", proceso.PID), log.DEBUG)
 		return
 	}
 
-	proceso.MutexPCB.Lock()
+	// Actualizar datos del proceso
 	proceso.TiempoEjecutado += resp.RafagaReal
 	proceso.PCB.PC = resp.PC
-	proceso.MutexPCB.Unlock()
 	RecalcularRafaga(proceso, resp.RafagaReal)
+
 	global.LoggerKernel.Log(fmt.Sprintf("[DEBUG] Asignando a CPU proceso PID %d con PC %d", proceso.PID, proceso.PC), log.DEBUG)
 
 	switch resp.Motivo {
 	case "EXIT":
+		global.LoggerKernel.Log(ColorRed+"## ("+strconv.Itoa(proceso.PID)+") - Solicitó syscall: <EXIT>"+ColorReset, log.INFO)
 		utilskernel.SacarProcesoDeCPU(proceso.PID)
 		FinalizarProceso(proceso)
 
 	case "IO":
 		utilskernel.SacarProcesoDeCPU(proceso.PID)
+		err := ManejarSolicitudIO(resp.PID, resp.IO.IoSolicitada, resp.IO.TiempoEstimado)
+		if err != nil {
+			global.LoggerKernel.Log(fmt.Sprintf("Error en syscall IO del PID %d: %v", proceso.PID, err), log.ERROR)
+		}
 
 	case "READY":
 		utilskernel.SacarProcesoDeCPU(proceso.PID)
+
 		global.MutexExecuting.Lock()
 		global.EliminarProcesoDeCola(&global.ColaExecuting, proceso.PID)
 		global.MutexExecuting.Unlock()
-		proceso.MutexPCB.Lock()
+
 		ActualizarEstadoPCB(&proceso.PCB, READY)
-		proceso.MutexPCB.Unlock()
 		global.AgregarAReady(proceso)
 
 	case "DUMP":
 		utilskernel.SacarProcesoDeCPU(proceso.PID)
+
 		global.MutexExecuting.Lock()
 		global.EliminarProcesoDeCola(&global.ColaExecuting, proceso.PID)
 		global.MutexExecuting.Unlock()
-		proceso.MutexPCB.Lock()
+
 		ActualizarEstadoPCB(&proceso.PCB, BLOCKED)
-		proceso.MutexPCB.Unlock()
 		global.AgregarABlocked(proceso)
+
+		global.LoggerKernel.Log(ColorOrange+"## ("+strconv.Itoa(proceso.PID)+") - Solicitó syscall: <DUMP_MEMORY>"+ColorReset, log.INFO)
+
+		err := utilskernel.SolicitarDumpAMemoria(proceso.PID)
+		if err != nil {
+			global.LoggerKernel.Log(fmt.Sprintf("Error en dump de memoria para PID %d: %s", proceso.PID, err.Error()), log.ERROR)
+
+			global.MutexBlocked.Lock()
+			global.EliminarProcesoDeCola(&global.ColaBlocked, proceso.PID)
+			global.MutexBlocked.Unlock()
+
+			FinalizarProceso(proceso)
+		} else {
+			global.MutexBlocked.Lock()
+			global.EliminarProcesoDeCola(&global.ColaBlocked, proceso.PID)
+			global.MutexBlocked.Unlock()
+
+			ActualizarEstadoPCB(&proceso.PCB, READY)
+			global.AgregarAReady(proceso)
+			global.LoggerKernel.Log("AGREGAR A READY (desde syscall DUMP)", log.DEBUG)
+		}
+
 	}
 
-	if resp.Motivo != "READY" {
-		select {
-		case global.NotifyReady <- struct{}{}:
-		default:
-		}
+	global.NotificarReady()
+
+}
+
+func ManejarSolicitudIO(pid int, nombre string, tiempoUso int) error {
+	global.LoggerKernel.Log(ColorBlue+"## ("+strconv.Itoa(pid)+") - Solicitó syscall: <IO>"+ColorReset, log.INFO)
+
+	global.IOListMutex.Lock()
+	dispositivos := utilskernel.ObtenerDispositivoIO(nombre)
+	global.IOListMutex.Unlock()
+
+	global.MutexExecuting.Lock() //Muevo
+	proceso := utilskernel.BuscarProcesoPorPID(global.ColaExecuting, pid)
+	if proceso == nil {
+		global.MutexExecuting.Unlock() //Actualizo esto xq sino nunca sale del lock
+		return fmt.Errorf("no se pudo obtener el proceso en EXECUTING (PID %d)", pid)
 	}
+
+	global.EliminarProcesoDeCola(&global.ColaExecuting, proceso.PID)
+	global.MutexExecuting.Unlock()
+
+	if len(dispositivos) == 0 {
+		global.LoggerKernel.Log(fmt.Sprintf("Dispositivo IO %s no existe, enviando %d a EXIT", nombre, pid), log.ERROR)
+		FinalizarProceso(proceso)
+		return fmt.Errorf("dispositivo IO %s no existe", nombre)
+	}
+
+	procesoEncolado := &global.ProcesoIO{
+		Proceso:   proceso,
+		TiempoUso: tiempoUso,
+	}
+
+	ActualizarEstadoPCB(&proceso.PCB, BLOCKED)
+	global.AgregarABlocked(proceso)
+
+	// buscar un dispositivo libre
+	for _, dispositivo := range dispositivos {
+		dispositivo.Mutex.Lock()
+		if !dispositivo.Ocupado {
+			dispositivo.Ocupado = true
+			dispositivo.ProcesoEnUso = procesoEncolado
+			dispositivo.Mutex.Unlock()
+
+			global.LoggerKernel.Log("## ("+strconv.Itoa(pid)+") - Bloqueado por IO: <"+dispositivo.Nombre+">", log.INFO)
+			go utilskernel.EnviarAIO(dispositivo, pid, tiempoUso)
+			return nil
+		}
+		dispositivo.Mutex.Unlock()
+	}
+
+	// Si todos ocupados, encolar en el primero
+	primero := dispositivos[0]
+	primero.Mutex.Lock()
+	primero.ColaEspera = append(primero.ColaEspera, procesoEncolado)
+	global.LoggerKernel.Log(fmt.Sprintf("## (%d) - Encolado en %s (Ocupado)", pid, primero.Nombre), log.INFO)
+	primero.Mutex.Unlock()
+
+	return nil
 }
 
 func IniciarPlanificadorMedioPlazo() {
@@ -410,7 +492,7 @@ func IniciarPlanificadorMedioPlazo() {
 
 		for _, p := range procesosASuspender {
 			suspenderProceso(p)
-			
+
 		}
 
 		time.Sleep(100 * time.Millisecond)
@@ -483,13 +565,7 @@ func FinalizarProceso(p *Proceso) {
 	default:
 	}
 
-	global.MutexCPUs.Lock()
-	for _, cpu := range global.CPUsConectadas {
-		if cpu.ProcesoEjecutando != nil && cpu.ProcesoEjecutando.PID == p.PID {
-			cpu.ProcesoEjecutando = nil
-		}
-	}
-	global.MutexCPUs.Unlock()
+	utilskernel.SacarProcesoDeCPU(p.PID)
 }
 
 func liberarPCB(p *Proceso) {
@@ -553,9 +629,9 @@ func suspenderProceso(proceso *global.Proceso) {
 	global.LoggerKernel.Log(fmt.Sprintf("Proceso %d suspendido y movido a SUSP_BLOCKED", proceso.PID), log.INFO)
 
 	select {
-    case global.NotifySuspReady <- struct{}{}:
-    default: // si ya había señal pendiente, no bloquear
-    }
+	case global.NotifySuspReady <- struct{}{}:
+	default: // si ya había señal pendiente, no bloquear
+	}
 }
 
 func EstimacionRestante(p *Proceso) float64 {

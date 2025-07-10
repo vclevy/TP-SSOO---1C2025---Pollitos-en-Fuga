@@ -98,6 +98,8 @@ func cortoProceso() error {
 		PC:         global.PCB_Actual.PC,
 		Motivo:     global.Motivo,
 		RafagaReal: global.Rafaga,
+		IO:         global.IO_Request,
+		/* InitProc:	global.Init_Proc, */
 	}
 
 	jsonData, err := json.Marshal(datosEnvio)
@@ -116,15 +118,13 @@ func cortoProceso() error {
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("devolución proceso fallido con status %d", resp.StatusCode)
 	}
-	global.LoggerCpu.Log("✅ Devolución proceso enviado a Kernel con éxito", log.INFO)
+	/* global.LoggerCpu.Log("✅ Devolución proceso enviado a Kernel con éxito", log.INFO) */
 	return nil
 }
 
 func Desalojo() {
 	// Solo vaciar el PCB si el proceso finalizó (EXIT) o fue interrumpido (READY)
-	if global.Motivo == "EXIT" || global.Motivo == "READY" {
-		global.PCB_Actual = nil
-
+	
 	if global.CacheHabilitada {
 		for i := 0; i < global.CpuConfig.CacheEntries; i++ {
 			if global.CACHE[i].BitModificado == 1 {
@@ -140,7 +140,7 @@ func Desalojo() {
 	}
 
 	if global.TlbHabilitada {
-		for i := 0; i < global.CpuConfig.CacheEntries; i++ {
+		for i := 0; i < global.CpuConfig.TlbEntries; i++ {
 			if global.TLB[i].NroPagina != -1 {
 				global.TLB[i].NroPagina = -1
 				global.TLB[i].Marco = -1
@@ -148,7 +148,9 @@ func Desalojo() {
 			}
 		}
 	}
-}
+	if global.Motivo == "EXIT" || global.Motivo == "READY" {
+		global.PCB_Actual = nil
+	}
 }
 
 func desalojar(indicePisar int, nroPaginaPisar int) {
@@ -187,4 +189,3 @@ func DevolucionPID() error {
 
 	return nil
 }
-

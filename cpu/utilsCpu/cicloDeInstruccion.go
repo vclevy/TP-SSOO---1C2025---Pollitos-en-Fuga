@@ -2,12 +2,13 @@ package utilsIo
 
 import (
 	"fmt"
-	"github.com/sisoputnfrba/tp-golang/cpu/global"
-	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
-	log "github.com/sisoputnfrba/tp-golang/utils/logger"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/sisoputnfrba/tp-golang/cpu/global"
+	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
+	log "github.com/sisoputnfrba/tp-golang/utils/logger"
 )
 
 var tiempoInicio time.Time
@@ -26,7 +27,7 @@ func CicloDeInstruccion() bool {
 		return false
 	}
 	if opcode == "EXIT" {
-		global.LoggerCpu.Log("Es EXIT, corta el ciclo de instrucción", log.DEBUG)
+		global.LoggerCpu.Log("Es EXIT, corta el ciclo de instrucción", log.INFO)
 		return false
 	}
 
@@ -37,10 +38,8 @@ func CicloDeInstruccion() bool {
 }
 
 func Fetch() string {
-	
 	pidActual := global.PCB_Actual.PID
 	pcActual := global.PCB_Actual.PC
-	
 
 	global.LoggerCpu.Log(fmt.Sprintf("\033[36m## PID: %d - FETCH - Program Counter: %d\033[0m", pidActual, pcActual), log.INFO) //!! Fetch Instrucción - logObligatorio
 
@@ -51,7 +50,7 @@ func Fetch() string {
 
 	var instruccionAEjecutar = instruccionAEjecutar(solicitudInstruccion)
 
-	global.LoggerCpu.Log(fmt.Sprintf("Memoria respondió con la instrucción: %s", instruccionAEjecutar), log.INFO)
+	/* global.LoggerCpu.Log(fmt.Sprintf("Memoria respondió con la instrucción: %s", instruccionAEjecutar), log.INFO) */
 
 	return instruccionAEjecutar
 }
@@ -75,22 +74,39 @@ func Decode(instruccionAEjecutar string) (Instruccion, bool) {
 
 func Execute(instruccion Instruccion, requiereMMU bool) (string, error) {
 
-	global.LoggerCpu.Log(fmt.Sprintf("\033[36m## PID: %d - Ejecutando: %s - %s\033[0m", global.PCB_Actual.PID, instruccion.Opcode, instruccion.Parametros), log.INFO)
-	
-	//todo INSTRUCCIONES SYSCALLS
+	global.LoggerCpu.Log(fmt.Sprintf("\033[36m## PID: %d - Ejecutando: %s - %s\033[0m", global.PCB_Actual.PID, instruccion.Opcode, instruccion.Parametros), log.INFO) //!! Instrucción Ejecutada - logObligatorio
+	if global.PCB_Actual == nil {
+		return "", fmt.Errorf("PCB_Actual es nil: no se puede ejecutar instrucción")
+	}
 	if instruccion.Opcode == "IO" {
 		sumarPC = false
 		global.Motivo = "IO"
 		global.Rafaga = float64(time.Since(tiempoInicio).Milliseconds())
 		global.PCB_Actual.PC++
+
+		tiempo, err := strconv.Atoi(instruccion.Parametros[1])
+		if err != nil {
+			global.LoggerCpu.Log("Error al convertir tiempo estimado: %v", log.ERROR)
+			return "", err
+		}
+
+		global.IO_Request = estructuras.Syscall_IO{
+			PIDproceso:     global.PCB_Actual.PID,
+			IoSolicitada:   instruccion.Parametros[0],
+			TiempoEstimado: tiempo,
+		}
+
 		cortoProceso()
-		Syscall_IO(instruccion)
 		Desalojo()
 		return "", nil
 	}
+
 	if instruccion.Opcode == "INIT_PROC" {
 		sumarPC = true
+		global.LoggerCpu.Log("Antes de mandar syscall INIT PROC", log.DEBUG)
 		Syscall_Init_Proc(instruccion)
+		cortoProceso()
+
 		return "", nil
 	}
 	if instruccion.Opcode == "DUMP_MEMORY" {
@@ -99,8 +115,8 @@ func Execute(instruccion Instruccion, requiereMMU bool) (string, error) {
 		global.Rafaga = float64(time.Since(tiempoInicio).Milliseconds())
 		global.PCB_Actual.PC++
 		cortoProceso()
-		Syscall_Dump_Memory()
 		Desalojo()
+
 		return "", nil
 	}
 
@@ -108,16 +124,16 @@ func Execute(instruccion Instruccion, requiereMMU bool) (string, error) {
 		sumarPC = false
 		global.Motivo = "EXIT"
 		global.Rafaga = float64(time.Since(tiempoInicio).Milliseconds())
-		pid := global.PCB_Actual.PID
-		Syscall_Exit()         // primero la syscall
-		DevolucionPID()        // luego la devolución
-		Desalojo()             // al final el borrado
+		pid := global.PCB_Actual.PID // antes de que se borre
+
+		cortoProceso()
+		Desalojo()
 
 		global.LoggerCpu.Log(fmt.Sprintf("\033[35mProceso %d finalizado (EXIT). Fin del ciclo\033[0m", pid), log.INFO)
+
 		return "EXIT", nil
 	}
 
-	//todo OTRAS INSTRUCCIONES
 	if instruccion.Opcode == "NOOP" {
 		sumarPC = true
 		return "", nil
@@ -137,7 +153,6 @@ func Execute(instruccion Instruccion, requiereMMU bool) (string, error) {
 		return "", nil
 	}
 
-	//todo INSTRUCCIONES MMU
 	if requiereMMU {
 		sumarPC = true
 		var desplazamiento int
@@ -172,21 +187,19 @@ func Execute(instruccion Instruccion, requiereMMU bool) (string, error) {
 	return "", nil
 }
 
-
 func CheckInterrupt() {
 	if global.Interrupcion {
-		global.LoggerCpu.Log(("Hay interrupción"), log.DEBUG)
+		/* global.LoggerCpu.Log(("Hay interrupción"), log.DEBUG) */
 		global.Motivo = "READY"
 		global.Rafaga = float64(time.Since(tiempoInicio).Milliseconds())
 		Desalojo()
 		cortoProceso()
 		global.PCB_Actual = global.PCB_Interrupcion
-
 		global.Interrupcion = false
 	} else {
 		if sumarPC {
 			global.PCB_Actual.PC = global.PCB_Actual.PC + 1
 		}
-		global.LoggerCpu.Log("No hay interrupción", log.DEBUG)
+		/* global.LoggerCpu.Log("No hay interrupción", log.DEBUG) */
 	}
 }

@@ -1,2 +1,0 @@
-INIT_PROC proceso1.txt 40
-EXIT
