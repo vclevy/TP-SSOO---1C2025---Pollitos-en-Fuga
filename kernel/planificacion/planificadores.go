@@ -198,6 +198,7 @@ func IniciarPlanificadorCortoPlazo() {
 					global.LoggerKernel.Log(fmt.Sprintf("Se solicitó desalojo para asignar PID %d (SRTF)", nuevoProceso.PCB.PID), log.DEBUG)
 					break // no continuar hasta que se libere CPU
 				}
+				global.LoggerKernel.Log(fmt.Sprintf("No hay tal desalojo para PID %d (SRTF)", nuevoProceso.PCB.PID), log.DEBUG)
 			}
 
 			asignado := AsignarCPU(nuevoProceso)
