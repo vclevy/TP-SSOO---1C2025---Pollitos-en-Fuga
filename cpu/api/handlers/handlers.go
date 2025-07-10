@@ -8,6 +8,7 @@ import (
 	"github.com/sisoputnfrba/tp-golang/cpu/utilsCpu"
 	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
 	log "github.com/sisoputnfrba/tp-golang/utils/logger"
+	"time"
 )
 
 func Interrupcion(w http.ResponseWriter, r *http.Request) {
@@ -46,10 +47,9 @@ func NuevoPCB(w http.ResponseWriter, r *http.Request) {
 	global.PCB_Actual = &data
 	global.LoggerCpu.Log(fmt.Sprintf("Fue asignado un nuevo proceso con PID %d y PC: %d", data.PID, data.PC), log.INFO)
 
-	// ✅ RESPONDE AL KERNEL ANTES DE EJECUTAR
+	global.TiempoInicio = time.Now()
 	w.WriteHeader(http.StatusOK)
 
-	// ✅ Ahora ejecutás el ciclo normalmente
 	for utilsIo.CicloDeInstruccion() {
 	}
 }

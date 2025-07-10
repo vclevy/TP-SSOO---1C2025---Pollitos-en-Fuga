@@ -7,18 +7,15 @@ import (
 	log "github.com/sisoputnfrba/tp-golang/utils/logger"
 	"strconv"
 	"strings"
-	"time"
 )
 
-var tiempoInicio time.Time
 var sumarPC bool = true
 
 func CicloDeInstruccion() bool {
+
 	var instruccionAEjecutar = Fetch()
 
 	instruccion, requiereMMU := Decode(instruccionAEjecutar)
-
-	tiempoInicio = time.Now()
 
 	opcode, err := Execute(instruccion, requiereMMU)
 	if err != nil {
@@ -78,7 +75,6 @@ func Execute(instruccion Instruccion, requiereMMU bool) (string, error) {
 	if instruccion.Opcode == "IO" {
 		sumarPC = false
 		global.Motivo = "IO"
-		global.Rafaga = float64(time.Since(tiempoInicio).Milliseconds())
 		global.PCB_Actual.PC++
 
 		tiempo, err := strconv.Atoi(instruccion.Parametros[1])
@@ -108,7 +104,6 @@ func Execute(instruccion Instruccion, requiereMMU bool) (string, error) {
 	if instruccion.Opcode == "DUMP_MEMORY" {
 		sumarPC = false
 		global.Motivo = "DUMP"
-		global.Rafaga = float64(time.Since(tiempoInicio).Milliseconds())
 		global.PCB_Actual.PC++
 		cortoProceso()
 		Desalojo()
@@ -119,7 +114,6 @@ func Execute(instruccion Instruccion, requiereMMU bool) (string, error) {
 	if instruccion.Opcode == "EXIT" {
 		sumarPC = false
 		global.Motivo = "EXIT"
-		global.Rafaga = float64(time.Since(tiempoInicio).Milliseconds())
 		pid := global.PCB_Actual.PID // antes de que se borre
 
 		cortoProceso()
@@ -186,7 +180,6 @@ func Execute(instruccion Instruccion, requiereMMU bool) (string, error) {
 func CheckInterrupt() {
 	if global.Interrupcion {
 		global.Motivo = "READY"
-		global.Rafaga = float64(time.Since(tiempoInicio).Milliseconds())
 		Desalojo()
 		cortoProceso()
 		global.PCB_Actual = global.PCB_Interrupcion

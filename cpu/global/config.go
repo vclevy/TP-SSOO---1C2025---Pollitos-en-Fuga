@@ -15,6 +15,7 @@ import (
 
 var CpuConfig *Config
 var LoggerCpu *log.LoggerStruct
+var TiempoInicio time.Time
 
 type Config struct {
 	Ip_Memoria       string        `json:"ip_memory"`

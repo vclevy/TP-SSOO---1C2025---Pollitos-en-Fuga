@@ -9,6 +9,7 @@ import (
 	log "github.com/sisoputnfrba/tp-golang/utils/logger"
 	"io"
 	"net/http"
+	"time"
 )
 
 var instruccionesConMMU = map[string]bool{
@@ -88,7 +89,9 @@ func instruccionAEjecutar(solicitudInstruccion estructuras.PCB) string {
 	return instruccionAEjecutar
 }
 
-func cortoProceso() error {
+func cortoProceso() error {	
+	global.Rafaga = float64(time.Since(global.TiempoInicio).Milliseconds())
+
 	datosEnvio := estructuras.RespuestaCPU{
 		PID:        global.PCB_Actual.PID,
 		PC:         global.PCB_Actual.PC,
