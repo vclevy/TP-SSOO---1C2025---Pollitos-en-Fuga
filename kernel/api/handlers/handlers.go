@@ -78,7 +78,7 @@ func INIT_PROC(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if syscall.ArchivoInstrucciones == "" || syscall.Tamanio <0 {
+	if syscall.ArchivoInstrucciones == "" || syscall.Tamanio < 0 {
 		http.Error(w, "Parámetros inválidos", http.StatusBadRequest)
 		return
 	}
@@ -107,7 +107,11 @@ func HandshakeConCPU(w http.ResponseWriter, r *http.Request) {
 		ProcesoEjecutando: nil,
 	}
 
+	global.MutexCPUs.Lock()
 	global.CPUsConectadas = append(global.CPUsConectadas, &nuevaCpu)
+	global.MutexCPUs.Unlock()
+
+	global.LoggerKernel.Log(fmt.Sprintf("Total CPUs conectadas: %d", len(global.CPUsConectadas)), log.DEBUG)
 	global.LoggerKernel.Log(fmt.Sprintf("Handshake recibido de CPU %s en %s:%s", nuevoHandshake.ID, nuevoHandshake.IP, strconv.Itoa(nuevoHandshake.Puerto)), log.DEBUG)
 
 	w.WriteHeader(http.StatusOK)
