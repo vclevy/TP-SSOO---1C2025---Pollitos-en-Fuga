@@ -435,7 +435,7 @@ func GuardarInfoSwap(pid int, data []byte){
 
 	//GPT ¿Como abrir archivo? 
 	// 0644 => octal, dueño, grupo, otros => -rw-r--r--
-	file, err := os.Open(SwapPath) //O_APPEND: Todo se agrega al final, no sobreescribe; O_CREATE: Si no existe lo crea; O_WORNLY Se abre solo para escritura, no lectura
+	file, err := os.OpenFile(SwapPath, os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil{
 		fmt.Printf("Error al abrir el archivo swap %v", err)
 		return
