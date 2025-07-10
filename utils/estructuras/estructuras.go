@@ -61,12 +61,15 @@ type HandshakeConCPU struct {
 type SolicitudDump struct {
 	PID int `json:"pid"`
 }
+
 type RespuestaCPU struct {
-	PID        int     `json:"pid"`
-	PC         int     `json:"pc"`
-	Motivo     string  `json:"motivo"`
-	RafagaReal float64 `json:"rafagaReal"`
-}
+	PID        int       `json:"PID"`
+	PC         int       `json:"PC"`
+	Motivo     string    `json:"Motivo"`
+	RafagaReal float64   `json:"RafagaReal"`
+	IO         Syscall_IO `json:"IO"` // <-- nuevo campo
+/* 	InitProc 	Syscall_Init_Proc `json:"InicProc"`// <-- nuevo campo
+ */}
 
 type PCB struct {
 	PID int `json:"pid"`
@@ -102,4 +105,3 @@ type DatoCACHE struct {
 	Contenido     []byte
 	BitUso        int // 0 o 1
 }
-

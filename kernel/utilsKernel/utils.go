@@ -118,6 +118,7 @@ func SolicitarDumpAMemoria(pid int) error {
 func BuscarCPUPorPID(pid int) *global.CPU {
 	global.MutexCPUs.Lock()
 	defer global.MutexCPUs.Unlock()
+
 	for _, cpu := range global.CPUsConectadas {
 		if cpu.ProcesoEjecutando != nil && cpu.ProcesoEjecutando.PID == pid {
 			return cpu
@@ -125,6 +126,7 @@ func BuscarCPUPorPID(pid int) *global.CPU {
 	}
 	return nil
 }
+
 
 func EnviarADispatch(cpu *global.CPU, pid int, pc int) error {
 	url := fmt.Sprintf("http://%s:%d/dispatch", cpu.IP, cpu.Puerto)
@@ -187,7 +189,7 @@ func EnviarInterrupcionCPU(cpu *global.CPU, pid int, pc int) error {
 }
 
 func HayCPUDisponible() bool {
-	global.MutexCPUs.Lock() //A
+	global.MutexCPUs.Lock()
 	defer global.MutexCPUs.Unlock()
 
 	for _, cpu := range global.CPUsConectadas {
@@ -197,6 +199,7 @@ func HayCPUDisponible() bool {
 	}
 	return false
 }
+
 
 func VerificarEspacioDisponible(tamanio int) bool {
 	cliente := &http.Client{}
@@ -326,5 +329,5 @@ func SacarProcesoDeCPU(pid int) {
 		}
 	}
 
-	global.LoggerKernel.Log(fmt.Sprintf("[WARN] No se encontró CPU ejecutando proceso PID %d para liberar", pid), log.INFO)
+	//global.LoggerKernel.Log(fmt.Sprintf("[WARN] No se encontró CPU ejecutando proceso PID %d para liberar", pid), log.DEBUG)
 }
