@@ -2,13 +2,13 @@ package planificacion
 
 import (
 	"fmt"
-	"sort"
-	"time"
-	"strconv"
 	"github.com/sisoputnfrba/tp-golang/kernel/global"
 	utilskernel "github.com/sisoputnfrba/tp-golang/kernel/utilsKernel"
 	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
 	log "github.com/sisoputnfrba/tp-golang/utils/logger"
+	"sort"
+	"strconv"
+	"time"
 )
 
 const (
@@ -167,7 +167,7 @@ func IniciarPlanificadorCortoPlazo() {
 		<-global.NotifyReady
 
 		for {
-			if !utilskernel.HayCPUDisponible() && global.ConfigKernel.SchedulerAlgorithm != "SRTF" {
+			if !utilskernel.HayCPUDisponible() {
 				break
 			}
 
@@ -183,7 +183,7 @@ func IniciarPlanificadorCortoPlazo() {
 				nuevoProceso = global.ColaReady[0]
 
 			case "SJF", "SRTF":
-				nuevoProceso = seleccionarProcesoSJF(global.ConfigKernel.SchedulerAlgorithm == "SRTF") 
+				nuevoProceso = seleccionarProcesoSJF(global.ConfigKernel.SchedulerAlgorithm == "SRTF")
 			}
 			global.MutexReady.Unlock()
 
@@ -197,13 +197,14 @@ func IniciarPlanificadorCortoPlazo() {
 					continue
 				}
 				if AsignarCPU(nuevoProceso) {
-					break
+					continue
 				}
 			} else {
 				if AsignarCPU(nuevoProceso) {
-					break
+					continue
 				}
 			}
+
 		}
 	}
 }
@@ -281,9 +282,9 @@ func AsignarCPU(proceso *global.Proceso) bool {
 	global.MutexCPUs.Unlock()
 
 	if cpuLibre == nil {
-    global.NotificarReady()
-    return false
-}
+		global.NotificarReady()
+		return false
+	}
 
 	// Remover de READY
 	global.MutexReady.Lock()
@@ -388,30 +389,29 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 
 		err := utilskernel.SolicitarDumpAMemoria(proceso.PID)
 		if err != nil {
-		global.LoggerKernel.Log(fmt.Sprintf("Error en dump de memoria para PID %d: %s", proceso.PID, err.Error()), log.ERROR)
+			global.LoggerKernel.Log(fmt.Sprintf("Error en dump de memoria para PID %d: %s", proceso.PID, err.Error()), log.ERROR)
 
-		global.MutexBlocked.Lock()
-		global.EliminarProcesoDeCola(&global.ColaBlocked, proceso.PID)
-		global.MutexBlocked.Unlock()
+			global.MutexBlocked.Lock()
+			global.EliminarProcesoDeCola(&global.ColaBlocked, proceso.PID)
+			global.MutexBlocked.Unlock()
 
-		FinalizarProceso(proceso)
+			FinalizarProceso(proceso)
 		} else {
-		global.MutexBlocked.Lock()
-		global.EliminarProcesoDeCola(&global.ColaBlocked, proceso.PID)
-		global.MutexBlocked.Unlock()
+			global.MutexBlocked.Lock()
+			global.EliminarProcesoDeCola(&global.ColaBlocked, proceso.PID)
+			global.MutexBlocked.Unlock()
 
-		ActualizarEstadoPCB(&proceso.PCB, READY)
-		global.AgregarAReady(proceso)
-		global.LoggerKernel.Log("AGREGAR A READY (desde syscall DUMP)", log.DEBUG)
-	}
+			ActualizarEstadoPCB(&proceso.PCB, READY)
+			global.AgregarAReady(proceso)
+			global.LoggerKernel.Log("AGREGAR A READY (desde syscall DUMP)", log.DEBUG)
+		}
 
 	}
 
 	if resp.Motivo != "READY" {
-    global.NotificarReady()
+		global.NotificarReady()
+	}
 }
-}
-
 
 func ManejarSolicitudIO(pid int, nombre string, tiempoUso int) error {
 	global.LoggerKernel.Log(ColorBlue+"## ("+strconv.Itoa(pid)+") - Solicitó syscall: <IO>"+ColorReset, log.INFO)
@@ -423,11 +423,10 @@ func ManejarSolicitudIO(pid int, nombre string, tiempoUso int) error {
 	global.MutexExecuting.Lock() //Muevo
 	proceso := utilskernel.BuscarProcesoPorPID(global.ColaExecuting, pid)
 	if proceso == nil {
-		global.MutexExecuting.Unlock()//Actualizo esto xq sino nunca sale del lock
+		global.MutexExecuting.Unlock() //Actualizo esto xq sino nunca sale del lock
 		return fmt.Errorf("no se pudo obtener el proceso en EXECUTING (PID %d)", pid)
 	}
 
-	
 	global.EliminarProcesoDeCola(&global.ColaExecuting, proceso.PID)
 	global.MutexExecuting.Unlock()
 
@@ -491,7 +490,7 @@ func IniciarPlanificadorMedioPlazo() {
 
 		for _, p := range procesosASuspender {
 			suspenderProceso(p)
-			
+
 		}
 
 		time.Sleep(100 * time.Millisecond)
@@ -628,9 +627,9 @@ func suspenderProceso(proceso *global.Proceso) {
 	global.LoggerKernel.Log(fmt.Sprintf("Proceso %d suspendido y movido a SUSP_BLOCKED", proceso.PID), log.INFO)
 
 	select {
-    case global.NotifySuspReady <- struct{}{}:
-    default: // si ya había señal pendiente, no bloquear
-    }
+	case global.NotifySuspReady <- struct{}{}:
+	default: // si ya había señal pendiente, no bloquear
+	}
 }
 
 func EstimacionRestante(p *Proceso) float64 {
