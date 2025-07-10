@@ -352,6 +352,18 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 	proceso.PCB.PC = resp.PC
 	RecalcularRafaga(proceso, resp.RafagaReal)
 
+	global.LoggerKernel.Log(
+		fmt.Sprintf("PID %d - Ráfaga ejecutada: %.2f ms | Total ejecutado: %.2f ms",
+			proceso.PID, resp.RafagaReal, proceso.TiempoEjecutado),
+		log.DEBUG,
+	)
+
+	restante := EstimacionRestante(proceso)
+	global.LoggerKernel.Log(
+		fmt.Sprintf("PID %d - Estimación restante: %.2f ms", proceso.PID, restante),
+		log.DEBUG,
+	)
+
 	global.LoggerKernel.Log(fmt.Sprintf("[DEBUG] Asignando a CPU proceso PID %d con PC %d", proceso.PID, proceso.PC), log.DEBUG)
 
 	switch resp.Motivo {

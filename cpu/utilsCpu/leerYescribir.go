@@ -11,7 +11,7 @@ import (
 
 func WRITE(instruccion Instruccion, cacheHabilitada bool, desplazamiento int, tlbHabilitada bool) {
 	datos := instruccion.Parametros[1]
-	//bit uso ver
+
 	if cacheHabilitada { //CACHE HABILITADA
 		if CacheHIT(nroPagina) { //CACHE HIT
 			indice := indicePaginaEnCache(nroPagina)
@@ -99,8 +99,14 @@ func actualizarCACHE() (int, int) {
 	}
 
 	time.Sleep(time.Millisecond * time.Duration(global.CpuConfig.CacheDelay))
-	indicePisar := indiceVacioCACHE()
 
+	for i := 0; i < len(global.CACHE); i++ { // Chequeo si la página ya está en caché
+		if global.CACHE[i].NroPagina == nroPagina {
+			return i, MMU(0, CalcularMarco(nroPagina))
+		}
+	}
+
+	indicePisar := indiceVacioCACHE()
 	if indicePisar == -1 {
 		indicePisar = AlgoritmoCACHE()
 	}
@@ -124,7 +130,7 @@ func actualizarCACHE() (int, int) {
 	global.CACHE[indicePisar].BitModificado = 0
 	global.CACHE[indicePisar].BitUso = 1
 
-	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Cache Add - Pagina: %d", global.PCB_Actual.PID, nroPagina), log.INFO) //!! Página ingresada en Caché - logObligatorio
+	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Cache Add - Pagina: %d", global.PCB_Actual.PID, nroPagina), log.INFO)
 
 	return indicePisar, dirFisicaSinDesplazamiento
 }
@@ -133,6 +139,14 @@ func actualizarTLB() int {
 	if len(global.TLB) == 0 {
 		global.LoggerCpu.Log("Error: TLB no contiene entradas", log.ERROR)
 		return -1
+	}
+
+	for i := 0; i < len(global.TLB); i++ { // Chequeo si la pagina ya esta en TLB
+		if global.TLB[i].NroPagina == nroPagina {
+			global.TLB[i].UltimoUso = lruCounter
+			global.LoggerCpu.Log(fmt.Sprintf("Página %d ya estaba en TLB, se evita recarga", nroPagina), log.DEBUG)
+			return global.TLB[i].Marco
+		}
 	}
 
 	indicePisar := indiceVacioTLB()
@@ -154,7 +168,6 @@ func actualizarTLB() int {
 
 	return marco
 }
-
 
 func indicePaginaEnCache(pagina int) int {
 	time.Sleep(time.Millisecond * time.Duration(global.CpuConfig.CacheDelay))
