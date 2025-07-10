@@ -92,13 +92,24 @@ func CacheHIT(pagina int) bool {
 	return false
 }
 
-func actualizarCACHE() (int, int) { //
+func actualizarCACHE() (int, int) {
+	if len(global.CACHE) == 0 {
+		global.LoggerCpu.Log("Error: CACHE no contiene entradas", log.ERROR)
+		return -1, -1
+	}
+
 	time.Sleep(time.Millisecond * time.Duration(global.CpuConfig.CacheDelay))
 	indicePisar := indiceVacioCACHE()
 
-	if indicePisar == -1 { // no hay espacio vacio en cachce
+	if indicePisar == -1 {
 		indicePisar = AlgoritmoCACHE()
 	}
+
+	if indicePisar < 0 || indicePisar >= len(global.CACHE) {
+		global.LoggerCpu.Log("Error: índice fuera de rango en CACHE", log.ERROR)
+		return -1, -1
+	}
+
 	if global.CACHE[indicePisar].BitModificado == 1 {
 		nroPaginaPisar := global.CACHE[indicePisar].NroPagina
 		desalojar(indicePisar, nroPaginaPisar)
@@ -119,17 +130,31 @@ func actualizarCACHE() (int, int) { //
 }
 
 func actualizarTLB() int {
+	if len(global.TLB) == 0 {
+		global.LoggerCpu.Log("Error: TLB no contiene entradas", log.ERROR)
+		return -1
+	}
+
 	indicePisar := indiceVacioTLB()
 	if indicePisar == -1 {
 		indicePisar = AlgoritmoTLB()
 	}
+
+	if indicePisar < 0 || indicePisar >= len(global.TLB) {
+		global.LoggerCpu.Log("Error: índice fuera de rango en TLB", log.ERROR)
+		return -1
+	}
+
 	lruCounter++
 	marco := BuscarMarcoEnMemoria(nroPagina)
+
 	global.TLB[indicePisar].Marco = marco
 	global.TLB[indicePisar].NroPagina = nroPagina
 	global.TLB[indicePisar].UltimoUso = lruCounter
+
 	return marco
 }
+
 
 func indicePaginaEnCache(pagina int) int {
 	time.Sleep(time.Millisecond * time.Duration(global.CpuConfig.CacheDelay))
