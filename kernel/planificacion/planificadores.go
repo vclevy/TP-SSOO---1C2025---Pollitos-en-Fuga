@@ -364,10 +364,10 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 
 	case "IO":
 		utilskernel.SacarProcesoDeCPU(proceso.PID)
-		err := ManejarSolicitudIO(resp.PID, resp.IO.IoSolicitada, resp.IO.TiempoEstimado)
-		if err != nil {
-			global.LoggerKernel.Log(fmt.Sprintf("Error en syscall IO del PID %d: %v", proceso.PID, err), log.ERROR)
-		}
+		ManejarSolicitudIO(resp.PID, resp.IO.IoSolicitada, resp.IO.TiempoEstimado)
+		//if err != nil {
+			//global.LoggerKernel.Log(fmt.Sprintf("Error en syscall IO del PID %d: %v", proceso.PID, err), log.ERROR)
+		//}
 
 	case "READY":
 		utilskernel.SacarProcesoDeCPU(proceso.PID)
@@ -466,7 +466,7 @@ func ManejarSolicitudIO(pid int, nombre string, tiempoUso int) error {
 	primero := dispositivos[0]
 	primero.Mutex.Lock()
 	primero.ColaEspera = append(primero.ColaEspera, procesoEncolado)
-	global.LoggerKernel.Log(fmt.Sprintf("## (%d) - Encolado en %s (Ocupado)", pid, primero.Nombre), log.INFO)
+	global.LoggerKernel.Log(fmt.Sprintf("## (%d) - Encolado en %s (Ocupado)", pid, primero.Nombre), log.DEBUG)
 	primero.Mutex.Unlock()
 
 	return nil
@@ -627,7 +627,7 @@ func suspenderProceso(proceso *global.Proceso) {
 		}
 	}(proceso.PID)
 
-	global.LoggerKernel.Log(fmt.Sprintf("Proceso %d suspendido y movido a SUSP_BLOCKED", proceso.PID), log.INFO)
+	global.LoggerKernel.Log(fmt.Sprintf("Proceso %d suspendido y movido a SUSP_BLOCKED", proceso.PID), log.DEBUG)
 
 	select {
 	case global.NotifySuspReady <- struct{}{}:

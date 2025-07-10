@@ -221,7 +221,6 @@ func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
 
 			planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.READY)
 			global.AgregarAReady(proceso)
-			global.LoggerKernel.Log("AGREGAR A READY A", log.DEBUG)
 		}
 
 		// 2) Ahora, con el dispositivo liberado, asignar IO al siguiente en la cola

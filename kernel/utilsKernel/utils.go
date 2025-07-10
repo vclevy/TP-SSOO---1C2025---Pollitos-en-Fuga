@@ -323,7 +323,7 @@ func SacarProcesoDeCPU(pid int) {
 
 	for _, cpu := range global.CPUsConectadas {
 		if cpu.ProcesoEjecutando != nil && cpu.ProcesoEjecutando.PID == pid {
-			global.LoggerKernel.Log(fmt.Sprintf("Liberando CPU %s de proceso PID %d", cpu.ID, pid), log.INFO)
+			global.LoggerKernel.Log(fmt.Sprintf("Liberando CPU %s de proceso PID %d", cpu.ID, pid), log.DEBUG)
 			cpu.ProcesoEjecutando = nil
 			return
 		}
