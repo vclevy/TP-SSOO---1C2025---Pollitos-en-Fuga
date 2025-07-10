@@ -191,21 +191,20 @@ func IniciarPlanificadorCortoPlazo() {
 				break
 			}
 
-			asignado := false
+			
 			if global.ConfigKernel.SchedulerAlgorithm == "SRTF" {
 				if evaluarDesalojoSRTF(nuevoProceso) {
-					global.LoggerKernel.Log(fmt.Sprintf("Proceso PID %d no asignado por desalojo SRTF", nuevoProceso.PCB.PID), log.DEBUG)
-					continue
+					// Se pidió un desalojo, esperamos a que se libere CPU
+					global.LoggerKernel.Log(fmt.Sprintf("Se solicitó desalojo para asignar PID %d (SRTF)", nuevoProceso.PCB.PID), log.DEBUG)
+					break // no continuar hasta que se libere CPU
 				}
-				asignado = AsignarCPU(nuevoProceso)
-			} else {
-				asignado = AsignarCPU(nuevoProceso)
 			}
 
+			asignado := AsignarCPU(nuevoProceso)
 			if asignado {
-				continue 
+				continue
 			} else {
-				break 
+				break
 			}
 		}
 	}
@@ -245,8 +244,13 @@ func evaluarDesalojoSRTF(nuevoProceso *global.Proceso) bool {
 	ejecutando := global.ColaExecuting[0]
 	restanteEjecutando := EstimacionRestante(ejecutando)
 	restanteNuevo := EstimacionRestante(nuevoProceso)
-
+	
+	global.LoggerKernel.Log(fmt.Sprintf(
+	"[DEBUG] Evaluando SRTF: Ejecutando PID %d (%.2f ms) vs Nuevo PID %d (%.2f ms)",
+	ejecutando.PCB.PID, restanteEjecutando, nuevoProceso.PCB.PID, restanteNuevo,
+	), log.DEBUG)
 	if restanteNuevo < restanteEjecutando {
+
 		cpu := utilskernel.BuscarCPUPorPID(ejecutando.PCB.PID)
 		if cpu != nil {
 			global.LoggerKernel.Log(fmt.Sprintf("## (%d) - Desalojado por algoritmo SJF/SRT", ejecutando.PCB.PID), log.INFO)
