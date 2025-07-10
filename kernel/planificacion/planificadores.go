@@ -158,10 +158,6 @@ func IniciarPlanificadorCortoPlazo() {
 		<-global.NotifyReady
 
 		for {
-			if !utilskernel.HayCPUDisponible() {
-				break
-			}
-
 			global.MutexReady.Lock()
 			if len(global.ColaReady) == 0 {
 				global.MutexReady.Unlock()
@@ -182,15 +178,19 @@ func IniciarPlanificadorCortoPlazo() {
 				break
 			}
 
-			
+			// ⬇️ Evaluar desalojo siempre que sea SRTF
 			if global.ConfigKernel.SchedulerAlgorithm == "SRTF" {
-				global.LoggerKernel.Log(fmt.Sprintf("Evaluando desalojo SRTF con PID %d", nuevoProceso.PCB.PID), log.DEBUG)
+				global.LoggerKernel.Log(fmt.Sprintf("Evaluando desalojo SRTF con PID %d", nuevoProceso.PID), log.DEBUG)
 				if evaluarDesalojoSRTF(nuevoProceso) {
-					// Se pidió un desalojo, esperamos a que se libere CPU
-					global.LoggerKernel.Log(fmt.Sprintf("Se solicitó desalojo para asignar PID %d (SRTF)", nuevoProceso.PCB.PID), log.DEBUG)
-					break 
+					global.LoggerKernel.Log(fmt.Sprintf("Se solicitó desalojo para asignar PID %d (SRTF)", nuevoProceso.PID), log.DEBUG)
+					break
 				}
-				global.LoggerKernel.Log(fmt.Sprintf("No hay tal desalojo para PID %d (SRTF)", nuevoProceso.PCB.PID), log.DEBUG)
+				global.LoggerKernel.Log(fmt.Sprintf("No hay tal desalojo para PID %d (SRTF)", nuevoProceso.PID), log.DEBUG)
+			}
+
+			// ⬇️ Solo ahora verificás CPU disponible
+			if !utilskernel.HayCPUDisponible() {
+				break
 			}
 
 			asignado := AsignarCPU(nuevoProceso)
@@ -202,6 +202,7 @@ func IniciarPlanificadorCortoPlazo() {
 		}
 	}
 }
+
 
 func seleccionarProcesoSJF(usandoRestante bool) *global.Proceso {
 	if len(global.ColaReady) == 0 {
@@ -231,10 +232,10 @@ func evaluarDesalojoSRTF(nuevoProceso *global.Proceso) bool {
 	defer global.MutexExecuting.Unlock()
 
 	// Si hay CPU disponible o no hay procesos ejecutando, no hay desalojo posible
-	if utilskernel.HayCPUDisponible() || len(global.ColaExecuting) == 0 {
-		global.LoggerKernel.Log("[DEBUG] No se desaloja porque hay CPU libre o no hay procesos ejecutando", log.DEBUG)
-		return false
+	if len(global.ColaExecuting) == 0 {
+	return false
 	}
+
 
 	restanteNuevo := EstimacionRestante(nuevoProceso)
 

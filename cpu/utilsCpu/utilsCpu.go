@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/sisoputnfrba/tp-golang/cpu/global"
-	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
-	log "github.com/sisoputnfrba/tp-golang/utils/logger"
 	"io"
 	"net/http"
 	"time"
+
+	"github.com/sisoputnfrba/tp-golang/cpu/global"
+	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
+	log "github.com/sisoputnfrba/tp-golang/utils/logger"
 )
 
 var instruccionesConMMU = map[string]bool{
@@ -32,7 +33,6 @@ type Instruccion struct {
 var direccionFisica int
 
 var nroPagina int
-var Rafaga int
 
 func HandshakeKernel() error {
 	datosEnvio := estructuras.HandshakeConCPU{
@@ -89,14 +89,13 @@ func instruccionAEjecutar(solicitudInstruccion estructuras.PCB) string {
 	return instruccionAEjecutar
 }
 
-func cortoProceso() error {	
-	global.Rafaga = float64(time.Since(global.TiempoInicio).Milliseconds())
+func cortoProceso() error {
 
 	datosEnvio := estructuras.RespuestaCPU{
 		PID:        global.PCB_Actual.PID,
 		PC:         global.PCB_Actual.PC,
 		Motivo:     global.Motivo,
-		RafagaReal: global.Rafaga,
+		RafagaReal: float64(time.Since(global.TiempoInicio).Milliseconds()),
 		IO:         global.IO_Request,
 	}
 
@@ -116,6 +115,7 @@ func cortoProceso() error {
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("devolución proceso fallido con status %d", resp.StatusCode)
 	}
+
 	return nil
 }
 
@@ -161,7 +161,7 @@ func DevolucionPID() error {
 		PID:        global.PCB_Actual.PID,
 		PC:         global.PCB_Actual.PC,
 		Motivo:     global.Motivo,
-		RafagaReal: global.Rafaga,
+		RafagaReal: float64(time.Since(global.TiempoInicio).Milliseconds()),
 	}
 
 	jsonData, err := json.Marshal(response)
@@ -180,6 +180,7 @@ func DevolucionPID() error {
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("devolución a kernel fallida con status %d", resp.StatusCode)
 	}
+	
 
 	return nil
 }
