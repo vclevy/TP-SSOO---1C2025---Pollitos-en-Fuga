@@ -142,7 +142,6 @@ func HandshakeConCPU(w http.ResponseWriter, r *http.Request) {
 //
 //	w.WriteHeader(http.StatusOK)
 //}
-
 func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
 	// Si NO hay body → desconexión de dispositivo IO
 	if r.ContentLength == 0 {
@@ -162,24 +161,28 @@ func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		proc := dispositivo.ProcesoEnUso.Proceso
+		if dispositivo.ProcesoEnUso == nil {
+			global.LoggerKernel.Log(fmt.Sprintf("[WARN] IO %s:%d se desconectó sin proceso en uso", ip, puerto), log.DEBUG)
+		} else {
+			proc := dispositivo.ProcesoEnUso.Proceso
 
-		global.MutexSuspBlocked.Lock()
-		global.EliminarProcesoDeCola(&global.ColaSuspBlocked, proc.PID)
-		global.MutexSuspBlocked.Unlock()
+			global.MutexSuspBlocked.Lock()
+			global.EliminarProcesoDeCola(&global.ColaSuspBlocked, proc.PID)
+			global.MutexSuspBlocked.Unlock()
 
-		global.MutexBlocked.Lock()
-		global.EliminarProcesoDeCola(&global.ColaBlocked, proc.PID)
-		global.MutexBlocked.Unlock()
+			global.MutexBlocked.Lock()
+			global.EliminarProcesoDeCola(&global.ColaBlocked, proc.PID)
+			global.MutexBlocked.Unlock()
+
+			planificacion.FinalizarProceso(proc)
+		}
 
 		global.IOListMutex.Lock()
 		global.IOConectados = utilsKernel.FiltrarIODevice(global.IOConectados, dispositivo)
 		global.IOListMutex.Unlock()
 
-		planificacion.FinalizarProceso(proc)
-
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, "Proceso %d desconectado y marcado como EXIT.\n", proc.PID)
+		fmt.Fprintf(w, "IO %s:%d desconectado.\n", ip, puerto)
 		return
 	}
 
@@ -202,7 +205,6 @@ func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
 	if dispositivo.ProcesoEnUso != nil && dispositivo.ProcesoEnUso.Proceso.PID == pid {
 		proceso := dispositivo.ProcesoEnUso.Proceso
 
-		// 1) Actualizar estado del proceso que terminó IO, fuera del lock del dispositivo
 		global.MutexSuspBlocked.Lock()
 		enSuspBlocked := global.EliminarProcesoDeCola(&global.ColaSuspBlocked, proceso.PID)
 		global.MutexSuspBlocked.Unlock()
@@ -212,7 +214,7 @@ func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
 			global.AgregarASuspReady(proceso)
 			select {
 			case global.NotifySuspReady <- struct{}{}:
-			default: // si ya había señal pendiente, no bloquear
+			default:
 			}
 		} else {
 			global.MutexBlocked.Lock()
@@ -223,19 +225,15 @@ func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
 			global.AgregarAReady(proceso)
 		}
 
-		// 2) Ahora, con el dispositivo liberado, asignar IO al siguiente en la cola
+		// Reasignar IO si hay alguien más esperando
 		dispositivo.Mutex.Lock()
 		if len(dispositivo.ColaEspera) > 0 {
 			nuevo := dispositivo.ColaEspera[0]
-			//global.LoggerKernel.Log(fmt.Sprintf("## (%d) - Proceso en espera: %d", pid, nuevo.Proceso.PID), log.INFO)
-
-			// Remover de la cola de espera y asignar
 			dispositivo.ColaEspera = utilsKernel.FiltrarColaIO(dispositivo.ColaEspera, nuevo)
 			dispositivo.ProcesoEnUso = nuevo
 			dispositivo.Mutex.Unlock()
 			utilsKernel.EnviarAIO(dispositivo, nuevo.Proceso.PID, nuevo.TiempoUso)
 		} else {
-			// Si no hay más en espera, el dispositivo queda libre
 			dispositivo.ProcesoEnUso = nil
 			dispositivo.Ocupado = false
 			dispositivo.Mutex.Unlock()
