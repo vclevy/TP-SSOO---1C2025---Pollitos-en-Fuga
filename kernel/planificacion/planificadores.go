@@ -163,23 +163,6 @@ func IniciarPlanificadorLargoPlazo() {
 }
 
 func IniciarPlanificadorCortoPlazo() {
-	// 🧪 Logger de estado de CPUs cada 2 segundos
-	go func() {
-		for {
-			time.Sleep(2 * time.Second)
-
-			global.MutexCPUs.Lock()
-			for _, cpu := range global.CPUsConectadas {
-				if cpu.ProcesoEjecutando == nil {
-					global.LoggerKernel.Log(fmt.Sprintf("🧠 CPU %s está libre", cpu.ID), log.DEBUG)
-				} else {
-					global.LoggerKernel.Log(fmt.Sprintf("🧠 CPU %s está ejecutando PID %d", cpu.ID, cpu.ProcesoEjecutando.PID), log.DEBUG)
-				}
-			}
-			global.MutexCPUs.Unlock()
-		}
-	}()
-
 	for {
 		<-global.NotifyReady
 
@@ -220,14 +203,13 @@ func IniciarPlanificadorCortoPlazo() {
 			}
 
 			if asignado {
-				continue // 💡 seguir buscando otro proceso para otra CPU
+				continue 
 			} else {
-				break // 💡 salir si no se pudo asignar (ej. no hay CPU libre ahora)
+				break 
 			}
 		}
 	}
 }
-
 
 func seleccionarProcesoSJF(usandoRestante bool) *global.Proceso {
 	if len(global.ColaReady) == 0 {
@@ -289,6 +271,8 @@ func AsignarCPU(proceso *global.Proceso) bool {
 	}
 
 	global.MutexCPUs.Lock()
+
+	global.CPUsConectadas = append(global.CPUsConectadas[1:], global.CPUsConectadas[0])
 
 	var cpuLibre *global.CPU
 	for _, cpu := range global.CPUsConectadas {
