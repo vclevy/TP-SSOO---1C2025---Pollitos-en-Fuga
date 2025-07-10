@@ -7,7 +7,6 @@ import (
 	"io"
 	"math"
 	"net/http"
-
 	"github.com/sisoputnfrba/tp-golang/cpu/global"
 	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
 	log "github.com/sisoputnfrba/tp-golang/utils/logger"

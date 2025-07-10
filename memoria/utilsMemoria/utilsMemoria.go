@@ -6,47 +6,50 @@ import (
 	"log"
 	"math"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
-"path/filepath"
+
 	"github.com/sisoputnfrba/tp-golang/memoria/global"
 )
 
-//ESTRUCTURAS
-//Memoria de usuario
+// ESTRUCTURAS
+// Memoria de usuario
 var MemoriaUsuario []byte
 var MarcosLibres []bool
 
 type EntradaTP struct {
-	Presente       bool          // indica si está en MP o SWAP (último nivel)
-	MarcoFisico    int           // apunta al marco físico (último nivel)
-	SiguienteNivel []*EntradaTP  // apunta a la subtabla (intermedios)
+	Presente       bool         // indica si está en MP o SWAP (último nivel)
+	MarcoFisico    int          // apunta al marco físico (último nivel)
+	SiguienteNivel []*EntradaTP // apunta a la subtabla (intermedios)
 }
 
-//Tabla de paginas
+// Tabla de paginas
 var TablaDePaginasRaiz []*EntradaTP // una por proceso
 var TablasPorProceso = make(map[int]*EntradaTP)
 
-//Instrucciones de procesos
+// Instrucciones de procesos
 var instruccionesProcesos map[int]*[]string
 
-//MERTRICAS
+// MERTRICAS
 var metricas = make(map[int]*MetricasProceso)
+
 type MetricasProceso struct { //son todas cantidades
-	AcesosTP int
+	AcesosTP                 int
 	InstruccionesSolicitadas int
-	BajadasSWAP int
-	SubidasMemoPpal int
-	LecturasMemo int
-	EscriturasMemo int
+	BajadasSWAP              int
+	SubidasMemoPpal          int
+	LecturasMemo             int
+	EscriturasMemo           int
 }
 
-//SWAP
+// SWAP
 var SWAP = make(map[int]*Gorda)
+
 type Gorda struct {
 	Inicio int64
-	Fin int64
+	Fin    int64
 }
 
 func InicializarMemoria() {
@@ -58,43 +61,37 @@ func InicializarMemoria() {
 	SwapDelay = global.ConfigMemoria.Swap_delay
 	SwapPath = global.ConfigMemoria.Swapfile_path
 
-	file, err := os.Create(SwapPath) //El os.Create crea el archivo, pero si ya existe, lo vacia
-	if err != nil {
-		fmt.Printf("Error al crear/vaciar el archivo swap: %v\n", err)
-		os.Exit(1)
-	}
-	defer file.Close()
-
 	instruccionesProcesos = make(map[int]*[]string)
 
-    MemoriaUsuario = make([]byte, TamMemoria)
+	MemoriaUsuario = make([]byte, TamMemoria)
 
 	metricas = make(map[int]*MetricasProceso)
 
 	SWAP = make(map[int]*Gorda)
+	InitSwap()
 
 	TablasPorProceso = make(map[int]*EntradaTP)
 
 	//bitmap
-    totalMarcos := TamMemoria / TamPagina
-    MarcosLibres = make([]bool, totalMarcos)
-    for i := range MarcosLibres {
-        MarcosLibres[i] = true
-    }
+	totalMarcos := TamMemoria / TamPagina
+	MarcosLibres = make([]bool, totalMarcos)
+	for i := range MarcosLibres {
+		MarcosLibres[i] = true
+	}
 }
 
-func InicializarMetricas (pid int) {
+func InicializarMetricas(pid int) {
 	global.MutexMetricas.Lock()
 	if metricas[pid] == nil {
 		metricas[pid] = &MetricasProceso{}
-	}	
+	}
 	global.MutexMetricas.Unlock()
 }
 
-//---------------------------------------------------------------------CASOS DE USO---------------------------------------------------------------------
-//INICIALIZAR PROCESO
+// ---------------------------------------------------------------------CASOS DE USO---------------------------------------------------------------------
+// INICIALIZAR PROCESO
 func CargarProceso(pid int, ruta string) error {
-	
+
 	contenidoArchivo, err := os.ReadFile(ruta)
 
 	if err != nil {
@@ -113,14 +110,13 @@ func CargarProceso(pid int, ruta string) error {
 	return nil
 }
 
-
 func CrearTablaPaginas(pid int, tamanio int) {
 	paginas := int(math.Ceil(float64(tamanio) / float64(TamPagina)))
 	marcos := ReservarMarcos(tamanio) // slice con marcos reservados
 	if len(marcos) == 0 {
 		fmt.Printf("No se asignaron marcos para proceso PID %d", pid)
 	}
-	idx := 0                    
+	idx := 0
 
 	raiz := &EntradaTP{
 		Presente:       false,
@@ -165,8 +161,8 @@ func CrearTablaNiveles(nivelActual int, paginasRestantes *int, marcosReservados 
 	return tabla
 }
 
-//FINALIZAR PROCESO
-func FinalizarProceso(pid int) string{
+// FINALIZAR PROCESO
+func FinalizarProceso(pid int) string {
 	//liberar memoria usuario
 	marcosDelProceso := EncontrarMarcosDeProceso(pid)
 	LiberarEspacioMemoria(pid, marcosDelProceso)
@@ -182,25 +178,25 @@ func FinalizarProceso(pid int) string{
 
 	metricasLoggear :=
 		"Acc.T.Pag: " + strconv.Itoa(m.AcesosTP) + "; " +
-		"Inst.Sol.: " + strconv.Itoa(m.InstruccionesSolicitadas) + "; " +
-		"SWAP: " + strconv.Itoa(m.BajadasSWAP) + "; " +
-		"Mem.Prin.: " + strconv.Itoa(m.SubidasMemoPpal) + "; " +
-		"Lec.Mem.: " + strconv.Itoa(m.LecturasMemo) + "; " +
-		"Esc.Mem.: " + strconv.Itoa(m.EscriturasMemo) + ";"
+			"Inst.Sol.: " + strconv.Itoa(m.InstruccionesSolicitadas) + "; " +
+			"SWAP: " + strconv.Itoa(m.BajadasSWAP) + "; " +
+			"Mem.Prin.: " + strconv.Itoa(m.SubidasMemoPpal) + "; " +
+			"Lec.Mem.: " + strconv.Itoa(m.LecturasMemo) + "; " +
+			"Esc.Mem.: " + strconv.Itoa(m.EscriturasMemo) + ";"
 
-		global.MutexMetricas.Lock()
-		delete(metricas,pid)
-		global.MutexMetricas.Unlock()
+	global.MutexMetricas.Lock()
+	delete(metricas, pid)
+	global.MutexMetricas.Unlock()
 
-		return metricasLoggear
+	return metricasLoggear
 }
 
-//LECTURA
+// LECTURA
 func LeerMemoria(pid int, direccionFisica int, tamanio int) []byte {
-	time.Sleep(time.Millisecond * time.Duration(MemoDelay)) 
-	
+	time.Sleep(time.Millisecond * time.Duration(MemoDelay))
+
 	global.MutexMemoriaUsuario.Lock()
-	datos := MemoriaUsuario[direccionFisica : direccionFisica+tamanio] 
+	datos := MemoriaUsuario[direccionFisica : direccionFisica+tamanio]
 	global.MutexMemoriaUsuario.Unlock()
 
 	global.MutexMetricas.Lock()
@@ -210,62 +206,61 @@ func LeerMemoria(pid int, direccionFisica int, tamanio int) []byte {
 	return datos
 }
 
-func LeerPaginaCompleta (pid int, direccionFisica int) []byte{ //Hace lo mismo que Devolver Lectura memoria, solo que el tamaño es el de la pagina
-	offset := direccionFisica%TamPagina
-	if(offset!=0){
+func LeerPaginaCompleta(pid int, direccionFisica int) []byte { //Hace lo mismo que Devolver Lectura memoria, solo que el tamaño es el de la pagina
+	offset := direccionFisica % TamPagina
+	if offset != 0 {
 		fmt.Printf("Error: direccion física no alineada al byte 0 de la pagina\n")
 	}
 
 	return LeerMemoria(pid, direccionFisica, TamPagina)
 }
 
-//ESCRITURA
-func EscribirDatos(pid int, direccionFisica int, datos []byte) { 
-	
+// ESCRITURA
+func EscribirDatos(pid int, direccionFisica int, datos []byte) {
+
 	time.Sleep(time.Millisecond * time.Duration(MemoDelay))
 	//se para en la posicion pedida y escribe de ahi en adelante
-    tamanioDatos := len(datos)
+	tamanioDatos := len(datos)
 
-    // Validación de límites de memoria
-    if direccionFisica+tamanioDatos > len(MemoriaUsuario) {
-        fmt.Printf("Error: intento de escritura fuera de los límites de memoria\n")
-        return
-    }
+	// Validación de límites de memoria
+	if direccionFisica+tamanioDatos > len(MemoriaUsuario) {
+		fmt.Printf("Error: intento de escritura fuera de los límites de memoria\n")
+		return
+	}
 
 	global.MutexMemoriaUsuario.Lock()
-    copy(MemoriaUsuario[direccionFisica:], datos)
+	copy(MemoriaUsuario[direccionFisica:], datos)
 	global.MutexMemoriaUsuario.Unlock()
 
 	global.MutexMetricas.Lock()
-    metricas[pid].EscriturasMemo++
+	metricas[pid].EscriturasMemo++
 	global.MutexMetricas.Unlock()
 }
 
-func ActualizarPaginaCompleta (pid int, direccionFisica int, datos []byte) {
+func ActualizarPaginaCompleta(pid int, direccionFisica int, datos []byte) {
 	time.Sleep(time.Millisecond * time.Duration(MemoDelay))
 
-	offset := direccionFisica%TamPagina
-	if(offset!=0){
+	offset := direccionFisica % TamPagina
+	if offset != 0 {
 		fmt.Printf("Error: direccion física no alineada al byte 0 de la pagina\n")
-		return 
+		return
 	}
 
 	if direccionFisica+TamPagina > len(MemoriaUsuario) {
-        fmt.Printf("Error: intento de escritura fuera de los límites de memoria\n")
-        return
-    }
+		fmt.Printf("Error: intento de escritura fuera de los límites de memoria\n")
+		return
+	}
 
 	global.MutexMemoriaUsuario.Lock()
-    copy(MemoriaUsuario[direccionFisica:direccionFisica+TamPagina], datos)
+	copy(MemoriaUsuario[direccionFisica:direccionFisica+TamPagina], datos)
 	global.MutexMemoriaUsuario.Unlock()
 
 	global.MutexMetricas.Lock()
-    metricas[pid].EscriturasMemo++
+	metricas[pid].EscriturasMemo++
 	global.MutexMetricas.Unlock()
 }
 
-
-//OBTENER INSTRUCCIONES
+// OBTENER INSTRUCCIONES
 func ObtenerInstruccion(pid int, pc int) (string, error) { //ESTO SIRVE PARA CPU
 	time.Sleep(time.Millisecond * time.Duration(global.ConfigMemoria.Memory_delay))
 	instrucciones := ListaDeInstrucciones(pid)
@@ -279,16 +274,13 @@ func ObtenerInstruccion(pid int, pc int) (string, error) { //ESTO SIRVE PARA CPU
 	global.MutexMetricas.Unlock()
 
 	return instrucciones[pc], nil
-	
+
 }
 
-
-
-
-//ACCESO A TABLA DE PAGINAS
+// ACCESO A TABLA DE PAGINAS
 func EncontrarMarco(pid int, entradas []int) int {
 	actual := TablasPorProceso[pid]
-	
+
 	if actual == nil {
 		return -1 // error: no hay raíz
 	}
@@ -297,15 +289,15 @@ func EncontrarMarco(pid int, entradas []int) int {
 	for i := 0; i < len(entradas); i++ {
 
 		idx := entradas[i]
-		
+
 		//fmt.Printf("→ Nivel %d, idx %d, tabla len = %d\n", i+1, idx, len(actual.SiguienteNivel))
-		
+
 		//si esta fuera de rango
 		if idx < 0 || idx >= len(actual.SiguienteNivel) {
 			fmt.Printf("Nivel %d: índice %d fuera de rango (len = %d)\n", i+1, idx, len(actual.SiguienteNivel))
 			return -1
 		}
-		
+
 		//si estoy en un marco
 		if actual.SiguienteNivel == nil {
 			fmt.Printf("estoy en el ultimo nivel")
@@ -327,36 +319,24 @@ func EncontrarMarco(pid int, entradas []int) int {
 	return actual.MarcoFisico
 }
 
+// SWAP
+func InitSwap() {
+	file, err := os.OpenFile(SwapPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	if err != nil {
+		fmt.Printf("Error al inicializar el archivo swap: %v\n", err)
+		return
+	}
+	defer file.Close()
+}
 
-
-
-
-
-//SWAP
 func SuspenderProceso(pid int) {
 	time.Sleep(time.Millisecond * time.Duration(SwapDelay))
 	marcosDelProceso := EncontrarMarcosDeProceso(pid)
 	dataMarcos := EncontrarDataMarcos(marcosDelProceso)
+	fmt.Printf("‼🔎------ Data de marcos encontrados para pid %d: %s", pid, string(dataMarcos))
 	LiberarEspacioMemoria(pid, marcosDelProceso)
 	GuardarInfoSwap(pid, dataMarcos)
-	libre:=EspacioDisponible()
-	fmt.Printf("Espacio libre: %d", libre)
-	
 	metricas[pid].BajadasSWAP++
-}
-
-func EspacioDisponible() int {
-	global.MutexMarcos.Lock()
-	defer global.MutexMarcos.Unlock()
-
-	// Contar los marcos libres
-	cantLibres := 0
-	for _, libre := range MarcosLibres {
-		if libre {
-			cantLibres++
-		}
-	}
-	return cantLibres * TamPagina // Devuelve el espacio total disponible en bytes
 }
 
 func DesSuspenderProceso(pid int) {
@@ -365,9 +345,9 @@ func DesSuspenderProceso(pid int) {
 	tamanio := len(info) / TamPagina
 	marcosAginados := ReservarMarcos(tamanio)
 	AsignarMarcosATablaExistente(pid, marcosAginados)
-	
 	PegarInfoEnMemoria(pid, info, marcosAginados)
-
+	BorrarEnSwap(pid)
+	fmt.Printf("‼🔄------ Data restaurada de SWAP para pid %d:  %s", pid, string(info))
 }
 
 func EncontrarDataMarcos(marcos []int) []byte {
@@ -398,8 +378,8 @@ func PegarInfoEnMemoria(pid int, info []byte, marcosAsignados []int) {
 		inicio := marcosAsignados[i] * TamPagina
 		fin := inicio + TamPagina
 
-		copy(MemoriaUsuario[inicio:fin], info[i*TamPagina:(i+1)*TamPagina]) //copio
-		fmt.Printf("✏️ Pegando página %d en marco %d [%d:%d]\n", i, marcosAsignados[i], i*TamPagina, (i+1)*TamPagina)//AUX
+		copy(MemoriaUsuario[inicio:fin], info[i*TamPagina:(i+1)*TamPagina])                                           //copio
+		fmt.Printf("✏️ Pegando página %d en marco %d [%d:%d]\n", i, marcosAsignados[i], i*TamPagina, (i+1)*TamPagina) //AUX
 
 	}
 	global.MutexMemoriaUsuario.Unlock()
@@ -410,9 +390,9 @@ func PegarInfoEnMemoria(pid int, info []byte, marcosAsignados []int) {
 	metricas[pid].SubidasMemoPpal++
 }
 
-func BuscarDataEnSwap(pid int) []byte{
+func BuscarDataEnSwap(pid int) []byte {
 	file, err := os.Open(SwapPath) //O_APPEND: Todo se agrega al final, no sobreescribe; O_CREATE: Si no existe lo crea; O_WORNLY Se abre solo para escritura, no lectura
-	if err != nil{
+	if err != nil {
 		fmt.Printf("Error al abrir el archivo swap %v", err)
 		return nil
 	}
@@ -431,38 +411,41 @@ func BuscarDataEnSwap(pid int) []byte{
 	return buffer
 }
 
-func GuardarInfoSwap(pid int, data []byte){
+func GuardarInfoSwap(pid int, data []byte) {
+	global.MutexSwap.Lock()
+	defer global.MutexSwap.Unlock()
 
-	//GPT ¿Como abrir archivo? 
-	// 0644 => octal, dueño, grupo, otros => -rw-r--r--
-	file, err := os.OpenFile(SwapPath, os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil{
-		fmt.Printf("Error al abrir el archivo swap %v", err)
+	// Abrir archivo en modo escritura para agregar al final
+	file, err := os.OpenFile(SwapPath, os.O_WRONLY, 0644)
+	if err != nil {
+		fmt.Printf("Error al abrir el archivo swap: %v\n", err)
 		return
 	}
 	defer file.Close()
-	
-	global.MutexSwap.Lock()
-	inicio, err := file.Seek(0, io.SeekEnd) //posicion del ultimo
-	if err != nil{
-		fmt.Printf("Error al ir a la ultima posición del archivo %v", err)
+
+	// Posicionarse al final para escribir sin sobrescribir otros procesos
+	inicio, err := file.Seek(0, io.SeekEnd)
+	if err != nil {
+		fmt.Printf("Error al buscar el final del archivo swap: %v\n", err)
 		return
 	}
 
-	file.Write(data)
-	global.MutexSwap.Unlock() //Si rompe, probar de poner debajo del lock con un defer... está acá para reducir la sección crítica
+	_, err = file.Write(data)
+	if err != nil {
+		fmt.Printf("Error al escribir en el archivo swap: %v\n", err)
+		return
+	}
 
+	// Actualizar tabla de swap
 	if SWAP[pid] == nil {
 		SWAP[pid] = &Gorda{}
 	}
-
 	SWAP[pid].Inicio = inicio
 	SWAP[pid].Fin = inicio + int64(len(data))
-
 }
 
-func DumpMemoriaProceso (pid int){
-	marcos:=EncontrarMarcosDeProceso(pid)
+func DumpMemoriaProceso(pid int) {
+	marcos := EncontrarMarcosDeProceso(pid)
 
 	// Validación: ¿el proceso existe y tiene marcos?
 	if len(marcos) == 0 {
@@ -472,28 +455,27 @@ func DumpMemoriaProceso (pid int){
 
 	//ASIGNAR FECHA
 	timestamp := time.Now().Format("20060102-150405")
-    nombreArchivo := fmt.Sprintf("%d-%s.dmp", pid, timestamp)
+	nombreArchivo := fmt.Sprintf("%d-%s.dmp", pid, timestamp)
 	rutaCompleta := filepath.Join(global.ConfigMemoria.Dump_path, nombreArchivo)
 
 	file, err := os.Create(rutaCompleta) //CREO EL ARCHIVO
-    if err != nil {
-        log.Printf("❌ Error creando dump para PID %d: %v", pid, err)
-        return
-    }
-    defer file.Close()
+	if err != nil {
+		log.Printf("❌ Error creando dump para PID %d: %v", pid, err)
+		return
+	}
+	defer file.Close()
 
 	for i := 0; i < len(marcos); i++ {
 		inicio := marcos[i] * TamPagina
 		fin := inicio + TamPagina
 
-		datos:=MemoriaUsuario[inicio:fin]
+		datos := MemoriaUsuario[inicio:fin]
 		file.Write(datos)
 	}
 }
 
-
-//OTROS
-func ReservarMarcos(tamanio int) []int{
+// OTROS
+func ReservarMarcos(tamanio int) []int {
 	cantMarcos := int(math.Ceil(float64(tamanio) / float64(TamPagina)))
 	var reservados []int
 
@@ -515,10 +497,24 @@ func LiberarEspacioMemoria(pid int, marcosALiberar []int) {
 	for i := 0; i < len(marcosALiberar); i++ {
 		idx := marcosALiberar[i]
 		MarcosLibres[idx] = true
+		copy(MemoriaUsuario[idx*TamPagina:(idx+1)*TamPagina], make([]byte, TamPagina))
 	}
 	global.MutexMarcos.Unlock()
+}
 
-	//habria que borrar la informacion que tienen
+func BorrarEnSwap(pid int) {
+	file, err := os.OpenFile(SwapPath, os.O_WRONLY, 0644)
+	if err != nil {
+		fmt.Printf("Error al abrir el archivo swap: %v\n", err)
+		return
+	}
+	defer file.Close()
+
+	region := SWAP[pid]
+	tamanio := region.Fin - region.Inicio
+	ceros := make([]byte, tamanio)
+
+	file.WriteAt(ceros, region.Inicio)
 }
 
 func EncontrarMarcosDeProceso(pid int) []int {
@@ -559,7 +555,7 @@ func AsignarMarcosATablaExistente(pid int, marcos []int) {
 func recorrerYAsignar(tabla []*EntradaTP, proximo *int, marcos []int, nivelActual int) {
 	for _, entrada := range tabla {
 		if *proximo >= len(marcos) {
-			return 
+			return
 		}
 
 		if entrada == nil {
@@ -578,35 +574,30 @@ func recorrerYAsignar(tabla []*EntradaTP, proximo *int, marcos []int, nivelActua
 	}
 }
 
-
-
-
-
-
-//VERIFICAR ESPACIO DISPONIBLE
-func HayLugar(tamanio int)(bool){
+// VERIFICAR ESPACIO DISPONIBLE
+func HayLugar(tamanio int) bool {
 	var cantMarcosLibres int
 
 	global.MutexMarcos.Lock()
 	for i := 0; i < len(MarcosLibres); i++ {
 		if MarcosLibres[i] {
 			cantMarcosLibres++
-		}		
+		}
 	}
 	global.MutexMarcos.Unlock()
 
-	cantMarcosNecesitados:= int(math.Ceil(float64(tamanio) / float64(TamPagina)))
+	cantMarcosNecesitados := int(math.Ceil(float64(tamanio) / float64(TamPagina)))
 	fmt.Printf("Lugar libre %d\n", cantMarcosLibres*TamPagina)
 	return cantMarcosNecesitados <= cantMarcosLibres
 }
 
-func ListaDeInstrucciones(pid int) ([]string) {
+func ListaDeInstrucciones(pid int) []string {
 	global.MutexInstrucciones.RLock()
 	defer global.MutexInstrucciones.RUnlock()
-    return *instruccionesProcesos[pid]
+	return *instruccionesProcesos[pid]
 }
 
-//Datos del config
+// Datos del config
 var TamMemoria int
 var TamPagina int
 var CantNiveles int
@@ -615,10 +606,7 @@ var MemoDelay int
 var SwapDelay int
 var SwapPath string
 
-
-
-
-//---------------------------------------------------------------------PRUEBAS---------------------------------------------------------------------
+// ---------------------------------------------------------------------PRUEBAS---------------------------------------------------------------------
 func ImprimirTabla(tabla []*EntradaTP, nivel int, path string) {
 	for i, entrada := range tabla {
 		if entrada == nil {

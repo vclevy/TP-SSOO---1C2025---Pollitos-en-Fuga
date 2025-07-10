@@ -220,10 +220,10 @@ func VerificarEspacioDisponible(tamanio int) bool {
 	}
 	defer respuesta.Body.Close()
 
-	if respuesta.StatusCode != http.StatusOK {
-		global.LoggerKernel.Log(fmt.Sprintf("Memoria respondió con status %d para solicitud de %d bytes", respuesta.StatusCode, tamanio), log.ERROR)
-		return false
-	}
+//	if respuesta.StatusCode != http.StatusOK {
+//		global.LoggerKernel.Log(fmt.Sprintf("Memoria respondió con status %d para solicitud de %d bytes", respuesta.StatusCode, tamanio), log.ERROR)
+//		return false
+//	}
 
 	return true
 }
@@ -309,7 +309,7 @@ func InicializarProceso(proceso *global.Proceso) bool {
 
  if resp.StatusCode != http.StatusOK {
  	//body, _ := io.ReadAll(resp.Body)
- 	global.LoggerKernel.Log(fmt.Sprintf("Fallo inicialización PID %d. Código %d: %s", proceso.PID, resp.StatusCode), log.ERROR)
+ 	global.LoggerKernel.Log(fmt.Sprintf("Fallo inicialización PID %d. Código %d", proceso.PID, resp.StatusCode), log.ERROR)
  	return false
  }
 
@@ -323,7 +323,7 @@ func SacarProcesoDeCPU(pid int) {
 
 	for _, cpu := range global.CPUsConectadas {
 		if cpu.ProcesoEjecutando != nil && cpu.ProcesoEjecutando.PID == pid {
-			global.LoggerKernel.Log(fmt.Sprintf("[TRACE] Liberando CPU %s de proceso PID %d", cpu.ID, pid), log.INFO)
+			global.LoggerKernel.Log(fmt.Sprintf("Liberando CPU %s de proceso PID %d", cpu.ID, pid), log.INFO)
 			cpu.ProcesoEjecutando = nil
 			return
 		}

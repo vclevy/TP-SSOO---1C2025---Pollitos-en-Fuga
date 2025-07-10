@@ -98,6 +98,8 @@ func cortoProceso() error {
 		PC:         global.PCB_Actual.PC,
 		Motivo:     global.Motivo,
 		RafagaReal: global.Rafaga,
+		IO:         global.IO_Request,
+		/* InitProc:	global.Init_Proc, */
 	}
 
 	jsonData, err := json.Marshal(datosEnvio)
@@ -116,7 +118,7 @@ func cortoProceso() error {
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("devolución proceso fallido con status %d", resp.StatusCode)
 	}
-	/* global.LoggerCpu.Log("✅ Devolución proceso enviado a Kernel con éxito", log.INFO) */
+	global.LoggerCpu.Log("✅ Devolución proceso enviado a Kernel con éxito", log.INFO)
 	return nil
 }
 
@@ -187,4 +189,3 @@ func DevolucionPID() error {
 
 	return nil
 }
-
