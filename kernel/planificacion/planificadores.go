@@ -188,7 +188,7 @@ func IniciarPlanificadorCortoPlazo() {
 				nuevoProceso = seleccionarProcesoSJF()
 
 			case "SRTF":
-				
+				global.MutexReady.Unlock()
 				continue
 			}
 
