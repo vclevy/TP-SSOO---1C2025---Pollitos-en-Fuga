@@ -135,6 +135,8 @@ func HandshakeConCPU(w http.ResponseWriter, r *http.Request) {
 //}
 func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
 	// Si NO hay body → desconexión de dispositivo IO
+	global.NotificarReady()
+
 	if r.ContentLength == 0 {
 		global.LoggerKernel.Log("[DEBUG] Desconexión recibida", log.DEBUG)
 
@@ -208,12 +210,12 @@ func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
 			default:
 			}
 		} else {
+			planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.READY)
+			global.AgregarAReady(proceso)
 			global.MutexBlocked.Lock()
 			global.EliminarProcesoDeCola(&global.ColaBlocked, proceso.PID)
 			global.MutexBlocked.Unlock()
 
-			planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.READY)
-			global.AgregarAReady(proceso)
 		}
 
 		// Reasignar IO si hay alguien más esperando
