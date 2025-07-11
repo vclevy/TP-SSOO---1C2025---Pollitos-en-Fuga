@@ -115,10 +115,7 @@ func AgregarAReady(p *Proceso) {
 	ColaReady = append(ColaReady, p)
 	MutexReady.Unlock()
 
-	select {
-	case NotifyReady <- struct{}{}:
-	default: 
-	}
+	NotificarReady()
 }
 
 func AgregarAExecuting(p *Proceso) {
