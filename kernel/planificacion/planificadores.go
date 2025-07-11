@@ -126,7 +126,6 @@ func IniciarPlanificadorLargoPlazo() {
 					global.ColaNew = global.ColaNew[1:]
 					global.MutexNew.Unlock()					
 					ActualizarEstadoPCB(&proceso.PCB, READY)
-					global.LoggerKernel.Log("acaba de pasar un proceso de new a ready", log.DEBUG)
 					global.AgregarAReady(proceso)
 				}
 
@@ -169,7 +168,6 @@ func IniciarPlanificadorCortoPlazo() {
 			global.MutexReady.Lock()
 			if len(global.ColaReady) == 0 {
 				global.MutexReady.Unlock()
-				global.LoggerKernel.Log("PASO ESTO, WTF", log.DEBUG)
 				break
 			}
 
@@ -190,13 +188,8 @@ func IniciarPlanificadorCortoPlazo() {
                 nuevoProceso = seleccionarProcesoSJF()
 
 			case "SRTF": //SJF CON DESALOJO
-				global.LoggerKernel.Log("---------DEBERIA ENTRAR ACA DESPUES DE HACER DE NEW A READY", log.DEBUG)
 				nuevoProceso = seleccionarProcesoSJF()
 				//va a evaluar el desalojo con el que tengo menos estimacion
-				global.MutexExecuting.Lock()
-				
-				global.LoggerKernel.Log(fmt.Sprintf("📋 ColaExecuting: %d procesos", len(global.ColaExecuting)), log.DEBUG)
-				global.MutexExecuting.Unlock()
 				global.LoggerKernel.Log(fmt.Sprintf("Proceso con menor estimacion - Proxima estimacion para PID %d : %d ---- Rafaga real anterior: %d", nuevoProceso.PID, int(nuevoProceso.EstimacionRafaga), int(nuevoProceso.UltimaRafagaReal)), log.DEBUG)
 				if evaluarDesalojoSRTF(nuevoProceso) {
 					global.LoggerKernel.Log(fmt.Sprintf("Se solicitó desalojo para asignar PID %d (SRTF)", nuevoProceso.PID), log.DEBUG)
@@ -236,11 +229,9 @@ func seleccionarProcesoSJF() *global.Proceso { //el proceso de menor ráfaga est
 
 func evaluarDesalojoSRTF(nuevoProceso *global.Proceso) bool {
 	global.LoggerKernel.Log(fmt.Sprintf("Evaluando si PID %d desaloja al que esta en ejecucion", nuevoProceso.PID), log.DEBUG)
+	
 	if utilskernel.HayCPUDisponible()  {
 		global.LoggerKernel.Log("[DEBUG] No se desaloja porque hay CPU libre", log.DEBUG)
-		return false
-	}else if (len(global.ColaExecuting) == 0 ){
-		global.LoggerKernel.Log("[DEBUG] No se desaloja porque no hay procesos ejecutando", log.DEBUG)
 		return false
 	}
 
