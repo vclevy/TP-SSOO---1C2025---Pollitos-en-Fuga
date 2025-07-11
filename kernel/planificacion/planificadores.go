@@ -1,4 +1,4 @@
-package planificacion
+ package planificacion
 
 import (
 	"fmt"
@@ -124,14 +124,9 @@ func IniciarPlanificadorLargoPlazo() {
 				if utilskernel.InicializarProceso(proceso) {
 					global.MutexNew.Lock()
 					global.ColaNew = global.ColaNew[1:]
-					global.MutexNew.Unlock()
-
-					global.LoggerKernel.Log("HASTA ACA LLEGAAAAAAAA", log.DEBUG)
-					
+					global.MutexNew.Unlock()					
 					ActualizarEstadoPCB(&proceso.PCB, READY)
-
 					global.AgregarAReady(proceso)
-					global.LoggerKernel.Log("POST AGREGAR A READY", log.DEBUG)
 				}
 
 			case "PMCP":
@@ -168,6 +163,7 @@ SJF con desalojo --> se fija cuando entra proceso a Ready (<-global.NotifyReady)
 */
 func IniciarPlanificadorCortoPlazo() {
 	for {
+		global.LoggerKernel.Log("INTENTO DE NOTIFY READY", log.DEBUG)
 		<-global.NotifyReady
 		global.LoggerKernel.Log("HIZO UN NOTIFY READY", log.DEBUG)
 		for {
