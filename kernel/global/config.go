@@ -26,8 +26,9 @@ type Proceso struct {
     MemoriaRequerida  int
     ArchivoPseudo     string
     EstimacionRafaga  float64
-    TiempoEjecutado   float64 
 	InstanteInicio time.Time
+	UltimaRafagaReal float64
+	UltimaRafagaEstimada float64
 }
 
 func NuevoPCB() *PCB {

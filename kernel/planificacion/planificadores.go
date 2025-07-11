@@ -49,6 +49,8 @@ func CrearProceso(tamanio int, archivoPseudoCodigo string) *Proceso {
 		MemoriaRequerida: tamanio,
 		ArchivoPseudo:    archivoPseudoCodigo,
 		EstimacionRafaga: float64(global.ConfigKernel.InitialEstimate),
+		UltimaRafagaEstimada: float64(global.ConfigKernel.InitialEstimate),
+		UltimaRafagaReal: float64(global.ConfigKernel.InitialEstimate),
 	}
 
 	global.LoggerKernel.Log(fmt.Sprintf("## (%d) Se crea el proceso - Estado: NEW", pcb.PID), log.INFO)
@@ -70,7 +72,6 @@ func ActualizarEstadoPCB(pcb *PCB, nuevoEstado string) {
 			log.INFO,
 		)
 	}
-
 	pcb.ME[nuevoEstado] += 1
 	pcb.UltimoEstado = nuevoEstado
 	pcb.InicioEstado = ahora
@@ -119,13 +120,18 @@ func IniciarPlanificadorLargoPlazo() {
 				proceso := global.ColaNew[0]
 				global.MutexNew.Unlock()
 
+
 				if utilskernel.InicializarProceso(proceso) {
 					global.MutexNew.Lock()
 					global.ColaNew = global.ColaNew[1:]
 					global.MutexNew.Unlock()
 
+					global.LoggerKernel.Log("HASTA ACA LLEGAAAAAAAA", log.DEBUG)
+					
 					ActualizarEstadoPCB(&proceso.PCB, READY)
+
 					global.AgregarAReady(proceso)
+			global.LoggerKernel.Log("POST AGREGAR A READY", log.DEBUG)
 				}
 
 			case "PMCP":
@@ -154,10 +160,15 @@ func IniciarPlanificadorLargoPlazo() {
 	}
 }
 
+/* 
+
+SJF sin desalojo --> se fija cuando cpu devuelve proceso (manejarDevolucionCPU)
+SJF con desalojo --> se fija cuando entra proceso a Ready (<-global.NotifyReady)
+
+*/
 func IniciarPlanificadorCortoPlazo() {
 	for {
 		<-global.NotifyReady
-
 		for {
 			global.MutexReady.Lock()
 			if len(global.ColaReady) == 0 {
@@ -167,21 +178,25 @@ func IniciarPlanificadorCortoPlazo() {
 
 			var nuevoProceso *global.Proceso
 			switch global.ConfigKernel.SchedulerAlgorithm {
-			case "FIFO":
-				nuevoProceso = global.ColaReady[0]
+			 case "FIFO":
+                if !utilskernel.HayCPUDisponible() {
+                    global.MutexReady.Unlock()
+                    break
+                }
+                nuevoProceso = global.ColaReady[0]
 
-			case "SJF", "SRTF":
-				nuevoProceso = seleccionarProcesoSJF(global.ConfigKernel.SchedulerAlgorithm == "SRTF")
-			}
-			global.MutexReady.Unlock()
+            case "SJF":
+                if !utilskernel.HayCPUDisponible() {
+                    global.MutexReady.Unlock()
+                    break
+                }
+                nuevoProceso = seleccionarProcesoSJF()
 
-			if nuevoProceso == nil {
-				break
-			}
-
-			// ⬇️ Evaluar desalojo siempre que sea SRTF
-			if global.ConfigKernel.SchedulerAlgorithm == "SRTF" {
-				global.LoggerKernel.Log(fmt.Sprintf("Evaluando desalojo SRTF con PID %d", nuevoProceso.PID), log.DEBUG)
+			case "SRTF": //SJF CON DESALOJO
+				global.LoggerKernel.Log("---------DEBERIA ENTRAR ACA DESPUES DE HACER DE NEW A READY", log.DEBUG)
+				nuevoProceso = seleccionarProcesoSJF()
+				//va a evaluar el desalojo con el que tengo menos estimacion
+				global.LoggerKernel.Log(fmt.Sprintf("Proceso con menor estimacion - Proxima estimacion para PID %d : %d ---- Rafaga real anterior: %d", nuevoProceso.PID, int(nuevoProceso.EstimacionRafaga), int(nuevoProceso.UltimaRafagaReal)), log.DEBUG)
 				if evaluarDesalojoSRTF(nuevoProceso) {
 					global.LoggerKernel.Log(fmt.Sprintf("Se solicitó desalojo para asignar PID %d (SRTF)", nuevoProceso.PID), log.DEBUG)
 				} else {
@@ -189,60 +204,49 @@ func IniciarPlanificadorCortoPlazo() {
 				}
 			}
 
-			// ⬇️ Solo ahora verificás CPU disponible
-			if !utilskernel.HayCPUDisponible() {
-				break
+			global.MutexReady.Unlock()
+		
+			if AsignarCPU(nuevoProceso) {
+                continue
+            } else {
+                break
 			}
-
-			asignado := AsignarCPU(nuevoProceso)
-			if asignado {
-				continue
-			} else {
-				break
-			}
-
-			/* if utilskernel.HayCPUDisponible() {
-				AsignarCPU(nuevoProceso)
-			} */
-			
 		}
 	}
 }
 
-func seleccionarProcesoSJF(usandoRestante bool) *global.Proceso {
+func seleccionarProcesoSJF() *global.Proceso { //el proceso de menor ráfaga estimada
 	if len(global.ColaReady) == 0 {
 		return nil
 	}
 
 	sort.SliceStable(global.ColaReady, func(i, j int) bool {
 		var valI, valJ float64
-		if usandoRestante {
-			valI = EstimacionRestante(global.ColaReady[i])
-			valJ = EstimacionRestante(global.ColaReady[j])
-		} else {
-			valI = float64(global.ColaReady[i].EstimacionRafaga)
-			valJ = float64(global.ColaReady[j].EstimacionRafaga)
-		}
+		valI = global.ColaReady[i].EstimacionRafaga
+		valJ = global.ColaReady[j].EstimacionRafaga
 		return valI < valJ
 	})
 
 	proceso := global.ColaReady[0] // ya no lo eliminás acá
-	//global.LoggerKernel.Log(fmt.Sprintf("Longitud de Cola Ready: %d", len(global.ColaReady)), log.INFO)
+	global.LoggerKernel.Log(fmt.Sprintf("Proceso que acaba de llegar a READY: %d", proceso.PCB.PID), log.INFO)
 
 	return proceso
-
 }
 
 func evaluarDesalojoSRTF(nuevoProceso *global.Proceso) bool {
-
-	if utilskernel.HayCPUDisponible() || len(global.ColaExecuting) == 0 {
-		global.LoggerKernel.Log("[DEBUG] No se desaloja porque hay CPU libre o no hay procesos ejecutando", log.DEBUG)
+	global.LoggerKernel.Log(fmt.Sprintf("Evaluando si PID %d desaloja al que esta en ejecucion", nuevoProceso.PID), log.DEBUG)
+	if utilskernel.HayCPUDisponible()  {
+		global.LoggerKernel.Log("[DEBUG] No se desaloja porque hay CPU libre", log.DEBUG)
+		return false
+	}else if (len(global.ColaExecuting) == 0 ){
+		global.LoggerKernel.Log("[DEBUG] No se desaloja porque no hay procesos ejecutando", log.DEBUG)
 		return false
 	}
 
 	global.MutexExecuting.Lock()
 	indice := ProcesoADesalojar(global.ColaExecuting, nuevoProceso.EstimacionRafaga)
 	if indice == -1 { // significa que no encontro uno en ejecucion con mayor tiempo restante a la estimacion actual
+		global.LoggerKernel.Log("[DEBUG] No encontre ninguno en ejecucion con menor tiempo restante que estimacion actual", log.DEBUG)
 		return false
 	}
 	procesoTarget := global.ColaExecuting[indice]
@@ -260,16 +264,14 @@ func evaluarDesalojoSRTF(nuevoProceso *global.Proceso) bool {
 
 	return true
 }
+
 func ProcesoADesalojar(executing []*Proceso, nuevaEstimacion float64) int {
 	maxTiempoRestante := -1.0
 	indiceProceso := -1
 
 	for i, p := range executing {
-		// Calcula cuánto tiempo lleva ejecutándose (en segundos)
-		tiempoEnCPU := time.Since(p.InstanteInicio).Seconds()
-
 		// Tiempo restante estimado
-		tiempoRestante := p.EstimacionRafaga - tiempoEnCPU
+		tiempoRestante := EstimacionRestante(p)
 
 		if tiempoRestante > nuevaEstimacion && tiempoRestante > maxTiempoRestante {
 			maxTiempoRestante = tiempoRestante
@@ -280,67 +282,7 @@ func ProcesoADesalojar(executing []*Proceso, nuevaEstimacion float64) int {
 	return indiceProceso
 }
 
-// func evaluarDesalojoSRTF(nuevoProceso *global.Proceso) bool {
-// 	global.MutexExecuting.Lock()
-// 	defer global.MutexExecuting.Unlock()
 
-// 	// Si hay CPU disponible o no hay procesos ejecutando, no hay desalojo posible
-// 	if len(global.ColaExecuting) == 0 {
-// 	return false
-// 	}
-
-// 	restanteNuevo := EstimacionRestante(nuevoProceso)
-
-// 	var peorProceso *global.Proceso
-// 	var peorRestante float64 = -1
-// 	var cpuDesalojar *global.CPU = nil
-
-// 	for _, cpu := range global.CPUsConectadas {
-// 		if cpu.ProcesoEjecutando != nil {
-// 			procesoEjecutando := utilskernel.BuscarProcesoPorPID(global.ColaExecuting, cpu.ProcesoEjecutando.PID)
-// 			if procesoEjecutando == nil {
-// 				global.LoggerKernel.Log(fmt.Sprintf("[ERROR] No se encontró proceso ejecutando completo para PID %d", cpu.ProcesoEjecutando.PID), log.ERROR)
-// 				continue
-// 			}
-
-// 			restanteEjecutando := EstimacionRestante(procesoEjecutando)
-// 			global.LoggerKernel.Log(fmt.Sprintf("[DEBUG] CPU %s: PID %d restante %.2f", cpu.ID, procesoEjecutando.PID, restanteEjecutando), log.DEBUG)
-
-// 			if restanteEjecutando > peorRestante {
-// 				peorRestante = restanteEjecutando
-// 				peorProceso = procesoEjecutando
-// 				cpuDesalojar = cpu
-// 			}
-// 		}
-// 	}
-
-// 	if peorProceso == nil || cpuDesalojar == nil {
-// 		global.LoggerKernel.Log("[DEBUG] No se encontró proceso para desalojar", log.DEBUG)
-// 		return false
-// 	}
-
-// 	global.LoggerKernel.Log(fmt.Sprintf(
-// 		"[DEBUG] SRTF: nuevo PID %d restante %.2f vs peor ejecutando PID %d restante %.2f",
-// 		nuevoProceso.PID, restanteNuevo, peorProceso.PID, peorRestante,
-// 	), log.DEBUG)
-
-// 	if restanteNuevo < peorRestante {
-// 		global.LoggerKernel.Log(fmt.Sprintf("[DEBUG] → Desalojo: %.2f < %.2f", restanteNuevo, peorRestante), log.DEBUG)
-
-// 		err := utilskernel.EnviarInterrupcionCPU(cpuDesalojar, peorProceso.PID, peorProceso.PCB.PC)
-// 		if err != nil {
-// 			global.LoggerKernel.Log(fmt.Sprintf("[ERROR] Error enviando interrupción a CPU %s para PID %d: %v", cpuDesalojar.ID, peorProceso.PID, err), log.ERROR)
-// 			return false
-// 		}
-
-// 		global.LoggerKernel.Log(fmt.Sprintf("## (%d) - Desalojado por SRTF (nuevo PID %d)", peorProceso.PID, nuevoProceso.PID), log.INFO)
-
-// 		return true
-// 	}
-
-// 	global.LoggerKernel.Log(fmt.Sprintf("[DEBUG] → NO Desalojo: %.2f >= %.2f", restanteNuevo, peorRestante), log.DEBUG)
-// 	return false
-// }
 
 func AsignarCPU(proceso *global.Proceso) bool {
 		
@@ -378,6 +320,7 @@ func AsignarCPU(proceso *global.Proceso) bool {
 		ActualizarEstadoPCB(&proceso.PCB, EXEC)
 	}
 	global.AgregarAExecuting(proceso)
+	global.LoggerKernel.Log(fmt.Sprintf("Proceso agregado a executing %d", global.ColaExecuting[0].PID), log.ERROR)
 	proceso.InstanteInicio = time.Now()
 
 	err := utilskernel.EnviarADispatch(cpuLibre, proceso.PCB.PID, proceso.PCB.PC)
@@ -398,7 +341,7 @@ func AsignarCPU(proceso *global.Proceso) bool {
 	return true
 }
 
-func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
+func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) { //ráfaga
 	var proceso *global.Proceso
 
 	global.LoggerKernel.Log(fmt.Sprintf("Kernel recibe proceso PID %d con PC %d", resp.PID, resp.PC), log.DEBUG)
@@ -429,30 +372,29 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 	proceso.PCB.PC = resp.PC
 
 	// ✅ Acumulamos el tiempo ejecutado siempre
-	proceso.TiempoEjecutado += resp.RafagaReal
+	proceso.UltimaRafagaReal = resp.RafagaReal 
 
 	global.LoggerKernel.Log(
-		fmt.Sprintf("PID %d - Ráfaga ejecutada: %.2f ms | Total ejecutado: %.2f ms",
-			proceso.PID, resp.RafagaReal, proceso.TiempoEjecutado),
+		fmt.Sprintf("PID %d - Ráfaga ejecutada real: %.2f ms | Rafaga estimad anteior: %.2f ms",
+		proceso.PID, resp.RafagaReal, proceso.UltimaRafagaEstimada),
 		log.DEBUG,
 	)
 
-	// ✅ Solo recalculamos si el motivo es fin de ráfaga (evitamos recalcular con ráfagas muy pequeñas)
-	if resp.Motivo == "EXIT" || resp.Motivo == "IO" || resp.Motivo == "DUMP" {
-		if resp.RafagaReal > 0 {
-			RecalcularRafaga(proceso, resp.RafagaReal)
-		}
-	}
+		RecalcularRafaga(proceso, resp.RafagaReal)
 
-	restante := EstimacionRestante(proceso)
-	global.LoggerKernel.Log(
-		fmt.Sprintf("PID %d - Estimación restante: %.2f ms", proceso.PID, restante),
-		log.DEBUG,
-	)
+	//si estamos en devolucion no hay estimacion restante
+	// restante := EstimacionRestante(proceso)
+	// global.LoggerKernel.Log(
+	// 	fmt.Sprintf("PID %d - Estimación restante: %.2f ms", proceso.PID, restante),
+	// 	log.DEBUG,
+	// )
 
 	global.LoggerKernel.Log(fmt.Sprintf("[DEBUG] Asignando a CPU proceso PID %d con PC %d", proceso.PID, proceso.PC), log.DEBUG)
+	
+	global.LoggerKernel.Log(fmt.Sprintf("-----Motivo de devolucion %s", resp.Motivo), log.DEBUG)
 
 	switch resp.Motivo {
+		
 	case "EXIT":
 		global.LoggerKernel.Log("## ("+strconv.Itoa(proceso.PID)+") - Solicitó syscall: <EXIT>", log.INFO)
 		utilskernel.SacarProcesoDeCPU(proceso.PID)
@@ -466,6 +408,7 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 		utilskernel.SacarProcesoDeCPU(proceso.PID)
 
 		global.MutexExecuting.Lock()
+		global.LoggerKernel.Log(fmt.Sprintf("[Primero de la cola executing %d ", global.ColaExecuting[0].PID), log.ERROR)
 		global.EliminarProcesoDeCola(&global.ColaExecuting, proceso.PID)
 		global.MutexExecuting.Unlock()
 
@@ -694,8 +637,8 @@ func LoguearMetricas(p *Proceso) {
 
 func RecalcularRafaga(proceso *Proceso, rafagaReal float64) {
 	alpha := global.ConfigKernel.Alpha
-	proceso.EstimacionRafaga = alpha*rafagaReal + (1-alpha)*proceso.EstimacionRafaga
-	proceso.TiempoEjecutado = 0 // RESET al recalcular estimación (fin de ráfaga)
+	proceso.UltimaRafagaEstimada = proceso.EstimacionRafaga
+	proceso.EstimacionRafaga = alpha*rafagaReal + (1-alpha)*proceso.UltimaRafagaEstimada
 }
 
 func suspenderProceso(proceso *global.Proceso) {
@@ -726,8 +669,11 @@ func suspenderProceso(proceso *global.Proceso) {
 }
 
 func EstimacionRestante(p *Proceso) float64 {
-	if p.TiempoEjecutado >= p.EstimacionRafaga {
+	tiempoEnExec := time.Since(p.InstanteInicio).Seconds()
+	
+	if tiempoEnExec >= p.EstimacionRafaga {
 		return 0
 	}
-	return p.EstimacionRafaga - p.TiempoEjecutado
+	
+	return p.EstimacionRafaga - tiempoEnExec
 }
