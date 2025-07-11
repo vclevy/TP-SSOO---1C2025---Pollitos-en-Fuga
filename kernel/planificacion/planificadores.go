@@ -228,8 +228,6 @@ func seleccionarProcesoSJF() *global.Proceso { //el proceso de menor ráfaga est
 }
 
 func evaluarDesalojoSRTF(nuevoProceso *global.Proceso) bool {
-	global.LoggerKernel.Log(fmt.Sprintf("Evaluando si PID %d desaloja al que esta en ejecucion", nuevoProceso.PID), log.DEBUG)
-	
 	if utilskernel.HayCPUDisponible()  {
 		global.LoggerKernel.Log("[DEBUG] No se desaloja porque hay CPU libre", log.DEBUG)
 		return false
@@ -310,7 +308,6 @@ func AsignarCPU(proceso *global.Proceso) bool {
 		ActualizarEstadoPCB(&proceso.PCB, EXEC)
 	}
 	global.AgregarAExecuting(proceso)
-	global.LoggerKernel.Log(fmt.Sprintf("Proceso agregado a executing %d", global.ColaExecuting[0].PID), log.ERROR)
 	proceso.InstanteInicio = time.Now()
 
 	err := utilskernel.EnviarADispatch(cpuLibre, proceso.PCB.PID, proceso.PCB.PC)
@@ -381,8 +378,6 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) { //ráfaga
 
 	global.LoggerKernel.Log(fmt.Sprintf("[DEBUG] Asignando a CPU proceso PID %d con PC %d", proceso.PID, proceso.PC), log.DEBUG)
 	
-	global.LoggerKernel.Log(fmt.Sprintf("-----Motivo de devolucion %s", resp.Motivo), log.DEBUG)
-
 	switch resp.Motivo {
 		
 	case "EXIT":
@@ -398,7 +393,6 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) { //ráfaga
 		utilskernel.SacarProcesoDeCPU(proceso.PID)
 
 		global.MutexExecuting.Lock()
-		global.LoggerKernel.Log(fmt.Sprintf("[Primero de la cola executing %d ", global.ColaExecuting[0].PID), log.ERROR)
 		global.EliminarProcesoDeCola(&global.ColaExecuting, proceso.PID)
 		global.MutexExecuting.Unlock()
 
@@ -433,7 +427,6 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) { //ráfaga
 
 			ActualizarEstadoPCB(&proceso.PCB, READY)
 			global.AgregarAReady(proceso)
-			global.LoggerKernel.Log("AGREGAR A READY (desde syscall DUMP)", log.DEBUG)
 		}
 	}
 

@@ -121,7 +121,6 @@ func AgregarAReady(p *Proceso) {
 func AgregarAExecuting(p *Proceso) {
 	MutexExecuting.Lock()
 	ColaExecuting = append(ColaExecuting, p)
-	LoggerKernel.Log(fmt.Sprintf("🟢 Asignado a EXEC: PID %d - ColaExecuting ahora tiene %d procesos", p.PID, len(ColaExecuting)), logger.DEBUG)
 	MutexExecuting.Unlock()
 }
 func AgregarABlocked(p *Proceso) {
