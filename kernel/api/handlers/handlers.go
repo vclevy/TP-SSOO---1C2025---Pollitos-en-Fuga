@@ -135,8 +135,6 @@ func HandshakeConCPU(w http.ResponseWriter, r *http.Request) {
 //}
 func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
 	// Si NO hay body → desconexión de dispositivo IO
-	global.NotificarReady()
-
 	if r.ContentLength == 0 {
 		global.LoggerKernel.Log("[DEBUG] Desconexión recibida", log.DEBUG)
 
