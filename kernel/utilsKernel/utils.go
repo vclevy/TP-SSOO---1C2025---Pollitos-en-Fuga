@@ -176,13 +176,13 @@ func EnviarInterrupcionCPU(cpu *global.CPU, pid int, pc int) error {
 	}
 
 	// Leer respuesta
-	var response struct {
-		PID int `json:"pid"`
-		PC  int `json:"pc"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-		return fmt.Errorf("error decodificando respuesta: %w", err)
-	}
+	// var response struct {
+	// 	PID int `json:"pid"`
+	// 	PC  int `json:"pc"`
+	// }
+	// if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+	// 	return fmt.Errorf("error decodificando respuesta: %w", err)
+	// }
 
 	return nil
 }
