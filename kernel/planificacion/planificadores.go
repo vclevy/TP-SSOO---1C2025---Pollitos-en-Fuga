@@ -191,6 +191,7 @@ func IniciarPlanificadorCortoPlazo() {
 				if !utilskernel.HayCPUDisponible() {
 					global.MutexReady.Unlock()
 					break
+					
 				}
 				nuevoProceso = seleccionarProcesoSJF()
 			}
@@ -226,20 +227,22 @@ func seleccionarProcesoSJF() *global.Proceso { //el proceso de menor ráfaga est
 }
 
 func evaluarDesalojoSRTF(nuevoProceso *global.Proceso) bool {
-	if utilskernel.HayCPUDisponible()  {
+	if utilskernel.HayCPUDisponible() {
 		global.LoggerKernel.Log("[DEBUG] No se desaloja porque hay CPU libre", log.DEBUG)
 		return false
 	}
 
 	global.MutexExecuting.Lock()
+	defer global.MutexExecuting.Unlock()  // ✅ Siempre se libera, sin importar el return
+
 	indice := ProcesoADesalojar(global.ColaExecuting, nuevoProceso.EstimacionRafaga)
-	if indice == -1 { // significa que no encontro uno en ejecucion con mayor tiempo restante a la estimacion actual
-		global.LoggerKernel.Log("[DEBUG] No encontre ninguno en ejecucion con menor tiempo restante que estimacion actual", log.DEBUG)
+	if indice == -1 {
+		global.LoggerKernel.Log("[DEBUG] No encontré ninguno en ejecución con mayor tiempo restante que estimación actual", log.DEBUG)
 		return false
 	}
+
 	procesoTarget := global.ColaExecuting[indice]
-	global.MutexExecuting.Unlock()
-	
+
 	cpuTarget := utilskernel.BuscarCPUPorPID(procesoTarget.PCB.PID)
 
 	err := utilskernel.EnviarInterrupcionCPU(cpuTarget, procesoTarget.PCB.PID, procesoTarget.PCB.PC)
@@ -247,12 +250,14 @@ func evaluarDesalojoSRTF(nuevoProceso *global.Proceso) bool {
 		global.LoggerKernel.Log(fmt.Sprintf("[ERROR] Error enviando interrupción a CPU %s para PID %d: %v", cpuTarget.ID, procesoTarget.PCB.PID, err), log.ERROR)
 		return false
 	}
-	//asignarcpu
+
+	//AsignarCPU(nuevoProceso)
 
 	global.LoggerKernel.Log(fmt.Sprintf("## (%d) - Desalojado por SRTF (nuevo PID %d)", procesoTarget.PCB.PID, nuevoProceso.PCB.PID), log.INFO)
 
 	return true
 }
+
 
 func ProcesoADesalojar(executing []*Proceso, nuevaEstimacion float64) int {
 	maxTiempoRestante := -1.0
