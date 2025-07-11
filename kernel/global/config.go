@@ -106,7 +106,7 @@ func AgregarANew(p *Proceso) {
 	}
 }
 
-var NotifyReady = make(chan struct{}, 1)
+var NotifyReady = make(chan struct{}, 100)
 
 func AgregarAReady(p *Proceso) {
 	MutexReady.Lock()
