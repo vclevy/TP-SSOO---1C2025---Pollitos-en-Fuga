@@ -188,8 +188,12 @@ func IniciarPlanificadorCortoPlazo() {
 				nuevoProceso = seleccionarProcesoSJF()
 
 			case "SRTF":
-				global.MutexReady.Unlock()
-				continue
+				if !utilskernel.HayCPUDisponible() {
+					global.MutexReady.Unlock()
+					break
+					
+				}
+				nuevoProceso = seleccionarProcesoSJF()
 			}
 
 			global.MutexReady.Unlock()
@@ -243,7 +247,6 @@ func evaluarDesalojoSRTF(nuevoProceso *global.Proceso) bool {
 		global.LoggerKernel.Log(fmt.Sprintf("[ERROR] Error enviando interrupción a CPU %s para PID %d: %v", cpuTarget.ID, procesoTarget.PCB.PID, err), log.ERROR)
 		return false
 	}
-	AsignarCPU(nuevoProceso)
 
 	global.LoggerKernel.Log(fmt.Sprintf("## (%d) - Desalojado por SRTF (nuevo PID %d)", procesoTarget.PCB.PID, nuevoProceso.PCB.PID), log.INFO)
 
