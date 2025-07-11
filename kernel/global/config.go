@@ -109,14 +109,6 @@ func AgregarANew(p *Proceso) {
 
 var NotifyReady = make(chan struct{}, 100)
 
-func AgregarAReady(p *Proceso) {
-	MutexReady.Lock()
-	ColaReady = append(ColaReady, p)
-	MutexReady.Unlock()
-
-	NotificarReady()
-}
-
 func AgregarAExecuting(p *Proceso) {
 	MutexExecuting.Lock()
 	ColaExecuting = append(ColaExecuting, p)

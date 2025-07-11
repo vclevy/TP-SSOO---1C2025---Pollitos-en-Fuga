@@ -126,7 +126,7 @@ func IniciarPlanificadorLargoPlazo() {
 					global.ColaNew = global.ColaNew[1:]
 					global.MutexNew.Unlock()					
 					ActualizarEstadoPCB(&proceso.PCB, READY)
-					global.AgregarAReady(proceso)
+					AgregarAReady(proceso)
 				}
 
 			case "PMCP":
@@ -146,7 +146,7 @@ func IniciarPlanificadorLargoPlazo() {
 						global.MutexNew.Unlock()
 
 						ActualizarEstadoPCB(&proc.PCB, READY)
-						global.AgregarAReady(proc)
+						AgregarAReady(proc)
 						break
 					}
 				}
@@ -174,40 +174,38 @@ func IniciarPlanificadorCortoPlazo() {
 			var nuevoProceso *global.Proceso
 			switch global.ConfigKernel.SchedulerAlgorithm {
 			case "FIFO":
-                if !utilskernel.HayCPUDisponible() {
-                    global.MutexReady.Unlock()
-                    break
-                }
-                nuevoProceso = global.ColaReady[0]
-
-            case "SJF":
-                if !utilskernel.HayCPUDisponible() {
-                    global.MutexReady.Unlock()
-                    break
-                }
-                nuevoProceso = seleccionarProcesoSJF()
-
-			case "SRTF": //SJF CON DESALOJO
-				nuevoProceso = seleccionarProcesoSJF()
-				//va a evaluar el desalojo con el que tengo menos estimacion
-				global.LoggerKernel.Log(fmt.Sprintf("Proceso con menor estimacion - Proxima estimacion para PID %d : %d ---- Rafaga real anterior: %d", nuevoProceso.PID, int(nuevoProceso.EstimacionRafaga), int(nuevoProceso.UltimaRafagaReal)), log.DEBUG)
-				if evaluarDesalojoSRTF(nuevoProceso) {
-					global.LoggerKernel.Log(fmt.Sprintf("Se solicitó desalojo para asignar PID %d (SRTF)", nuevoProceso.PID), log.DEBUG)
-				} else {
-					global.LoggerKernel.Log(fmt.Sprintf("No hay tal desalojo para PID %d (SRTF)", nuevoProceso.PID), log.DEBUG)
+				if !utilskernel.HayCPUDisponible() {
+					global.MutexReady.Unlock()
+					break
 				}
+				nuevoProceso = global.ColaReady[0]
+
+			case "SJF":
+				if !utilskernel.HayCPUDisponible() {
+					global.MutexReady.Unlock()
+					break
+				}
+				nuevoProceso = seleccionarProcesoSJF()
+
+			case "SRTF":
+				if !utilskernel.HayCPUDisponible() {
+					global.MutexReady.Unlock()
+					break
+				}
+				nuevoProceso = seleccionarProcesoSJF()
 			}
 
 			global.MutexReady.Unlock()
-		
+
 			if AsignarCPU(nuevoProceso) {
-                continue
-            } else {
-                break
+				continue
+			} else {
+				break
 			}
 		}
 	}
 }
+
 
 func seleccionarProcesoSJF() *global.Proceso { //el proceso de menor ráfaga estimada
 	if len(global.ColaReady) == 0 {
@@ -249,6 +247,7 @@ func evaluarDesalojoSRTF(nuevoProceso *global.Proceso) bool {
 		global.LoggerKernel.Log(fmt.Sprintf("[ERROR] Error enviando interrupción a CPU %s para PID %d: %v", cpuTarget.ID, procesoTarget.PCB.PID, err), log.ERROR)
 		return false
 	}
+	//asignarcpu
 
 	global.LoggerKernel.Log(fmt.Sprintf("## (%d) - Desalojado por SRTF (nuevo PID %d)", procesoTarget.PCB.PID, nuevoProceso.PCB.PID), log.INFO)
 
@@ -320,7 +319,7 @@ func AsignarCPU(proceso *global.Proceso) bool {
 
 		if proceso.PCB.UltimoEstado != EXIT {
 			global.LoggerKernel.Log(fmt.Sprintf("Reencolando proceso PID %d en READY tras error de dispatch", proceso.PID), log.DEBUG)
-			global.AgregarAReady(proceso)
+			AgregarAReady(proceso)
 		}
 		return false
 	}
@@ -397,7 +396,7 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) { //ráfaga
 		global.MutexExecuting.Unlock()
 
 		ActualizarEstadoPCB(&proceso.PCB, READY)
-		global.AgregarAReady(proceso)
+		AgregarAReady(proceso)
 
 	case "DUMP":
 		utilskernel.SacarProcesoDeCPU(proceso.PID)
@@ -426,7 +425,7 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) { //ráfaga
 			global.MutexBlocked.Unlock()
 
 			ActualizarEstadoPCB(&proceso.PCB, READY)
-			global.AgregarAReady(proceso)
+			AgregarAReady(proceso)
 		}
 	}
 
@@ -536,7 +535,7 @@ func IntentarCargarDesdeSuspReady() bool {
 			}
 
 			ActualizarEstadoPCB(&proceso.PCB, READY)
-			global.AgregarAReady(proceso)
+			AgregarAReady(proceso)
 			cambio = true
 		} else {
 			nuevaCola = append(nuevaCola, proceso)
@@ -658,4 +657,35 @@ func EstimacionRestante(p *Proceso) float64 {
 	}
 	
 	return p.EstimacionRafaga - tiempoEnExec
+}
+
+func AgregarAReady(p *Proceso) {
+	global.MutexReady.Lock()
+	global.ColaReady = append(global.ColaReady, p)
+	global.MutexReady.Unlock()
+
+	if global.ConfigKernel.SchedulerAlgorithm == "SRTF" {
+		go IntentarDesalojoSRTF()
+	}
+	
+	global.NotificarReady()
+}
+
+func IntentarDesalojoSRTF() {
+	global.MutexReady.Lock()
+	if len(global.ColaReady) == 0 {
+		global.MutexReady.Unlock()
+		return
+	}
+
+	procesoCandidato := seleccionarProcesoSJF()
+	global.MutexReady.Unlock()
+
+	global.LoggerKernel.Log(fmt.Sprintf("Intentando desalojo por SRTF para PID %d (estimación %.2f)", procesoCandidato.PID, procesoCandidato.EstimacionRafaga), log.DEBUG)
+
+	if evaluarDesalojoSRTF(procesoCandidato) {
+		global.LoggerKernel.Log(fmt.Sprintf("Desalojo solicitado por llegada de PID %d (SRTF)", procesoCandidato.PID), log.DEBUG)
+	} else {
+		global.LoggerKernel.Log(fmt.Sprintf("No se realiza desalojo por llegada de PID %d (SRTF)", procesoCandidato.PID), log.DEBUG)
+	}
 }
