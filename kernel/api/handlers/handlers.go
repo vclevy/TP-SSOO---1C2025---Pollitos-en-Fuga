@@ -208,11 +208,11 @@ func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
 			default:
 			}
 		} else {
-			planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.READY)
-			global.AgregarAReady(proceso)
 			global.MutexBlocked.Lock()
 			global.EliminarProcesoDeCola(&global.ColaBlocked, proceso.PID)
 			global.MutexBlocked.Unlock()
+			planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.READY)
+			global.AgregarAReady(proceso)
 
 		}
 
