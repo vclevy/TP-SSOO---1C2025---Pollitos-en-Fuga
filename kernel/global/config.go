@@ -185,6 +185,7 @@ func EliminarProcesoDeCola(cola *[]*Proceso, pid int) bool {
 func NotificarReady() {
 	select {
 	case NotifyReady <- struct{}{}:
+		LoggerKernel.Log("Hago Nofify!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!", logger.DEBUG)
 	default:
 	}
 }
