@@ -183,11 +183,8 @@ func EliminarProcesoDeCola(cola *[]*Proceso, pid int) bool {
 }
 
 func NotificarReady() {
-	LoggerKernel.Log("Intentando notificar...", logger.DEBUG)
 	select {
 	case NotifyReady <- struct{}{}:
-		LoggerKernel.Log("✅ Notify enviado", logger.DEBUG)
 	default:
-		LoggerKernel.Log("⚠️ Notify descartado (canal lleno)", logger.DEBUG)
 	}
 }

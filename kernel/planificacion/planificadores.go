@@ -163,9 +163,7 @@ SJF con desalojo --> se fija cuando entra proceso a Ready (<-global.NotifyReady)
 */
 func IniciarPlanificadorCortoPlazo() {
 	for {
-		global.LoggerKernel.Log("INTENTO DE NOTIFY READY", log.DEBUG)
 		<-global.NotifyReady
-		global.LoggerKernel.Log("HIZO UN NOTIFY READY", log.DEBUG)
 		for {
 			global.MutexReady.Lock()
 			if len(global.ColaReady) == 0 {
@@ -525,7 +523,6 @@ func IniciarPlanificadorMedioPlazo() {
 
 		for _, p := range procesosASuspender {
 			suspenderProceso(p)
-
 		}
 
 		time.Sleep(100 * time.Millisecond)
