@@ -97,7 +97,7 @@ func Execute(instruccion Instruccion, requiereMMU bool) (string, error) {
 	if instruccion.Opcode == "INIT_PROC" {
 		sumarPC = true
 		Syscall_Init_Proc(instruccion)
-		cortoProceso()
+		//cortoProceso()
 
 		return "", nil
 	}
