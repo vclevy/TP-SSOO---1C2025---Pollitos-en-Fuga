@@ -288,7 +288,7 @@ func ProcesoADesalojar(executing []*Proceso, nuevaEstimacion float64) int {
 }
 
 func AsignarCPU(proceso *global.Proceso) bool {
-		
+
 	if proceso.PCB.UltimoEstado == EXIT {
 		global.LoggerKernel.Log(fmt.Sprintf("No se puede asignar PID %d, ya está finalizado", proceso.PID), log.ERROR)
 		return false
