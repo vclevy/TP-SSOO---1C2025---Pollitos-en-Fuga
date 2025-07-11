@@ -126,6 +126,7 @@ func IniciarPlanificadorLargoPlazo() {
 					global.ColaNew = global.ColaNew[1:]
 					global.MutexNew.Unlock()					
 					ActualizarEstadoPCB(&proceso.PCB, READY)
+					global.LoggerKernel.Log("acaba de pasar un proceso de new a ready", log.DEBUG)
 					global.AgregarAReady(proceso)
 				}
 
@@ -168,6 +169,7 @@ func IniciarPlanificadorCortoPlazo() {
 			global.MutexReady.Lock()
 			if len(global.ColaReady) == 0 {
 				global.MutexReady.Unlock()
+				global.LoggerKernel.Log("PASO ESTO, WTF", log.DEBUG)
 				break
 			}
 
