@@ -180,8 +180,8 @@ func Execute(instruccion Instruccion, requiereMMU bool) (string, error) {
 func CheckInterrupt() {
 	if global.Interrupcion {
 		global.Motivo = "READY"
-		Desalojo()
 		cortoProceso()
+		Desalojo()
 		global.PCB_Actual = global.PCB_Interrupcion
 		global.Interrupcion = false
 	} else {

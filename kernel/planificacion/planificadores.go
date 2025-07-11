@@ -655,13 +655,13 @@ func suspenderProceso(proceso *global.Proceso) {
 }
 
 func EstimacionRestante(p *Proceso) float64 {
-	tiempoEnExec := time.Since(p.InstanteInicio).Seconds()
+	tiempoEnExec := time.Since(p.InstanteInicio).Milliseconds()
 	
-	if tiempoEnExec >= p.EstimacionRafaga {
+	if float64(tiempoEnExec) >= p.EstimacionRafaga {
 		return 0
 	}
 	
-	return p.EstimacionRafaga - tiempoEnExec
+	return p.EstimacionRafaga - float64(tiempoEnExec)
 }
 
 func AgregarAReady(p *Proceso) {
