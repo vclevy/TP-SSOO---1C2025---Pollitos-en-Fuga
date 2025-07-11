@@ -5,7 +5,7 @@
     "ip_kernel": "127.0.0.1",
     "scheduler_algorithm": "SRTF",
     "suspension_time": 3000,
-    "ready_ingress_algorithm": "PMPC",
+    "ready_ingress_algorithm": "PMCP",
     "alpha": 0.75,
     "log_level": "INFO",
     "log_file": "kernel.log",

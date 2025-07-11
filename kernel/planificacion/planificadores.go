@@ -131,7 +131,7 @@ func IniciarPlanificadorLargoPlazo() {
 					ActualizarEstadoPCB(&proceso.PCB, READY)
 
 					global.AgregarAReady(proceso)
-			global.LoggerKernel.Log("POST AGREGAR A READY", log.DEBUG)
+					global.LoggerKernel.Log("POST AGREGAR A READY", log.DEBUG)
 				}
 
 			case "PMCP":
@@ -169,6 +169,7 @@ SJF con desalojo --> se fija cuando entra proceso a Ready (<-global.NotifyReady)
 func IniciarPlanificadorCortoPlazo() {
 	for {
 		<-global.NotifyReady
+		global.LoggerKernel.Log("HIZO UN NOTIFY READY", log.DEBUG)
 		for {
 			global.MutexReady.Lock()
 			if len(global.ColaReady) == 0 {
@@ -178,7 +179,7 @@ func IniciarPlanificadorCortoPlazo() {
 
 			var nuevoProceso *global.Proceso
 			switch global.ConfigKernel.SchedulerAlgorithm {
-			 case "FIFO":
+			case "FIFO":
                 if !utilskernel.HayCPUDisponible() {
                     global.MutexReady.Unlock()
                     break
@@ -196,6 +197,10 @@ func IniciarPlanificadorCortoPlazo() {
 				global.LoggerKernel.Log("---------DEBERIA ENTRAR ACA DESPUES DE HACER DE NEW A READY", log.DEBUG)
 				nuevoProceso = seleccionarProcesoSJF()
 				//va a evaluar el desalojo con el que tengo menos estimacion
+				global.MutexExecuting.Lock()
+				
+				global.LoggerKernel.Log(fmt.Sprintf("📋 ColaExecuting: %d procesos", len(global.ColaExecuting)), log.DEBUG)
+				global.MutexExecuting.Unlock()
 				global.LoggerKernel.Log(fmt.Sprintf("Proceso con menor estimacion - Proxima estimacion para PID %d : %d ---- Rafaga real anterior: %d", nuevoProceso.PID, int(nuevoProceso.EstimacionRafaga), int(nuevoProceso.UltimaRafagaReal)), log.DEBUG)
 				if evaluarDesalojoSRTF(nuevoProceso) {
 					global.LoggerKernel.Log(fmt.Sprintf("Se solicitó desalojo para asignar PID %d (SRTF)", nuevoProceso.PID), log.DEBUG)
@@ -281,8 +286,6 @@ func ProcesoADesalojar(executing []*Proceso, nuevaEstimacion float64) int {
 
 	return indiceProceso
 }
-
-
 
 func AsignarCPU(proceso *global.Proceso) bool {
 		
