@@ -7,7 +7,6 @@ import (
 	//"io"
 	"net/http"
 	"strconv"
-	"time"
 	"github.com/sisoputnfrba/tp-golang/kernel/global"
 	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
 	log "github.com/sisoputnfrba/tp-golang/utils/logger"
@@ -135,9 +134,6 @@ func EnviarADispatch(cpu *global.CPU, pid int, pc int) error {
 		PID: pid,
 		PC:  pc,
 	}
-
-	proceso := BuscarProcesoPorPID(global.ColaReady, pid)
-	proceso.InstanteInicio = time.Now()
 
 	jsonData, err := json.Marshal(payload)
 	if err != nil {

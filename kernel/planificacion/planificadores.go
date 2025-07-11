@@ -378,6 +378,7 @@ func AsignarCPU(proceso *global.Proceso) bool {
 		ActualizarEstadoPCB(&proceso.PCB, EXEC)
 	}
 	global.AgregarAExecuting(proceso)
+	proceso.InstanteInicio = time.Now()
 
 	err := utilskernel.EnviarADispatch(cpuLibre, proceso.PCB.PID, proceso.PCB.PC)
 	if err != nil {
