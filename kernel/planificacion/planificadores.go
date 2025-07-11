@@ -188,12 +188,8 @@ func IniciarPlanificadorCortoPlazo() {
 				nuevoProceso = seleccionarProcesoSJF()
 
 			case "SRTF":
-				if !utilskernel.HayCPUDisponible() {
-					global.MutexReady.Unlock()
-					break
-					
-				}
-				nuevoProceso = seleccionarProcesoSJF()
+				
+				return
 			}
 
 			global.MutexReady.Unlock()
@@ -247,8 +243,7 @@ func evaluarDesalojoSRTF(nuevoProceso *global.Proceso) bool {
 		global.LoggerKernel.Log(fmt.Sprintf("[ERROR] Error enviando interrupción a CPU %s para PID %d: %v", cpuTarget.ID, procesoTarget.PCB.PID, err), log.ERROR)
 		return false
 	}
-
-	//AsignarCPU(nuevoProceso)
+	AsignarCPU(nuevoProceso)
 
 	global.LoggerKernel.Log(fmt.Sprintf("## (%d) - Desalojado por SRTF (nuevo PID %d)", procesoTarget.PCB.PID, nuevoProceso.PCB.PID), log.INFO)
 
@@ -683,11 +678,5 @@ func IntentarDesalojoSRTF() {
 	procesoCandidato := seleccionarProcesoSJF()
 	global.MutexReady.Unlock()
 
-	global.LoggerKernel.Log(fmt.Sprintf("Intentando desalojo por SRTF para PID %d (estimación %.2f)", procesoCandidato.PID, procesoCandidato.EstimacionRafaga), log.DEBUG)
-
-	if evaluarDesalojoSRTF(procesoCandidato) {
-		global.LoggerKernel.Log(fmt.Sprintf("Desalojo solicitado por llegada de PID %d (SRTF)", procesoCandidato.PID), log.DEBUG)
-	} else {
-		global.LoggerKernel.Log(fmt.Sprintf("No se realiza desalojo por llegada de PID %d (SRTF)", procesoCandidato.PID), log.DEBUG)
-	}
+	evaluarDesalojoSRTF(procesoCandidato)
 }
