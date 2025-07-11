@@ -189,7 +189,7 @@ func IniciarPlanificadorCortoPlazo() {
 
 			case "SRTF":
 				
-				return
+				continue
 			}
 
 			global.MutexReady.Unlock()
