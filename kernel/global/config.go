@@ -27,6 +27,7 @@ type Proceso struct {
     ArchivoPseudo     string
     EstimacionRafaga  float64
     TiempoEjecutado   float64 
+	InstanteInicio time.Time
 }
 
 func NuevoPCB() *PCB {

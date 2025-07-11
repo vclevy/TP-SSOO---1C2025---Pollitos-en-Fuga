@@ -2,13 +2,14 @@ package planificacion
 
 import (
 	"fmt"
+	"sort"
+	"strconv"
+	"time"
+
 	"github.com/sisoputnfrba/tp-golang/kernel/global"
 	utilskernel "github.com/sisoputnfrba/tp-golang/kernel/utilsKernel"
 	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
 	log "github.com/sisoputnfrba/tp-golang/utils/logger"
-	"sort"
-	"strconv"
-	"time"
 )
 
 const (
@@ -183,9 +184,9 @@ func IniciarPlanificadorCortoPlazo() {
 				global.LoggerKernel.Log(fmt.Sprintf("Evaluando desalojo SRTF con PID %d", nuevoProceso.PID), log.DEBUG)
 				if evaluarDesalojoSRTF(nuevoProceso) {
 					global.LoggerKernel.Log(fmt.Sprintf("Se solicitó desalojo para asignar PID %d (SRTF)", nuevoProceso.PID), log.DEBUG)
-					break
+				} else {
+					global.LoggerKernel.Log(fmt.Sprintf("No hay tal desalojo para PID %d (SRTF)", nuevoProceso.PID), log.DEBUG)
 				}
-				global.LoggerKernel.Log(fmt.Sprintf("No hay tal desalojo para PID %d (SRTF)", nuevoProceso.PID), log.DEBUG)
 			}
 
 			// ⬇️ Solo ahora verificás CPU disponible
@@ -199,10 +200,14 @@ func IniciarPlanificadorCortoPlazo() {
 			} else {
 				break
 			}
+
+			/* if utilskernel.HayCPUDisponible() {
+				AsignarCPU(nuevoProceso)
+			} */
+			
 		}
 	}
 }
-
 
 func seleccionarProcesoSJF(usandoRestante bool) *global.Proceso {
 	if len(global.ColaReady) == 0 {
@@ -227,71 +232,118 @@ func seleccionarProcesoSJF(usandoRestante bool) *global.Proceso {
 	return proceso
 
 }
+
 func evaluarDesalojoSRTF(nuevoProceso *global.Proceso) bool {
-	global.MutexExecuting.Lock()
-	defer global.MutexExecuting.Unlock()
 
-	// Si hay CPU disponible o no hay procesos ejecutando, no hay desalojo posible
-	if len(global.ColaExecuting) == 0 {
-	return false
-	}
-
-
-	restanteNuevo := EstimacionRestante(nuevoProceso)
-
-	var peorProceso *global.Proceso
-	var peorRestante float64 = -1
-	var cpuDesalojar *global.CPU = nil
-
-	for _, cpu := range global.CPUsConectadas {
-		if cpu.ProcesoEjecutando != nil {
-			procesoEjecutando := utilskernel.BuscarProcesoPorPID(global.ColaExecuting, cpu.ProcesoEjecutando.PID)
-			if procesoEjecutando == nil {
-				global.LoggerKernel.Log(fmt.Sprintf("[ERROR] No se encontró proceso ejecutando completo para PID %d", cpu.ProcesoEjecutando.PID), log.ERROR)
-				continue
-			}
-
-			restanteEjecutando := EstimacionRestante(procesoEjecutando)
-			global.LoggerKernel.Log(fmt.Sprintf("[DEBUG] CPU %s: PID %d restante %.2f", cpu.ID, procesoEjecutando.PID, restanteEjecutando), log.DEBUG)
-
-			if restanteEjecutando > peorRestante {
-				peorRestante = restanteEjecutando
-				peorProceso = procesoEjecutando
-				cpuDesalojar = cpu
-			}
-		}
-	}
-
-	if peorProceso == nil || cpuDesalojar == nil {
-		global.LoggerKernel.Log("[DEBUG] No se encontró proceso para desalojar", log.DEBUG)
+	if utilskernel.HayCPUDisponible() || len(global.ColaExecuting) == 0 {
+		global.LoggerKernel.Log("[DEBUG] No se desaloja porque hay CPU libre o no hay procesos ejecutando", log.DEBUG)
 		return false
 	}
 
-	global.LoggerKernel.Log(fmt.Sprintf(
-		"[DEBUG] SRTF: nuevo PID %d restante %.2f vs peor ejecutando PID %d restante %.2f",
-		nuevoProceso.PID, restanteNuevo, peorProceso.PID, peorRestante,
-	), log.DEBUG)
+	global.MutexExecuting.Lock()
+	indice := ProcesoADesalojar(global.ColaExecuting, nuevoProceso.EstimacionRafaga)
+	if indice == -1 { // significa que no encontro uno en ejecucion con mayor tiempo restante a la estimacion actual
+		return false
+	}
+	procesoTarget := global.ColaExecuting[indice]
+	global.MutexExecuting.Unlock()
+	
+	cpuTarget := utilskernel.BuscarCPUPorPID(procesoTarget.PCB.PID)
 
-	if restanteNuevo < peorRestante {
-		global.LoggerKernel.Log(fmt.Sprintf("[DEBUG] → Desalojo: %.2f < %.2f", restanteNuevo, peorRestante), log.DEBUG)
-
-		err := utilskernel.EnviarInterrupcionCPU(cpuDesalojar, peorProceso.PID, peorProceso.PCB.PC)
-		if err != nil {
-			global.LoggerKernel.Log(fmt.Sprintf("[ERROR] Error enviando interrupción a CPU %s para PID %d: %v", cpuDesalojar.ID, peorProceso.PID, err), log.ERROR)
-			return false
-		}
-
-		global.LoggerKernel.Log(fmt.Sprintf("## (%d) - Desalojado por SRTF (nuevo PID %d)", peorProceso.PID, nuevoProceso.PID), log.INFO)
-
-		return true
+	err := utilskernel.EnviarInterrupcionCPU(cpuTarget, procesoTarget.PCB.PID, procesoTarget.PCB.PC)
+	if err != nil {
+		global.LoggerKernel.Log(fmt.Sprintf("[ERROR] Error enviando interrupción a CPU %s para PID %d: %v", cpuTarget.ID, procesoTarget.PCB.PID, err), log.ERROR)
+		return false
 	}
 
-	global.LoggerKernel.Log(fmt.Sprintf("[DEBUG] → NO Desalojo: %.2f >= %.2f", restanteNuevo, peorRestante), log.DEBUG)
-	return false
+	global.LoggerKernel.Log(fmt.Sprintf("## (%d) - Desalojado por SRTF (nuevo PID %d)", procesoTarget.PCB.PID, nuevoProceso.PCB.PID), log.INFO)
+
+	return true
+}
+func ProcesoADesalojar(executing []*Proceso, nuevaEstimacion float64) int {
+	maxTiempoRestante := -1.0
+	indiceProceso := -1
+
+	for i, p := range executing {
+		// Calcula cuánto tiempo lleva ejecutándose (en segundos)
+		tiempoEnCPU := time.Since(p.InstanteInicio).Seconds()
+
+		// Tiempo restante estimado
+		tiempoRestante := p.EstimacionRafaga - tiempoEnCPU
+
+		if tiempoRestante > nuevaEstimacion && tiempoRestante > maxTiempoRestante {
+			maxTiempoRestante = tiempoRestante
+			indiceProceso = i
+		}
+	}
+
+	return indiceProceso
 }
 
+// func evaluarDesalojoSRTF(nuevoProceso *global.Proceso) bool {
+// 	global.MutexExecuting.Lock()
+// 	defer global.MutexExecuting.Unlock()
+
+// 	// Si hay CPU disponible o no hay procesos ejecutando, no hay desalojo posible
+// 	if len(global.ColaExecuting) == 0 {
+// 	return false
+// 	}
+
+// 	restanteNuevo := EstimacionRestante(nuevoProceso)
+
+// 	var peorProceso *global.Proceso
+// 	var peorRestante float64 = -1
+// 	var cpuDesalojar *global.CPU = nil
+
+// 	for _, cpu := range global.CPUsConectadas {
+// 		if cpu.ProcesoEjecutando != nil {
+// 			procesoEjecutando := utilskernel.BuscarProcesoPorPID(global.ColaExecuting, cpu.ProcesoEjecutando.PID)
+// 			if procesoEjecutando == nil {
+// 				global.LoggerKernel.Log(fmt.Sprintf("[ERROR] No se encontró proceso ejecutando completo para PID %d", cpu.ProcesoEjecutando.PID), log.ERROR)
+// 				continue
+// 			}
+
+// 			restanteEjecutando := EstimacionRestante(procesoEjecutando)
+// 			global.LoggerKernel.Log(fmt.Sprintf("[DEBUG] CPU %s: PID %d restante %.2f", cpu.ID, procesoEjecutando.PID, restanteEjecutando), log.DEBUG)
+
+// 			if restanteEjecutando > peorRestante {
+// 				peorRestante = restanteEjecutando
+// 				peorProceso = procesoEjecutando
+// 				cpuDesalojar = cpu
+// 			}
+// 		}
+// 	}
+
+// 	if peorProceso == nil || cpuDesalojar == nil {
+// 		global.LoggerKernel.Log("[DEBUG] No se encontró proceso para desalojar", log.DEBUG)
+// 		return false
+// 	}
+
+// 	global.LoggerKernel.Log(fmt.Sprintf(
+// 		"[DEBUG] SRTF: nuevo PID %d restante %.2f vs peor ejecutando PID %d restante %.2f",
+// 		nuevoProceso.PID, restanteNuevo, peorProceso.PID, peorRestante,
+// 	), log.DEBUG)
+
+// 	if restanteNuevo < peorRestante {
+// 		global.LoggerKernel.Log(fmt.Sprintf("[DEBUG] → Desalojo: %.2f < %.2f", restanteNuevo, peorRestante), log.DEBUG)
+
+// 		err := utilskernel.EnviarInterrupcionCPU(cpuDesalojar, peorProceso.PID, peorProceso.PCB.PC)
+// 		if err != nil {
+// 			global.LoggerKernel.Log(fmt.Sprintf("[ERROR] Error enviando interrupción a CPU %s para PID %d: %v", cpuDesalojar.ID, peorProceso.PID, err), log.ERROR)
+// 			return false
+// 		}
+
+// 		global.LoggerKernel.Log(fmt.Sprintf("## (%d) - Desalojado por SRTF (nuevo PID %d)", peorProceso.PID, nuevoProceso.PID), log.INFO)
+
+// 		return true
+// 	}
+
+// 	global.LoggerKernel.Log(fmt.Sprintf("[DEBUG] → NO Desalojo: %.2f >= %.2f", restanteNuevo, peorRestante), log.DEBUG)
+// 	return false
+// }
 
 func AsignarCPU(proceso *global.Proceso) bool {
+		
 	if proceso.PCB.UltimoEstado == EXIT {
 		global.LoggerKernel.Log(fmt.Sprintf("No se puede asignar PID %d, ya está finalizado", proceso.PID), log.ERROR)
 		return false
@@ -454,8 +506,6 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) {
 	global.NotificarReady()
 }
 
-
-
 func ManejarSolicitudIO(pid int, nombre string, tiempoUso int) error {
 	global.LoggerKernel.Log("## ("+strconv.Itoa(pid)+") - Solicitó syscall: <IO>", log.INFO)
 
@@ -463,10 +513,10 @@ func ManejarSolicitudIO(pid int, nombre string, tiempoUso int) error {
 	dispositivos := utilskernel.ObtenerDispositivoIO(nombre)
 	global.IOListMutex.Unlock()
 
-	global.MutexExecuting.Lock() 
+	global.MutexExecuting.Lock()
 	proceso := utilskernel.BuscarProcesoPorPID(global.ColaExecuting, pid)
 	if proceso == nil {
-		global.MutexExecuting.Unlock() 
+		global.MutexExecuting.Unlock()
 		return fmt.Errorf("no se pudo obtener el proceso en EXECUTING (PID %d)", pid)
 	}
 
@@ -670,7 +720,7 @@ func suspenderProceso(proceso *global.Proceso) {
 
 	select {
 	case global.NotifySuspReady <- struct{}{}:
-	default: 
+	default:
 	}
 }
 
