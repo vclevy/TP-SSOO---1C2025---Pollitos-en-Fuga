@@ -1,7 +1,6 @@
 package global
 
 import (
-	"fmt"
 	"sync"
 	"time"
 
