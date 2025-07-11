@@ -242,7 +242,7 @@ func evaluarDesalojoSRTF(nuevoProceso *global.Proceso) bool {
 
 	cpuTarget := utilskernel.BuscarCPUPorPID(procesoTarget.PCB.PID)
 
-	err := utilskernel.EnviarInterrupcionCPU(cpuTarget, procesoTarget.PCB.PID, procesoTarget.PCB.PC)
+	err := utilskernel.EnviarInterrupcionCPU(cpuTarget, nuevoProceso.PCB.PID, nuevoProceso.PCB.PC)
 	if err != nil {
 		global.LoggerKernel.Log(fmt.Sprintf("[ERROR] Error enviando interrupción a CPU %s para PID %d: %v", cpuTarget.ID, procesoTarget.PCB.PID, err), log.ERROR)
 		return false
