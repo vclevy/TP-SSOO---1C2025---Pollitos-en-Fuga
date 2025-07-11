@@ -275,7 +275,6 @@ func ObtenerInstruccion(pid int, pc int) (string, error) { //ESTO SIRVE PARA CPU
 	global.MutexMetricas.Unlock()
 
 	return instrucciones[pc], nil
-
 }
 
 // ACCESO A TABLA DE PAGINAS

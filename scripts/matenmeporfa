@@ -1,5 +1,7 @@
+INIT_PROC largo.proceso 64
 NOOP
 NOOP
+INIT_PROC corto.proceso 64
 NOOP
 NOOP
 EXIT
