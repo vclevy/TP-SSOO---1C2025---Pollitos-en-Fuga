@@ -207,7 +207,6 @@ func IniciarPlanificadorCortoPlazo() {
 	}
 }
 
-
 func seleccionarProcesoSJF() *global.Proceso { //el proceso de menor ráfaga estimada
 	if len(global.ColaReady) == 0 {
 		return nil
@@ -221,8 +220,6 @@ func seleccionarProcesoSJF() *global.Proceso { //el proceso de menor ráfaga est
 	})
 
 	proceso := global.ColaReady[0] // ya no lo eliminás acá
-	global.LoggerKernel.Log(fmt.Sprintf("Proceso que acaba de llegar a READY: %d", proceso.PCB.PID), log.INFO)
-
 	return proceso
 }
 
