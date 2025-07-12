@@ -44,7 +44,7 @@ func RecibirPaquete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//global.LoggerKernel.Log("Kernel recibió paquete desde IO - Nombre: "+paquete.NombreIO+" | IP IO: "+paquete.IPIO+" | Puerto Io: "+strconv.Itoa(paquete.PuertoIO), log.DEBUG)
+	global.LoggerKernel.Log("Kernel recibió paquete desde IO - Nombre: "+paquete.NombreIO+" | IP IO: "+paquete.IPIO+" | Puerto Io: "+strconv.Itoa(paquete.PuertoIO), log.DEBUG)
 
 	ioConectado := &IODevice{
 		Nombre:       paquete.NombreIO,

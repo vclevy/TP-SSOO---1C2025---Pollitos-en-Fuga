@@ -178,8 +178,6 @@ func Execute(instruccion Instruccion, requiereMMU bool) (string, error) {
 
 func CheckInterrupt() { 
 	if global.Interrupcion {
-		global.LoggerCpu.Log(("HAY INTERRUPCION"), log.INFO) 
-
 		global.Motivo = "READY"
 		cortoProceso()
 		Desalojo()
