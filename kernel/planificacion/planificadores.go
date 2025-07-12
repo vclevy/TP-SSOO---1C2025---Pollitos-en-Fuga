@@ -248,7 +248,7 @@ func evaluarDesalojoSRTF(nuevoProceso *global.Proceso) bool {
 		return false
 	}
 
-	global.LoggerKernel.Log(fmt.Sprintf("## (%d) - Desalojado por SRTF (nuevo PID %d)", procesoTarget.PCB.PID, nuevoProceso.PCB.PID), log.INFO)
+	global.LoggerKernel.Log(fmt.Sprintf("## (<%d>) - Desalojado por algoritmo SJF/SRT", procesoTarget.PCB.PID), log.INFO)
 
 	return true
 }

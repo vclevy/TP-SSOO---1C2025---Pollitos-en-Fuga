@@ -74,8 +74,8 @@ func MemoriaEscribe(direccionFisica int, datos string) error {
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("pedido escritura fallido con status %d", resp.StatusCode)
 	}
-
-	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: ESCRIBIR - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, direccionFisica, datos), log.INFO) //!! Lectura/Escritura Memoria - logObligatorio
+	datosString := strings.TrimRight(string(datos), "\x00")
+	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: ESCRIBIR - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, direccionFisica, datosString), log.INFO) //!! Lectura/Escritura Memoria - logObligatorio
 
 	return nil
 }
