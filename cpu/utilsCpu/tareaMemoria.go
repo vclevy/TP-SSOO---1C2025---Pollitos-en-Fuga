@@ -51,7 +51,6 @@ func MemoriaLee(direccionFisica int, tamanio int) (string, error) {
 }
 
 func MemoriaEscribe(direccionFisica int, datos string) error {
-
 	datosEnvio := estructuras.PedidoWRITE{
 		PID:             global.PCB_Actual.PID,
 		DireccionFisica: direccionFisica,
@@ -103,8 +102,8 @@ func MemoriaEscribePaginaCompleta(direccionFisica int, datos []byte) error {
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("pedido escritura fallido con status %d", resp.StatusCode)
 	}
-
-	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: ESCRIBIR - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, direccionFisica, datos), log.INFO) //!! Lectura/Escritura Memoria (página completa) - logObligatorio
+	datosString := strings.TrimRight(string(datos), "\x00")
+	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: ESCRIBIR - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, direccionFisica, datosString), log.INFO) //!! Lectura/Escritura Memoria (página completa) - logObligatorio
 
 	return nil
 }

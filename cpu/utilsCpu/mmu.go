@@ -19,8 +19,6 @@ func armarListaEntradas(nroPagina int) []int {
 	entradas := make([]int, cantNiveles)
 
 	for i := 1; i <= cantNiveles; i++ {
-		/* global.LoggerCpu.Log(fmt.Sprintf("Dividiendo para nivel %d", i), log.DEBUG) */
-
 		exponente := cantNiveles - i
 		if exponente < 0 {
 			global.LoggerCpu.Log(fmt.Sprintf("ERROR: Exponente negativo. Nivel: %d, cantNiveles: %d", i, cantNiveles), log.ERROR)
@@ -49,8 +47,7 @@ func CalcularMarco(numeroPagina int) int {
 			return actualizarTLB()
 		}
 	}
-	//TLB NO ESTA HABILITADA
-	return BuscarMarcoEnMemoria(numeroPagina)
+	return BuscarMarcoEnMemoria(numeroPagina) //TLB NO ESTA HABILITADA
 }
 
 func BuscarMarcoEnMemoria(nroPagina int) int {
@@ -72,7 +69,6 @@ func MMU(desplazamiento int, marco int) int {
 }
 
 func pedirMarco(accesoTP estructuras.AccesoTP) int {
-
 	jsonData, err := json.Marshal(accesoTP)
 	if err != nil {
 		global.LoggerCpu.Log("Error serializando solicitud: "+err.Error(), log.ERROR)

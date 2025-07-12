@@ -40,11 +40,11 @@ func RecibirPaquete(w http.ResponseWriter, r *http.Request) {
 	err = json.Unmarshal(body, &paquete)
 	if err != nil {
 		http.Error(w, "Error parseando el paquete", http.StatusBadRequest)
-		global.LoggerKernel.Log("Error al parsear el paquete JSON: "+err.Error(), log.DEBUG)
+		//global.LoggerKernel.Log("Error al parsear el paquete JSON: "+err.Error(), log.DEBUG)
 		return
 	}
 
-	global.LoggerKernel.Log("Kernel recibió paquete desde IO - Nombre: "+paquete.NombreIO+" | IP IO: "+paquete.IPIO+" | Puerto Io: "+strconv.Itoa(paquete.PuertoIO), log.DEBUG)
+	//global.LoggerKernel.Log("Kernel recibió paquete desde IO - Nombre: "+paquete.NombreIO+" | IP IO: "+paquete.IPIO+" | Puerto Io: "+strconv.Itoa(paquete.PuertoIO), log.DEBUG)
 
 	ioConectado := &IODevice{
 		Nombre:       paquete.NombreIO,
@@ -102,7 +102,7 @@ func HandshakeConCPU(w http.ResponseWriter, r *http.Request) {
 	global.CPUsConectadas = append(global.CPUsConectadas, &nuevaCpu)
 	global.MutexCPUs.Unlock()
 
-	global.LoggerKernel.Log(fmt.Sprintf("Total CPUs conectadas: %d", len(global.CPUsConectadas)), log.DEBUG)
+	//global.LoggerKernel.Log(fmt.Sprintf("Total CPUs conectadas: %d", len(global.CPUsConectadas)), log.DEBUG)
 	global.LoggerKernel.Log(fmt.Sprintf("Handshake recibido de CPU %s en %s:%s", nuevoHandshake.ID, nuevoHandshake.IP, strconv.Itoa(nuevoHandshake.Puerto)), log.DEBUG)
 
 	w.WriteHeader(http.StatusOK)
@@ -136,7 +136,7 @@ func HandshakeConCPU(w http.ResponseWriter, r *http.Request) {
 func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
 	// Si NO hay body → desconexión de dispositivo IO
 	if r.ContentLength == 0 {
-		global.LoggerKernel.Log("[DEBUG] Desconexión recibida", log.DEBUG)
+		global.LoggerKernel.Log("Desconexión recibida", log.DEBUG)
 
 		ip := r.Header.Get("X-IO-IP")
 		puertoStr := r.Header.Get("X-IO-Puerto")
@@ -153,7 +153,7 @@ func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if dispositivo.ProcesoEnUso == nil {
-			global.LoggerKernel.Log(fmt.Sprintf("[WARN] IO %s:%d se desconectó sin proceso en uso", ip, puerto), log.DEBUG)
+			global.LoggerKernel.Log(fmt.Sprintf("IO %s:%d se desconectó sin proceso en uso", ip, puerto), log.DEBUG)
 		} else {
 			proc := dispositivo.ProcesoEnUso.Proceso
 
@@ -184,7 +184,7 @@ func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	pid := mensaje.PID
-	global.LoggerKernel.Log(fmt.Sprintf("Finalizó IO del PID: %d", pid), log.DEBUG)
+	//global.LoggerKernel.Log(fmt.Sprintf("Finalizó IO del PID: %d", pid), log.DEBUG)
 
 	dispositivo := utilsKernel.BuscarDispositivoPorPID(pid)
 	if dispositivo == nil {
@@ -295,5 +295,5 @@ func DevolucionCPUHandler(w http.ResponseWriter, r *http.Request) {
 	planificacion.ManejarDevolucionDeCPU(devolucion)
 	w.WriteHeader(http.StatusOK)
 
-	global.LoggerKernel.Log(fmt.Sprintf("Llega PID %d y PC %d", devolucion.PID, devolucion.PC), log.DEBUG)
+	//global.LoggerKernel.Log(fmt.Sprintf("Llega PID %d y PC %d", devolucion.PID, devolucion.PC), log.DEBUG)
 }

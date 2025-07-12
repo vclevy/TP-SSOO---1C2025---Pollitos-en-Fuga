@@ -114,9 +114,9 @@ func CrearTablaPaginas(pid int, tamanio int) {
 
 	
 	marcos := ReservarMarcos(tamanio) // slice con marcos reservados
-	if len(marcos) == 0 {
-		fmt.Printf("No se asignaron marcos para proceso PID %d", pid)
-	}
+	// if len(marcos) == 0 {
+	// 	fmt.Printf("No se asignaron marcos para proceso PID %d", pid)
+	// }
 	idx := 0
 
 	raiz := &EntradaTP{
@@ -142,7 +142,7 @@ func CrearTablaNiveles(nivelActual int, paginasRestantes *int, marcosReservados 
 	for i := 0; i < CantEntradas && *paginasRestantes > 0; i++ {
 		if nivelActual == CantNiveles {
 			if *proximoMarco >= len(*marcosReservados) {
-				fmt.Println("❌ Error: se agotaron los marcos reservados en nivel", nivelActual)
+				//fmt.Println("❌ Error: se agotaron los marcos reservados en nivel", nivelActual)
 				return nil
 			}
 			tabla[i].Presente = true
@@ -298,7 +298,7 @@ func EncontrarMarco(pid int, entradas []int) int {
 
 		//si estoy en un marco
 		if actual.SiguienteNivel == nil {
-			fmt.Printf("estoy en el ultimo nivel")
+			//fmt.Printf("estoy en el ultimo nivel")
 		}
 
 		actual = actual.SiguienteNivel[idx]
@@ -331,7 +331,7 @@ func SuspenderProceso(pid int) {
 	time.Sleep(time.Millisecond * time.Duration(SwapDelay))
 	marcosDelProceso := EncontrarMarcosDeProceso(pid)
 	dataMarcos := EncontrarDataMarcos(marcosDelProceso)
-	fmt.Printf("‼🔎------ Data de marcos encontrados para pid %d: %s", pid, string(dataMarcos))
+	//fmt.Printf("‼🔎------ Data de marcos encontrados para pid %d: %s", pid, string(dataMarcos))
 	LiberarEspacioMemoria(pid, marcosDelProceso)
 	GuardarInfoSwap(pid, dataMarcos)
 	metricas[pid].BajadasSWAP++
@@ -344,7 +344,7 @@ func DesSuspenderProceso(pid int) {
 	AsignarMarcosATablaExistente(pid, marcosAginados)
 	PegarInfoEnMemoria(pid, info, marcosAginados)
 	BorrarEnSwap(pid)
-	fmt.Printf("‼🔄------ Data restaurada de SWAP para pid %d:  %s", pid, string(info))
+	//fmt.Printf("‼🔄------ Data restaurada de SWAP para pid %d:  %s", pid, string(info))
 }
 
 func EncontrarDataMarcos(marcos []int) []byte {
@@ -376,7 +376,7 @@ func PegarInfoEnMemoria(pid int, info []byte, marcosAsignados []int) {
 		fin := inicio + TamPagina
 
 		copy(MemoriaUsuario[inicio:fin], info[i*TamPagina:(i+1)*TamPagina])                                           //copio
-		fmt.Printf("✏️ Pegando página %d en marco %d [%d:%d]\n", i, marcosAsignados[i], i*TamPagina, (i+1)*TamPagina) //AUX
+		//fmt.Printf("✏️ Pegando página %d en marco %d [%d:%d]\n", i, marcosAsignados[i], i*TamPagina, (i+1)*TamPagina) //AUX
 
 	}
 	global.MutexMemoriaUsuario.Unlock()
@@ -584,7 +584,7 @@ func HayLugar(tamanio int) bool {
 	global.MutexMarcos.Unlock()
 
 	cantMarcosNecesitados := int(math.Ceil(float64(tamanio) / float64(TamPagina)))
-	fmt.Printf("Lugar libre %d\n", cantMarcosLibres*TamPagina)
+	//fmt.Printf("Lugar libre %d\n", cantMarcosLibres*TamPagina)
 	return cantMarcosNecesitados <= cantMarcosLibres
 }
 

@@ -50,7 +50,7 @@ func InicializarProceso(w http.ResponseWriter, r *http.Request) {
 	utilsMemoria.CrearTablaPaginas(pid, tamanio)
 	utilsMemoria.CargarProceso(pid, ruta)
 	utilsMemoria.InicializarMetricas(pid)
-	global.LoggerMemoria.Log(fmt.Sprintf("## PID: %d - Proceso Creado - Tamaño: %d", pid, tamanio),myLogger.INFO)
+	global.LoggerMemoria.Log(fmt.Sprintf("## PID: %d - Proceso Creado - Tamaño: %d", pid, tamanio),myLogger.INFO) //OBLI
 
 	w.WriteHeader(http.StatusOK)
 }
@@ -87,7 +87,7 @@ func Suspender(w http.ResponseWriter, r *http.Request){
 	}
 
 	utilsMemoria.SuspenderProceso(pid)
-	global.LoggerMemoria.Log(fmt.Sprintf("## PID: %d - SUSPENDIDO ", pid), myLogger.DEBUG)
+	//global.LoggerMemoria.Log(fmt.Sprintf("## PID: %d - SUSPENDIDO ", pid), myLogger.DEBUG)
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -101,7 +101,7 @@ func DesSuspender(w http.ResponseWriter, r *http.Request){
 	}
 
 	utilsMemoria.DesSuspenderProceso(pid)
-	global.LoggerMemoria.Log(fmt.Sprintf("## PID: %d - DES-SUSPENDIDO ", pid), myLogger.DEBUG)
+	//global.LoggerMemoria.Log(fmt.Sprintf("## PID: %d - DES-SUSPENDIDO ", pid), myLogger.DEBUG)
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -121,7 +121,7 @@ func FinalizarProceso(w http.ResponseWriter, r *http.Request) {
 
 	stringMetricas := utilsMemoria.FinalizarProceso(pid)
 	w.WriteHeader(http.StatusOK)
-	global.LoggerMemoria.Log(fmt.Sprintf("## PID: %d - Proceso Destruido - Métricas - %s", pid, stringMetricas),myLogger.INFO)
+	global.LoggerMemoria.Log(fmt.Sprintf("## PID: %d - Proceso Destruido - Métricas - %s", pid, stringMetricas),myLogger.INFO) //OBLI
 }
 
 func DumpMemoria(w http.ResponseWriter, r *http.Request){
@@ -141,7 +141,7 @@ func DumpMemoria(w http.ResponseWriter, r *http.Request){
 
 	utilsMemoria.DumpMemoriaProceso(pid)
 
-	global.LoggerMemoria.Log(fmt.Sprintf("## PID: %d - Memory Dump solicitado", pid), myLogger.DEBUG)
+	global.LoggerMemoria.Log(fmt.Sprintf("## PID: %d - Memory Dump solicitado", pid), myLogger.DEBUG)//OBLI
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -172,7 +172,7 @@ func DevolverInstruccion(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error al enviar la instrucción", http.StatusInternalServerError)
 		return
 	}
-	global.LoggerMemoria.Log(fmt.Sprintf("## PID: %d - Obtener instrucción: %d - Instrucción: %s", pid, pc, instruccion),myLogger.INFO)
+	global.LoggerMemoria.Log(fmt.Sprintf("## PID: %d - Obtener instrucción: %d - Instrucción: %s", pid, pc, instruccion),myLogger.INFO) //OBLI
 }
 
 //CPU lo pide
@@ -243,7 +243,7 @@ func LeerMemoria(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	global.LoggerMemoria.Log(fmt.Sprintf("## PID: %d - Lectura - Dir. Física: %d - Tamaño: %d", pid, direccionFisica,tamanio), myLogger.INFO)
+	global.LoggerMemoria.Log(fmt.Sprintf("## PID: %d - Lectura - Dir. Física: %d - Tamaño: %d", pid, direccionFisica,tamanio), myLogger.INFO) //OBLI
 
 }
 
@@ -269,7 +269,7 @@ func EscribirMemoria(w http.ResponseWriter, r *http.Request) {
 	tamanio := len(datos)
 	
 	global.LoggerMemoria.Log(fmt.Sprintf("## PID: %d - Escritura - Dir. Física: %d - Tamaño: %d ", pid, direccionFisica,tamanio), myLogger.INFO) //!! Fetch Instrucción - logObligatorio
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(http.StatusOK) //OBLI
 }
 
 
@@ -295,7 +295,7 @@ func LeerPaginaCompleta(w http.ResponseWriter, r *http.Request){
 		http.Error(w, "Error al enviar el marco", http.StatusInternalServerError)
 		return
 	}
-	global.LoggerMemoria.Log(fmt.Sprintf("## PID: %d - Lectura - Dir. Física: %d - Tamaño: %d", pid, direccionFisica,len(lectura)), myLogger.INFO)
+	global.LoggerMemoria.Log(fmt.Sprintf("## PID: %d - Lectura - Dir. Física: %d - Tamaño: %d", pid, direccionFisica,len(lectura)), myLogger.INFO) //OBLI
 }
 
 func EscribirPaginaCompleta(w http.ResponseWriter, r *http.Request){
@@ -315,7 +315,7 @@ func EscribirPaginaCompleta(w http.ResponseWriter, r *http.Request){
 	datos := paquete.Datos
 	
 	utilsMemoria.ActualizarPaginaCompleta(pid, direccionFisica, datos)
-	global.LoggerMemoria.Log(fmt.Sprintf("## PID: %d - Escritura - Dir. Física: %d - Tamaño: %d", pid, direccionFisica,len(datos)), myLogger.INFO)
+	global.LoggerMemoria.Log(fmt.Sprintf("## PID: %d - Escritura - Dir. Física: %d - Tamaño: %d", pid, direccionFisica,len(datos)), myLogger.INFO)//OBLI
 
 	w.WriteHeader(http.StatusOK)
 }

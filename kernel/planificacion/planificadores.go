@@ -225,16 +225,16 @@ func seleccionarProcesoSJF() *global.Proceso { //el proceso de menor ráfaga est
 
 func evaluarDesalojoSRTF(nuevoProceso *global.Proceso) bool {
 	if utilskernel.HayCPUDisponible() {
-		global.LoggerKernel.Log("[DEBUG] No se desaloja porque hay CPU libre", log.DEBUG)
+		//global.LoggerKernel.Log("[DEBUG] No se desaloja porque hay CPU libre", log.DEBUG)
 		return false
 	}
 
 	global.MutexExecuting.Lock()
-	defer global.MutexExecuting.Unlock()  // ✅ Siempre se libera, sin importar el return
+	defer global.MutexExecuting.Unlock() 
 
 	indice := ProcesoADesalojar(global.ColaExecuting, nuevoProceso.EstimacionRafaga)
 	if indice == -1 {
-		global.LoggerKernel.Log("[DEBUG] No encontré ninguno en ejecución con mayor tiempo restante que estimación actual", log.DEBUG)
+	//	global.LoggerKernel.Log("[DEBUG] No encontré ninguno en ejecución con mayor tiempo restante que estimación actual", log.DEBUG)
 		return false
 	}
 
@@ -244,7 +244,7 @@ func evaluarDesalojoSRTF(nuevoProceso *global.Proceso) bool {
 
 	err := utilskernel.EnviarInterrupcionCPU(cpuTarget, nuevoProceso.PCB.PID, nuevoProceso.PCB.PC)
 	if err != nil {
-		global.LoggerKernel.Log(fmt.Sprintf("[ERROR] Error enviando interrupción a CPU %s para PID %d: %v", cpuTarget.ID, procesoTarget.PCB.PID, err), log.ERROR)
+	//	global.LoggerKernel.Log(fmt.Sprintf("[ERROR] Error enviando interrupción a CPU %s para PID %d: %v", cpuTarget.ID, procesoTarget.PCB.PID, err), log.ERROR)
 		return false
 	}
 
@@ -274,7 +274,7 @@ func ProcesoADesalojar(executing []*Proceso, nuevaEstimacion float64) int {
 func AsignarCPU(proceso *global.Proceso) bool {
 
 	if proceso.PCB.UltimoEstado == EXIT {
-		global.LoggerKernel.Log(fmt.Sprintf("No se puede asignar PID %d, ya está finalizado", proceso.PID), log.ERROR)
+		//global.LoggerKernel.Log(fmt.Sprintf("No se puede asignar PID %d, ya está finalizado", proceso.PID), log.ERROR)
 		return false
 	}
 
@@ -318,7 +318,7 @@ func AsignarCPU(proceso *global.Proceso) bool {
 		global.MutexCPUs.Unlock()
 
 		if proceso.PCB.UltimoEstado != EXIT {
-			global.LoggerKernel.Log(fmt.Sprintf("Reencolando proceso PID %d en READY tras error de dispatch", proceso.PID), log.DEBUG)
+	//		global.LoggerKernel.Log(fmt.Sprintf("Reencolando proceso PID %d en READY tras error de dispatch", proceso.PID), log.DEBUG)
 			AgregarAReady(proceso)
 		}
 		return false
@@ -330,7 +330,7 @@ func AsignarCPU(proceso *global.Proceso) bool {
 func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) { //ráfaga
 	var proceso *global.Proceso
 
-	global.LoggerKernel.Log(fmt.Sprintf("Kernel recibe proceso PID %d con PC %d", resp.PID, resp.PC), log.DEBUG)
+	//global.LoggerKernel.Log(fmt.Sprintf("Kernel recibe proceso PID %d con PC %d", resp.PID, resp.PC), log.DEBUG)
 
 	global.MutexExecuting.Lock()
 	global.MutexCPUs.Lock()
@@ -346,25 +346,24 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) { //ráfaga
 	global.MutexExecuting.Unlock()
 
 	if proceso == nil {
-		global.LoggerKernel.Log(fmt.Sprintf("Proceso %d no encontrado en EXECUTING al devolver", resp.PID), log.DEBUG)
+	//	global.LoggerKernel.Log(fmt.Sprintf("Proceso %d no encontrado en EXECUTING al devolver", resp.PID), log.DEBUG)
 		return
 	}
 
 	if proceso.PCB.UltimoEstado == EXIT {
-		global.LoggerKernel.Log(fmt.Sprintf("Se recibió devolución de CPU para PID %d pero ya estaba en EXIT", proceso.PID), log.DEBUG)
+	//	global.LoggerKernel.Log(fmt.Sprintf("Se recibió devolución de CPU para PID %d pero ya estaba en EXIT", proceso.PID), log.DEBUG)
 		return
 	}
 
 	proceso.PCB.PC = resp.PC
 
-	// ✅ Acumulamos el tiempo ejecutado siempre
 	proceso.UltimaRafagaReal = resp.RafagaReal 
 
-	global.LoggerKernel.Log(
-		fmt.Sprintf("PID %d - Ráfaga ejecutada real: %.2f ms | Rafaga estimad anteior: %.2f ms",
-		proceso.PID, resp.RafagaReal, proceso.UltimaRafagaEstimada),
-		log.DEBUG,
-	)
+	//global.LoggerKernel.Log(
+	//	fmt.Sprintf("PID %d - Ráfaga ejecutada real: %.2f ms | Rafaga estimad anteior: %.2f ms",
+	//	proceso.PID, resp.RafagaReal, proceso.UltimaRafagaEstimada),
+	//	log.DEBUG,
+	//)
 
 		RecalcularRafaga(proceso, resp.RafagaReal)
 
@@ -375,7 +374,7 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) { //ráfaga
 	// 	log.DEBUG,
 	// )
 
-	global.LoggerKernel.Log(fmt.Sprintf("[DEBUG] Asignando a CPU proceso PID %d con PC %d", proceso.PID, proceso.PC), log.DEBUG)
+	//global.LoggerKernel.Log(fmt.Sprintf("[DEBUG] Asignando a CPU proceso PID %d con PC %d", proceso.PID, proceso.PC), log.DEBUG)
 	
 	switch resp.Motivo {
 		
@@ -412,7 +411,7 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) { //ráfaga
 
 		err := utilskernel.SolicitarDumpAMemoria(proceso.PID)
 		if err != nil {
-			global.LoggerKernel.Log(fmt.Sprintf("Error en dump de memoria para PID %d: %s", proceso.PID, err.Error()), log.ERROR)
+			//global.LoggerKernel.Log(fmt.Sprintf("Error en dump de memoria para PID %d: %s", proceso.PID, err.Error()), log.ERROR)
 
 			global.MutexBlocked.Lock()
 			global.EliminarProcesoDeCola(&global.ColaBlocked, proceso.PID)
@@ -641,7 +640,7 @@ func suspenderProceso(proceso *global.Proceso) {
 		}
 	}(proceso.PID)
 
-	global.LoggerKernel.Log(fmt.Sprintf("Proceso %d suspendido y movido a SUSP_BLOCKED", proceso.PID), log.DEBUG)
+	//global.LoggerKernel.Log(fmt.Sprintf("Proceso %d suspendido y movido a SUSP_BLOCKED", proceso.PID), log.DEBUG)
 
 	select {
 	case global.NotifySuspReady <- struct{}{}:

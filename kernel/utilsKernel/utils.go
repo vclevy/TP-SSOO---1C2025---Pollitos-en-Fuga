@@ -72,7 +72,7 @@ func BuscarDispositivo(ip string, puerto int) (*global.IODevice, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("No se encontró dispositivo con IP %s y puerto %d", ip, puerto)
+	return nil, fmt.Errorf("no se encontró dispositivo con IP %s y puerto %d", ip, puerto)
 }
 
 func FiltrarColaIO(cola []*ProcesoIO, target *ProcesoIO) []*ProcesoIO {
@@ -312,7 +312,7 @@ func InicializarProceso(proceso *global.Proceso) bool {
  	return false
  }
 
-	global.LoggerKernel.Log(fmt.Sprintf("Proceso %d inicializado correctamente en Memoria", proceso.PID), log.DEBUG)
+	//global.LoggerKernel.Log(fmt.Sprintf("Proceso %d inicializado correctamente en Memoria", proceso.PID), log.DEBUG)
 	return true
 }
 
@@ -322,7 +322,7 @@ func SacarProcesoDeCPU(pid int) {
 
 	for _, cpu := range global.CPUsConectadas {
 		if cpu.ProcesoEjecutando != nil && cpu.ProcesoEjecutando.PID == pid {
-			global.LoggerKernel.Log(fmt.Sprintf("Liberando CPU %s de proceso PID %d", cpu.ID, pid), log.DEBUG)
+			//global.LoggerKernel.Log(fmt.Sprintf("Liberando CPU %s de proceso PID %d", cpu.ID, pid), log.DEBUG)
 			cpu.ProcesoEjecutando = nil
 			return
 		}

@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"time"
-
 	"github.com/sisoputnfrba/tp-golang/cpu/global"
 	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
 	log "github.com/sisoputnfrba/tp-golang/utils/logger"
@@ -31,7 +30,6 @@ type Instruccion struct {
 }
 
 var direccionFisica int
-
 var nroPagina int
 
 func HandshakeKernel() error {
@@ -62,7 +60,6 @@ func HandshakeKernel() error {
 }
 
 func instruccionAEjecutar(solicitudInstruccion estructuras.PCB) string {
-
 	jsonData, err := json.Marshal(solicitudInstruccion)
 	if err != nil {
 		global.LoggerCpu.Log("Error serializando solicitud: "+err.Error(), log.ERROR)
@@ -181,6 +178,5 @@ func DevolucionPID() error {
 		return fmt.Errorf("devolución a kernel fallida con status %d", resp.StatusCode)
 	}
 	
-
 	return nil
 }

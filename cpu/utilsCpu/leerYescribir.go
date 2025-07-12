@@ -21,7 +21,7 @@ func WRITE(instruccion Instruccion, cacheHabilitada bool, desplazamiento int, tl
 		} else { //CACHE MISS
 			indiceEscribir, dirFisicaSinDespl := actualizarCACHE()
 			escribirCache(indiceEscribir, datos, desplazamiento)
-			global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: ESCRIBIR - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, (dirFisicaSinDespl+desplazamiento), datos), log.INFO)
+			global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: ESCRIBIR - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, (dirFisicaSinDespl+desplazamiento), datos), log.INFO) //!! Lectura/Escritura Memoria - logObligatorio
 		}
 	} else { //CACHE DESHABILITADA
 		marco := CalcularMarco(nroPagina)
@@ -47,7 +47,6 @@ func READ(instruccion Instruccion, cacheHabilitada bool, desplazamiento int, tlb
 			}
 			lectura := paginaCompleta[desplazamiento : desplazamiento+tamanio]
 			stringLectura := strings.TrimRight(string(lectura), "\x00")
-
 			global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: LEER CACHÉ - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, 0, stringLectura), log.INFO) //!! LECTURA SIN ACCEDER A MEMORIA (Desde caché)
 
 		} else { //CACHE MISS
@@ -55,7 +54,7 @@ func READ(instruccion Instruccion, cacheHabilitada bool, desplazamiento int, tlb
 			paginaCompleta := global.CACHE[indice].Contenido
 			lectura := paginaCompleta[desplazamiento : desplazamiento+tamanio]
 			stringLectura := strings.TrimRight(string(lectura), "\x00")
-			global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: LEER - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, dirFisicaSinDespl+desplazamiento, stringLectura), log.INFO)
+			global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: LEER - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, dirFisicaSinDespl+desplazamiento, stringLectura), log.INFO) //!! LECTURA SIN ACCEDER A MEMORIA (Desde caché)
 		}
 	} else { //CACHE DESHABILITADA
 		marco := CalcularMarco(nroPagina)
@@ -66,7 +65,6 @@ func READ(instruccion Instruccion, cacheHabilitada bool, desplazamiento int, tlb
 
 func TlbHIT(pagina int) bool {
 	lruCounter++
-	/* global.LoggerCpu.Log(fmt.Sprintf("Contenido TLB: %v", global.TLB), log.DEBUG) */
 	for i := 0; i <= len(global.TLB)-1; i++ {
 		if global.TLB[i].NroPagina == pagina {
 			global.TLB[i].UltimoUso = lruCounter
@@ -79,7 +77,6 @@ func TlbHIT(pagina int) bool {
 }
 
 func CacheHIT(pagina int) bool {
-	/* 	global.LoggerCpu.Log(fmt.Sprintf("Contenido CACHE: %v", global.CACHE), log.DEBUG)*/
 	time.Sleep(time.Millisecond * time.Duration(global.CpuConfig.CacheDelay))
 	for i := 0; i <= len(global.CACHE)-1; i++ {
 		if global.CACHE[i].NroPagina == pagina {
@@ -130,7 +127,7 @@ func actualizarCACHE() (int, int) {
 	global.CACHE[indicePisar].BitModificado = 0
 	global.CACHE[indicePisar].BitUso = 1
 
-	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Cache Add - Pagina: %d", global.PCB_Actual.PID, nroPagina), log.INFO)
+	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Cache Add - Pagina: %d", global.PCB_Actual.PID, nroPagina), log.INFO) //!! logObligatorio (Cache Add)
 
 	return indicePisar, dirFisicaSinDesplazamiento
 }
@@ -183,7 +180,6 @@ func indicePaginaEnTLB(pagina int) int {
 	for i := 0; i <= len(global.TLB)-1; i++ {
 		if global.TLB[i].NroPagina == pagina {
 			global.TLB[i].UltimoUso = lruCounter
-
 			return i
 		}
 	}

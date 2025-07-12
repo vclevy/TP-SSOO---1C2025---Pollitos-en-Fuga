@@ -171,7 +171,6 @@ func Execute(instruccion Instruccion, requiereMMU bool) (string, error) {
 
 		if instruccion.Opcode == "WRITE" { // WRITE 0 EJEMPLO_DE_ENUNCIADO - WRITE (Dirección, Datos)
 			WRITE(instruccion, global.CacheHabilitada, desplazamiento, global.TlbHabilitada)
-			/* global.LoggerCpu.Log(fmt.Sprintf("Contenido CACHE: %v", global.CACHE), log.DEBUG)*/
 		}
 	}
 	return "", nil

@@ -21,14 +21,14 @@ type Paquete struct {
 func RecibirPaquete(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
-		global.LoggerIo.Log("Se intentó acceder con un método no permitido", log.DEBUG)
+		//global.LoggerIo.Log("Se intentó acceder con un método no permitido", log.DEBUG)
 		return
 	}
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, "Error leyendo el cuerpo", http.StatusBadRequest)
-		global.LoggerIo.Log("Error leyendo el cuerpo del request: "+err.Error(), log.DEBUG)
+		//global.LoggerIo.Log("Error leyendo el cuerpo del request: "+err.Error(), log.DEBUG)
 		return
 	}
 	defer r.Body.Close()
@@ -37,7 +37,7 @@ func RecibirPaquete(w http.ResponseWriter, r *http.Request) {
 	err = json.Unmarshal(body, &paquete)
 	if err != nil {
 		http.Error(w, "Error parseando el paquete", http.StatusBadRequest)
-		global.LoggerIo.Log("Error al parsear el paquete JSON: "+err.Error(), log.DEBUG)
+		//global.LoggerIo.Log("Error al parsear el paquete JSON: "+err.Error(), log.DEBUG)
 		return
 	}
 
