@@ -476,11 +476,10 @@ func ManejarSolicitudIO(pid int, nombre string, tiempoUso int) error {
 		dispositivo.Mutex.Unlock()
 	}
 
-	// Si todos ocupados, encolar en el primero
 	primero := dispositivos[0]
 	primero.Mutex.Lock()
 	primero.ColaEspera = append(primero.ColaEspera, procesoEncolado)
-	global.LoggerKernel.Log(fmt.Sprintf("## (%d) - Encolado en %s (Ocupado)", pid, primero.Nombre), log.DEBUG)
+	//global.LoggerKernel.Log(fmt.Sprintf("## (%d) - Encolado en %s (Ocupado)", pid, primero.Nombre), log.DEBUG)
 	primero.Mutex.Unlock()
 
 	return nil

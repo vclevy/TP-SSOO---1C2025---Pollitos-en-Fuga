@@ -210,7 +210,8 @@ func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
 		} else {
 			global.MutexBlocked.Lock()
 			global.EliminarProcesoDeCola(&global.ColaBlocked, proceso.PID)
-			global.MutexBlocked.Unlock()
+			global.MutexBlocked.Unlock()//
+			global.LoggerKernel.Log(fmt.Sprintf("## (%d) finalizó IO y pasa a READY", proceso.PID), log.INFO)
 			planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.READY)
 			planificacion.AgregarAReady(proceso)
 
