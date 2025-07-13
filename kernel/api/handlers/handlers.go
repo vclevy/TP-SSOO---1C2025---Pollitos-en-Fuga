@@ -130,7 +130,7 @@ func LoopCPU(cpu *global.CPU) {
 		}
 		global.AgregarAExecuting(proceso)
 		proceso.InstanteInicio = time.Now()
-		global.LoggerKernel.Log(fmt.Sprintf("CPU %s: Recibió proceso PID %d", cpu.ID, proceso.PCB.PID), log.DEBUG)
+		//global.LoggerKernel.Log(fmt.Sprintf("CPU %s: Recibió proceso PID %d", cpu.ID, proceso.PCB.PID), log.DEBUG)
 
 		err := utilsKernel.EnviarADispatch(cpu, proceso.PCB.PID, proceso.PCB.PC)
 		if err != nil {
