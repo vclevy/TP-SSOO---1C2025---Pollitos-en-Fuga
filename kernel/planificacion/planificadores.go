@@ -291,12 +291,6 @@ func AsignarCPU(proceso *global.Proceso) bool {
 	global.EliminarProcesoDeCola(&global.ColaReady, proceso.PID)
 	global.MutexReady.Unlock()
 
-	if proceso.PCB.UltimoEstado != EXEC {
-		ActualizarEstadoPCB(&proceso.PCB, EXEC)
-	}
-	global.AgregarAExecuting(proceso)
-	proceso.InstanteInicio = time.Now()
-
 	go func() {
 		cpuLibre.CanalProceso <- proceso
 	}()

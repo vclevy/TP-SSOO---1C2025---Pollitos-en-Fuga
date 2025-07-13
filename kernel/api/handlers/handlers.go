@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/sisoputnfrba/tp-golang/kernel/global"
 	planificacion "github.com/sisoputnfrba/tp-golang/kernel/planificacion"
@@ -124,7 +125,11 @@ func HandshakeConCPU(w http.ResponseWriter, r *http.Request) {
 func LoopCPU(cpu *global.CPU) {
 	for {
 		proceso := <-cpu.CanalProceso
-
+		if proceso.PCB.UltimoEstado != planificacion.EXEC {
+			planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.EXEC)
+		}
+		global.AgregarAExecuting(proceso)
+		proceso.InstanteInicio = time.Now()
 		global.LoggerKernel.Log(fmt.Sprintf("CPU %s: Recibió proceso PID %d", cpu.ID, proceso.PCB.PID), log.DEBUG)
 
 		err := utilsKernel.EnviarADispatch(cpu, proceso.PCB.PID, proceso.PCB.PC)
@@ -135,21 +140,21 @@ func LoopCPU(cpu *global.CPU) {
 	}
 }
 
-//func IO(w http.ResponseWriter, r *http.Request) {
-//	var syscall SyscallIO
-//	if err := json.NewDecoder(r.Body).Decode(&syscall); err != nil {
-//		http.Error(w, "Error al parsear la syscall", http.StatusBadRequest)
-//		return
-//	}
+//	func IO(w http.ResponseWriter, r *http.Request) {
+//		var syscall SyscallIO
+//		if err := json.NewDecoder(r.Body).Decode(&syscall); err != nil {
+//			http.Error(w, "Error al parsear la syscall", http.StatusBadRequest)
+//			return
+//		}
 //
-//	err := ManejarSolicitudIO(syscall.PIDproceso, syscall.IoSolicitada, syscall.TiempoEstimado)
-//	if err != nil {
-//		http.Error(w, err.Error(), http.StatusInternalServerError)
-//		return
-//	}
+//		err := ManejarSolicitudIO(syscall.PIDproceso, syscall.IoSolicitada, syscall.TiempoEstimado)
+//		if err != nil {
+//			http.Error(w, err.Error(), http.StatusInternalServerError)
+//			return
+//		}
 //
-//	w.WriteHeader(http.StatusOK)
-//}
+//		w.WriteHeader(http.StatusOK)
+//	}
 func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
 	// Si NO hay body → desconexión de dispositivo IO
 	if r.ContentLength == 0 {
@@ -227,7 +232,7 @@ func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
 		} else {
 			global.MutexBlocked.Lock()
 			global.EliminarProcesoDeCola(&global.ColaBlocked, proceso.PID)
-			global.MutexBlocked.Unlock()//
+			global.MutexBlocked.Unlock() //
 			global.LoggerKernel.Log(fmt.Sprintf("## (%d) finalizó IO y pasa a READY", proceso.PID), log.INFO)
 			planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.READY)
 			planificacion.AgregarAReady(proceso)
