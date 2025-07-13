@@ -291,9 +291,7 @@ func AsignarCPU(proceso *global.Proceso) bool {
 	global.EliminarProcesoDeCola(&global.ColaReady, proceso.PID)
 	global.MutexReady.Unlock()
 
-	go func() {
-		cpuLibre.CanalProceso <- proceso
-	}()
+	cpuLibre.CanalProceso <- proceso
 
 	return true
 }
