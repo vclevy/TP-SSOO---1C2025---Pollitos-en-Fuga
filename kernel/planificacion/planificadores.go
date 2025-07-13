@@ -219,16 +219,16 @@ func evaluarDesalojoSRTF(nuevoProceso *global.Proceso) bool {
 	}
 
 	global.MutexExecuting.Lock()
-	defer global.MutexExecuting.Unlock() 
-
+	
 	indice := ProcesoADesalojar(global.ColaExecuting, nuevoProceso.EstimacionRafaga)
 	if indice == -1 {
-	//	global.LoggerKernel.Log("[DEBUG] No encontré ninguno en ejecución con mayor tiempo restante que estimación actual", log.DEBUG)
+		//	global.LoggerKernel.Log("[DEBUG] No encontré ninguno en ejecución con mayor tiempo restante que estimación actual", log.DEBUG)
 		return false
 	}
-
+	
 	procesoTarget := global.ColaExecuting[indice]
-
+	global.MutexExecuting.Unlock() 
+	
 	cpuTarget := utilskernel.BuscarCPUPorPID(procesoTarget.PCB.PID)
 
 	err := utilskernel.EnviarInterrupcionCPU(cpuTarget, nuevoProceso.PCB.PID, nuevoProceso.PCB.PC)
@@ -236,6 +236,12 @@ func evaluarDesalojoSRTF(nuevoProceso *global.Proceso) bool {
 	//	global.LoggerKernel.Log(fmt.Sprintf("[ERROR] Error enviando interrupción a CPU %s para PID %d: %v", cpuTarget.ID, procesoTarget.PCB.PID, err), log.ERROR)
 		return false
 	}
+
+	global.MutexReady.Lock()
+	global.EliminarProcesoDeCola(&global.ColaReady, nuevoProceso.PCB.PID)
+	global.MutexReady.Unlock()
+	ActualizarEstadoPCB(&nuevoProceso.PCB, EXEC)
+	global.AgregarAExecuting(nuevoProceso)
 
 	global.LoggerKernel.Log(fmt.Sprintf("## (<%d>) - Desalojado por algoritmo SJF/SRT", procesoTarget.PCB.PID), log.INFO)
 
@@ -259,6 +265,7 @@ func ProcesoADesalojar(executing []*Proceso, nuevaEstimacion float64) int {
 
 	return indiceProceso
 }
+
 func AsignarCPU(proceso *global.Proceso) bool {
 	if proceso.PCB.UltimoEstado == EXIT {
 		return false
