@@ -159,10 +159,13 @@ func actualizarTLB() int {
 	lruCounter++
 	marco := BuscarMarcoEnMemoria(nroPagina)
 
+	global.LoggerCpu.Log(fmt.Sprintf("TLB REPLACEMENT: Se reemplazó la pagina %d",global.TLB[indicePisar].NroPagina), log.INFO)
+
 	global.TLB[indicePisar].Marco = marco
 	global.TLB[indicePisar].NroPagina = nroPagina
 	global.TLB[indicePisar].UltimoUso = lruCounter
 
+	global.LoggerCpu.Log(fmt.Sprintf("TLB ADD: Se agregó la Pagina %d",nroPagina), log.INFO)
 	return marco
 }
 
