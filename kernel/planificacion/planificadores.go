@@ -235,14 +235,15 @@ func evaluarDesalojoSRTF(nuevoProceso *global.Proceso) bool {
 		//	global.LoggerKernel.Log(fmt.Sprintf("[ERROR] Error enviando interrupción a CPU %s para PID %d: %v", cpuTarget.ID, procesoTarget.PCB.PID, err), log.ERROR)
 		return false
 	}
-
+	
+	global.LoggerKernel.Log(fmt.Sprintf("## (<%d>) - Desalojado por algoritmo SJF/SRT", procesoTarget.PCB.PID), log.INFO)
+	
 	global.MutexReady.Lock()
 	global.EliminarProcesoDeCola(&global.ColaReady, nuevoProceso.PCB.PID)
 	global.MutexReady.Unlock()
 	ActualizarEstadoPCB(&nuevoProceso.PCB, EXEC)
 	global.AgregarAExecuting(nuevoProceso)
 
-	global.LoggerKernel.Log(fmt.Sprintf("## (<%d>) - Desalojado por algoritmo SJF/SRT", procesoTarget.PCB.PID), log.INFO)
 
 	return true
 }
