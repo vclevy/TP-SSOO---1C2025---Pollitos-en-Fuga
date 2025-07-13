@@ -138,6 +138,7 @@ type CPU struct {
 	Puerto            int
 	IP                string
 	ProcesoEjecutando *PCB
+	CanalProceso      chan *Proceso
 }
 
 var CPUsConectadas []*CPU

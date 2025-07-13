@@ -96,6 +96,7 @@ func HandshakeConCPU(w http.ResponseWriter, r *http.Request) {
 		IP:                nuevoHandshake.IP,
 		Puerto:            nuevoHandshake.Puerto,
 		ProcesoEjecutando: nil,
+		CanalProceso:      make(chan *global.Proceso),
 	}
 
 	global.MutexCPUs.Lock()
@@ -114,8 +115,24 @@ func HandshakeConCPU(w http.ResponseWriter, r *http.Request) {
 		PC:  pcb.PC,
 	}
 
+	go LoopCPU(&nuevaCpu)
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(respuesta)
+}
+
+func LoopCPU(cpu *global.CPU) {
+	for {
+		proceso := <-cpu.CanalProceso
+
+		global.LoggerKernel.Log(fmt.Sprintf("CPU %s: Recibió proceso PID %d", cpu.ID, proceso.PCB.PID), log.DEBUG)
+
+		err := utilsKernel.EnviarADispatch(cpu, proceso.PCB.PID, proceso.PCB.PC)
+		if err != nil {
+			global.LoggerKernel.Log(fmt.Sprintf("Error enviando proceso PID %d a Dispatch: %s", proceso.PCB.PID, err.Error()), log.ERROR)
+			continue
+		}
+	}
 }
 
 //func IO(w http.ResponseWriter, r *http.Request) {

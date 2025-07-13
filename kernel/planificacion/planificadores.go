@@ -160,10 +160,10 @@ func IniciarPlanificadorLargoPlazo() {
 SJF sin desalojo --> se fija cuando cpu devuelve proceso (manejarDevolucionCPU)
 SJF con desalojo --> se fija cuando entra proceso a Ready (<-global.NotifyReady)
 
-*/
-func IniciarPlanificadorCortoPlazo() {
+*/func IniciarPlanificadorCortoPlazo() {
 	for {
 		<-global.NotifyReady
+
 		for {
 			global.MutexReady.Lock()
 			if len(global.ColaReady) == 0 {
@@ -172,40 +172,29 @@ func IniciarPlanificadorCortoPlazo() {
 			}
 
 			var nuevoProceso *global.Proceso
+
+			if !utilskernel.HayCPUDisponible() {
+				global.MutexReady.Unlock()
+				break
+			}
+
 			switch global.ConfigKernel.SchedulerAlgorithm {
 			case "FIFO":
-				if !utilskernel.HayCPUDisponible() {
-					global.MutexReady.Unlock()
-					break
-				}
 				nuevoProceso = global.ColaReady[0]
-
-			case "SJF":
-				if !utilskernel.HayCPUDisponible() {
-					global.MutexReady.Unlock()
-					break
-				}
-				nuevoProceso = seleccionarProcesoSJF()
-
-			case "SRTF":
-				if !utilskernel.HayCPUDisponible() {
-					global.MutexReady.Unlock()
-					break
-					
-				}
+			case "SJF", "SRTF":
 				nuevoProceso = seleccionarProcesoSJF()
 			}
 
 			global.MutexReady.Unlock()
 
-			if AsignarCPU(nuevoProceso) {
-				continue
-			} else {
+			ok := AsignarCPU(nuevoProceso)
+			if !ok {
 				break
 			}
 		}
 	}
 }
+
 
 func seleccionarProcesoSJF() *global.Proceso { //el proceso de menor ráfaga estimada
 	if len(global.ColaReady) == 0 {
@@ -270,27 +259,21 @@ func ProcesoADesalojar(executing []*Proceso, nuevaEstimacion float64) int {
 
 	return indiceProceso
 }
-
 func AsignarCPU(proceso *global.Proceso) bool {
-
 	if proceso.PCB.UltimoEstado == EXIT {
-		//global.LoggerKernel.Log(fmt.Sprintf("No se puede asignar PID %d, ya está finalizado", proceso.PID), log.ERROR)
 		return false
 	}
 
-	global.MutexCPUs.Lock()
-
-	global.CPUsConectadas = append(global.CPUsConectadas[1:], global.CPUsConectadas[0])
-
 	var cpuLibre *global.CPU
+
+	global.MutexCPUs.Lock()
 	for _, cpu := range global.CPUsConectadas {
 		if cpu.ProcesoEjecutando == nil {
 			cpuLibre = cpu
-			cpu.ProcesoEjecutando = &proceso.PCB
+			cpu.ProcesoEjecutando = &proceso.PCB // La marcamos como ocupada
 			break
 		}
 	}
-
 	global.MutexCPUs.Unlock()
 
 	if cpuLibre == nil {
@@ -298,31 +281,20 @@ func AsignarCPU(proceso *global.Proceso) bool {
 		return false
 	}
 
+	// Eliminamos de Ready y actualizamos estado
 	global.MutexReady.Lock()
 	global.EliminarProcesoDeCola(&global.ColaReady, proceso.PID)
 	global.MutexReady.Unlock()
 
-	// ✅ Siempre agregar a EXEC y actualizar estado si es necesario
 	if proceso.PCB.UltimoEstado != EXEC {
 		ActualizarEstadoPCB(&proceso.PCB, EXEC)
 	}
 	global.AgregarAExecuting(proceso)
 	proceso.InstanteInicio = time.Now()
 
-	err := utilskernel.EnviarADispatch(cpuLibre, proceso.PCB.PID, proceso.PCB.PC)
-	if err != nil {
-		global.LoggerKernel.Log(fmt.Sprintf("Error en dispatch de proceso %d a CPU %s: %v", proceso.PID, cpuLibre.ID, err), log.ERROR)
-
-		global.MutexCPUs.Lock()
-		cpuLibre.ProcesoEjecutando = nil
-		global.MutexCPUs.Unlock()
-
-		if proceso.PCB.UltimoEstado != EXIT {
-	//		global.LoggerKernel.Log(fmt.Sprintf("Reencolando proceso PID %d en READY tras error de dispatch", proceso.PID), log.DEBUG)
-			AgregarAReady(proceso)
-		}
-		return false
-	}
+	go func() {
+		cpuLibre.CanalProceso <- proceso
+	}()
 
 	return true
 }
