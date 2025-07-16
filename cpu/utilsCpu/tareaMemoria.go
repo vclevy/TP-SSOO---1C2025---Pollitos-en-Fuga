@@ -9,8 +9,6 @@ import (
 	log "github.com/sisoputnfrba/tp-golang/utils/logger"
 	"io"
 	"net/http"
-	"strings"
-	"encoding/base64"
 )
 
 func MemoriaLee(direccionFisica int, tamanio int) (string, error) {
@@ -45,18 +43,8 @@ func MemoriaLee(direccionFisica int, tamanio int) (string, error) {
 		global.LoggerCpu.Log("Error parseando instruccion de Memoria: "+err.Error(), log.ERROR)
 		return "", err
 	}
-	
-	base64Str := strings.TrimRight(string(contenido), "\x00")
 
-	decoded, err := base64.StdEncoding.DecodeString(base64Str)
-	if err != nil {
-		global.LoggerCpu.Log("Error al decodificar base64: "+err.Error(), log.ERROR)
-		return "", err
-	}
-
-	stringContenido := string(decoded)
-
-	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: LEER - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, direccionFisica, stringContenido), log.INFO) //!! Lectura/Escritura Memoria - logObligatorio
+	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: LEER - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, direccionFisica, contenido), log.INFO) //!! Lectura/Escritura Memoria - logObligatorio
 
 	return contenido, nil
 }
@@ -84,18 +72,8 @@ func MemoriaEscribe(direccionFisica int, datos string) error {
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("pedido escritura fallido con status %d", resp.StatusCode)
 	}
-	
-	base64Str := strings.TrimRight(string(datos), "\x00")
 
-	decoded, err := base64.StdEncoding.DecodeString(base64Str)
-	if err != nil {
-		global.LoggerCpu.Log("Error al decodificar base64: "+err.Error(), log.ERROR)
-		return err
-	}
-
-	datosString := string(decoded)
-
-	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: ESCRIBIR - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, direccionFisica, datosString), log.INFO) //!! Lectura/Escritura Memoria - logObligatorio
+	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: ESCRIBIR - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, direccionFisica, datos), log.INFO) //!! Lectura/Escritura Memoria - logObligatorio
 
 	return nil
 }
@@ -124,7 +102,7 @@ func MemoriaEscribePaginaCompleta(direccionFisica int, datos []byte) error {
 		return fmt.Errorf("pedido escritura fallido con status %d", resp.StatusCode)
 	}
 		
-	base64Str := strings.TrimRight(string(datos), "\x00")
+	/* base64Str := strings.TrimRight(string(datos), "\x00")
 
 	decoded, err := base64.StdEncoding.DecodeString(base64Str)
 	if err != nil {
@@ -132,9 +110,9 @@ func MemoriaEscribePaginaCompleta(direccionFisica int, datos []byte) error {
 		return err
 	}
 
-	datosString := string(decoded)
-	
-	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: ESCRIBIR - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, direccionFisica, datosString), log.INFO) //!! Lectura/Escritura Memoria (página completa) - logObligatorio
+	datosString := string(decoded) */
+
+	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: ESCRIBIR - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, direccionFisica, decodificarSiEsBase64(datos)), log.INFO) //!! Lectura/Escritura Memoria (página completa) - logObligatorio
 
 	return nil
 }
@@ -172,7 +150,7 @@ func MemoriaLeePaginaCompleta(direccionFisica int) []byte {
 		return nil
 	}
 
-	base64Str := strings.TrimRight(string(contenido), "\x00")
+	/* base64Str := strings.TrimRight(string(contenido), "\x00")
 
 	decoded, err := base64.StdEncoding.DecodeString(base64Str)
 	if err != nil {
@@ -180,9 +158,20 @@ func MemoriaLeePaginaCompleta(direccionFisica int) []byte {
 		return nil
 	}
 
-	stringContenido := string(decoded)
+	stringContenido := string(decoded) */
 
-	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: LEER - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, direccionFisica, stringContenido), log.INFO) //!! Lectura/Escritura Memoria (página completa) - logObligatorio
+	/* s := strings.TrimRight(string(contenido), "\x00")
+
+	stringContenido, err := base64.StdEncoding.DecodeString(s)
+	if err == nil {
+		fmt.Println("Decodificado (venía en base64):", string(stringContenido))
+	} else {
+		fmt.Println("Texto plano:", s)
+	} */
+
+
+
+	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: LEER - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, direccionFisica, decodificarSiEsBase64(contenido)), log.INFO) //!! Lectura/Escritura Memoria (página completa) - logObligatorio
 
 	return contenido
 }

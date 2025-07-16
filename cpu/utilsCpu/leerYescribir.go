@@ -65,7 +65,7 @@ func READ(instruccion Instruccion, cacheHabilitada bool, desplazamiento int, tlb
 			paginaCompleta := global.CACHE[indice].Contenido
 			lectura := paginaCompleta[desplazamiento : desplazamiento+tamanio]
 
-			base64Str := strings.TrimRight(string(lectura), "\x00")
+			/* base64Str := strings.TrimRight(string(lectura), "\x00")
 
 			decoded, err := base64.StdEncoding.DecodeString(base64Str)
 			if err != nil {
@@ -73,9 +73,9 @@ func READ(instruccion Instruccion, cacheHabilitada bool, desplazamiento int, tlb
 				return
 			}
 
-			stringLectura := string(decoded)
+			stringLectura := string(decoded) */
 
-			global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: LEER - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, dirFisicaSinDespl+desplazamiento, stringLectura), log.INFO) //!! LECTURA SIN ACCEDER A MEMORIA (Desde caché)
+			global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: LEER - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, dirFisicaSinDespl+desplazamiento, decodificarSiEsBase64(lectura)), log.INFO) //!! LECTURA SIN ACCEDER A MEMORIA (Desde caché)
 		}
 	} else { //CACHE DESHABILITADA
 		marco := CalcularMarco(nroPagina)

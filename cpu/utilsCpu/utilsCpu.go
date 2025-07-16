@@ -3,6 +3,8 @@ package utilsIo
 import (
 	"bytes"
 	"encoding/json"
+	"strings"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"net/http"
@@ -180,3 +182,15 @@ func DevolucionPID() error {
 	
 	return nil
 }
+
+	func decodificarSiEsBase64(contenido []byte) string {
+    s := strings.TrimRight(string(contenido), "\x00")
+
+    decoded, err := base64.StdEncoding.DecodeString(s)
+    if err == nil {
+        return string(decoded)
+    }
+
+    // No era base64, devolvemos como está
+    return s
+}	
