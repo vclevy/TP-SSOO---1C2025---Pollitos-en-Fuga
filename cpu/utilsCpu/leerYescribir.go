@@ -1,6 +1,7 @@
 package utilsIo
 
 import (
+	"encoding/base64"
 	"fmt"
 	"github.com/sisoputnfrba/tp-golang/cpu/global"
 	log "github.com/sisoputnfrba/tp-golang/utils/logger"
@@ -46,14 +47,34 @@ func READ(instruccion Instruccion, cacheHabilitada bool, desplazamiento int, tlb
 				return
 			}
 			lectura := paginaCompleta[desplazamiento : desplazamiento+tamanio]
-			stringLectura := strings.TrimRight(string(lectura), "\x00")
+
+			base64Str := strings.TrimRight(string(lectura), "\x00")
+
+				decoded, err := base64.StdEncoding.DecodeString(base64Str)
+				if err != nil {
+					global.LoggerCpu.Log("Error al decodificar base64: "+err.Error(), log.ERROR)
+					return 
+				}
+
+			stringLectura := string(decoded)
+
 			global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: LEER CACHÉ - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, 0, stringLectura), log.INFO) //!! LECTURA SIN ACCEDER A MEMORIA (Desde caché)
 
 		} else { //CACHE MISS
 			indice, dirFisicaSinDespl := actualizarCACHE()
 			paginaCompleta := global.CACHE[indice].Contenido
 			lectura := paginaCompleta[desplazamiento : desplazamiento+tamanio]
-			stringLectura := strings.TrimRight(string(lectura), "\x00")
+
+			base64Str := strings.TrimRight(string(lectura), "\x00")
+
+			decoded, err := base64.StdEncoding.DecodeString(base64Str)
+			if err != nil {
+				global.LoggerCpu.Log("Error al decodificar base64: "+err.Error(), log.ERROR)
+				return
+			}
+
+			stringLectura := string(decoded)
+
 			global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: LEER - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, dirFisicaSinDespl+desplazamiento, stringLectura), log.INFO) //!! LECTURA SIN ACCEDER A MEMORIA (Desde caché)
 		}
 	} else { //CACHE DESHABILITADA
@@ -159,13 +180,13 @@ func actualizarTLB() int {
 	lruCounter++
 	marco := BuscarMarcoEnMemoria(nroPagina)
 
-	global.LoggerCpu.Log(fmt.Sprintf("TLB REPLACEMENT: Se reemplazó la pagina %d",global.TLB[indicePisar].NroPagina), log.INFO)
+	global.LoggerCpu.Log(fmt.Sprintf("TLB REPLACEMENT: Se reemplazó la pagina %d", global.TLB[indicePisar].NroPagina), log.INFO)
 
 	global.TLB[indicePisar].Marco = marco
 	global.TLB[indicePisar].NroPagina = nroPagina
 	global.TLB[indicePisar].UltimoUso = lruCounter
 
-	global.LoggerCpu.Log(fmt.Sprintf("TLB ADD: Se agregó la Pagina %d",nroPagina), log.INFO)
+	global.LoggerCpu.Log(fmt.Sprintf("TLB ADD: Se agregó la Pagina %d", nroPagina), log.INFO)
 	return marco
 }
 
