@@ -1,12 +1,10 @@
 package utilsIo
 
 import (
-	"encoding/base64"
 	"fmt"
 	"github.com/sisoputnfrba/tp-golang/cpu/global"
 	log "github.com/sisoputnfrba/tp-golang/utils/logger"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -48,32 +46,12 @@ func READ(instruccion Instruccion, cacheHabilitada bool, desplazamiento int, tlb
 			}
 			lectura := paginaCompleta[desplazamiento : desplazamiento+tamanio]
 
-			base64Str := strings.TrimRight(string(lectura), "\x00")
-
-				decoded, err := base64.StdEncoding.DecodeString(base64Str)
-				if err != nil {
-					global.LoggerCpu.Log("Error al decodificar base64: "+err.Error(), log.ERROR)
-					return 
-				}
-
-			stringLectura := string(decoded)
-
-			global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: LEER CACHÉ - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, 0, stringLectura), log.INFO) //!! LECTURA SIN ACCEDER A MEMORIA (Desde caché)
+			global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: LEER CACHÉ - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, 0, MostrarContenido(lectura)), log.INFO) //!! LECTURA SIN ACCEDER A MEMORIA (Desde caché)
 
 		} else { //CACHE MISS
 			indice, dirFisicaSinDespl := actualizarCACHE()
 			paginaCompleta := global.CACHE[indice].Contenido
 			lectura := paginaCompleta[desplazamiento : desplazamiento+tamanio]
-
-			/* base64Str := strings.TrimRight(string(lectura), "\x00")
-
-			decoded, err := base64.StdEncoding.DecodeString(base64Str)
-			if err != nil {
-				global.LoggerCpu.Log("Error al decodificar base64: "+err.Error(), log.ERROR)
-				return
-			}
-
-			stringLectura := string(decoded) */
 
 			global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: LEER - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, dirFisicaSinDespl+desplazamiento, MostrarContenido(lectura)), log.INFO) //!! LECTURA SIN ACCEDER A MEMORIA (Desde caché)
 		}

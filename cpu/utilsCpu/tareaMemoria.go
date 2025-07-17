@@ -47,7 +47,6 @@ func MemoriaLee(direccionFisica int, tamanio int) (string, error) {
 
 	stringContenido, _ := base64.StdEncoding.DecodeString(contenido)
 
-
 	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: LEER - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, direccionFisica, stringContenido), log.INFO) //!! Lectura/Escritura Memoria - logObligatorio
 
 	return contenido, nil
@@ -105,17 +104,7 @@ func MemoriaEscribePaginaCompleta(direccionFisica int, datos []byte) error {
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("pedido escritura fallido con status %d", resp.StatusCode)
 	}
-		
-	/* base64Str := strings.TrimRight(string(datos), "\x00")
-
-	decoded, err := base64.StdEncoding.DecodeString(base64Str)
-	if err != nil {
-		global.LoggerCpu.Log("Error al decodificar base64: "+err.Error(), log.ERROR)
-		return err
-	}
-
-	datosString := string(decoded) */
-
+	
 	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: ESCRIBIR - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, direccionFisica, MostrarContenido(datos)), log.INFO) //!! Lectura/Escritura Memoria (página completa) - logObligatorio
 
 	return nil
@@ -153,27 +142,6 @@ func MemoriaLeePaginaCompleta(direccionFisica int) []byte {
 		global.LoggerCpu.Log("Error parseando instruccion de Memoria: "+err.Error(), log.ERROR)
 		return nil
 	}
-
-	/* base64Str := strings.TrimRight(string(contenido), "\x00")
-
-	decoded, err := base64.StdEncoding.DecodeString(base64Str)
-	if err != nil {
-		global.LoggerCpu.Log("Error al decodificar base64: "+err.Error(), log.ERROR)
-		return nil
-	}
-
-	stringContenido := string(decoded) */
-
-	/* s := strings.TrimRight(string(contenido), "\x00")
-
-	stringContenido, err := base64.StdEncoding.DecodeString(s)
-	if err == nil {
-		fmt.Println("Decodificado (venía en base64):", string(stringContenido))
-	} else {
-		fmt.Println("Texto plano:", s)
-	} */
-
-
 
 	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: LEER - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, direccionFisica, MostrarContenido(contenido)), log.INFO) //!! Lectura/Escritura Memoria (página completa) - logObligatorio
 
