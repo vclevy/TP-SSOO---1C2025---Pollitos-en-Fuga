@@ -75,7 +75,7 @@ func READ(instruccion Instruccion, cacheHabilitada bool, desplazamiento int, tlb
 
 			stringLectura := string(decoded) */
 
-			global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: LEER - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, dirFisicaSinDespl+desplazamiento, decodificarSiEsBase64(lectura)), log.INFO) //!! LECTURA SIN ACCEDER A MEMORIA (Desde caché)
+			global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: LEER - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, dirFisicaSinDespl+desplazamiento, MostrarContenido(lectura)), log.INFO) //!! LECTURA SIN ACCEDER A MEMORIA (Desde caché)
 		}
 	} else { //CACHE DESHABILITADA
 		marco := CalcularMarco(nroPagina)
@@ -180,7 +180,7 @@ func actualizarTLB() int {
 	lruCounter++
 	marco := BuscarMarcoEnMemoria(nroPagina)
 
-	global.LoggerCpu.Log(fmt.Sprintf("TLB REPLACEMENT: Se reemplazó la pagina %d", global.TLB[indicePisar].NroPagina), log.INFO)
+	global.LoggerCpu.Log(fmt.Sprintf("TLB REPLACEMENT %s: Se reemplazó la pagina %d", global.CpuConfig.TlbReplacement ,global.TLB[indicePisar].NroPagina), log.INFO)
 
 	global.TLB[indicePisar].Marco = marco
 	global.TLB[indicePisar].NroPagina = nroPagina

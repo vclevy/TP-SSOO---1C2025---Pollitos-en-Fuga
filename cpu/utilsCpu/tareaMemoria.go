@@ -9,6 +9,7 @@ import (
 	log "github.com/sisoputnfrba/tp-golang/utils/logger"
 	"io"
 	"net/http"
+	"encoding/base64"
 )
 
 func MemoriaLee(direccionFisica int, tamanio int) (string, error) {
@@ -44,7 +45,10 @@ func MemoriaLee(direccionFisica int, tamanio int) (string, error) {
 		return "", err
 	}
 
-	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: LEER - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, direccionFisica, contenido), log.INFO) //!! Lectura/Escritura Memoria - logObligatorio
+	stringContenido, _ := base64.StdEncoding.DecodeString(contenido)
+
+
+	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: LEER - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, direccionFisica, stringContenido), log.INFO) //!! Lectura/Escritura Memoria - logObligatorio
 
 	return contenido, nil
 }
@@ -112,7 +116,7 @@ func MemoriaEscribePaginaCompleta(direccionFisica int, datos []byte) error {
 
 	datosString := string(decoded) */
 
-	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: ESCRIBIR - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, direccionFisica, decodificarSiEsBase64(datos)), log.INFO) //!! Lectura/Escritura Memoria (página completa) - logObligatorio
+	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: ESCRIBIR - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, direccionFisica, MostrarContenido(datos)), log.INFO) //!! Lectura/Escritura Memoria (página completa) - logObligatorio
 
 	return nil
 }
@@ -171,7 +175,7 @@ func MemoriaLeePaginaCompleta(direccionFisica int) []byte {
 
 
 
-	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: LEER - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, direccionFisica, decodificarSiEsBase64(contenido)), log.INFO) //!! Lectura/Escritura Memoria (página completa) - logObligatorio
+	global.LoggerCpu.Log(fmt.Sprintf("PID: %d - Acción: LEER - Dirección Física: %d - Valor: %s", global.PCB_Actual.PID, direccionFisica, MostrarContenido(contenido)), log.INFO) //!! Lectura/Escritura Memoria (página completa) - logObligatorio
 
 	return contenido
 }

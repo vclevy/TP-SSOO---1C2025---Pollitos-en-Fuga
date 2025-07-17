@@ -183,7 +183,7 @@ func DevolucionPID() error {
 	return nil
 }
 
-	func decodificarSiEsBase64(contenido []byte) string {
+/* 	func decodificarSiEsBase64(contenido []byte) string {
     s := strings.TrimRight(string(contenido), "\x00")
 
     decoded, err := base64.StdEncoding.DecodeString(s)
@@ -191,6 +191,31 @@ func DevolucionPID() error {
         return string(decoded)
     }
 
-    // No era base64, devolvemos como está
     return s
 }	
+ */
+func MostrarContenido(dato []byte) string {
+	s := strings.TrimRight(string(dato), "\x00")
+
+	decoded, err := base64.StdEncoding.DecodeString(s)
+	if err == nil && esTextoLegible(decoded) {
+		return string(decoded)
+	}
+
+	if esTextoLegible([]byte(s)) {
+		return s
+	}
+
+	return fmt.Sprintf("[binario] %x", dato)
+}
+
+func esTextoLegible(data []byte) bool {
+	for _, b := range data {
+		if b < 32 || b > 126 {
+			if b != '\n' && b != '\r' && b != '\t' {
+				return false
+			}
+		}
+	}
+	return true
+}
