@@ -13,7 +13,6 @@ import (
 )
 
 func main() {
-	//runtime.GOMAXPROCS(runtime.NumCPU())
 	archivoConfig := os.Args[1]
 	global.InitGlobal(archivoConfig)
 	defer global.LoggerKernel.CloseLogger()

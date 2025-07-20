@@ -2,14 +2,13 @@ package planificacion
 
 import (
 	"fmt"
-	"sort"
-	"strconv"
-	"time"
-
 	"github.com/sisoputnfrba/tp-golang/kernel/global"
 	utilskernel "github.com/sisoputnfrba/tp-golang/kernel/utilsKernel"
 	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
 	log "github.com/sisoputnfrba/tp-golang/utils/logger"
+	"sort"
+	"strconv"
+	"time"
 )
 
 const (
@@ -155,11 +154,11 @@ func IniciarPlanificadorLargoPlazo() {
 }
 
 /*
-
 SJF sin desalojo --> se fija cuando cpu devuelve proceso (manejarDevolucionCPU)
 SJF con desalojo --> se fija cuando entra proceso a Ready (<-global.NotifyReady)
+*/
 
-*/func IniciarPlanificadorCortoPlazo() {
+func IniciarPlanificadorCortoPlazo() {
 	for {
 		<-global.NotifyReady
 
@@ -206,7 +205,7 @@ func seleccionarProcesoSJF() *global.Proceso { //el proceso de menor ráfaga est
 		return valI < valJ
 	})
 
-	proceso := global.ColaReady[0] // ya no lo eliminás acá
+	proceso := global.ColaReady[0] 
 	return proceso
 }
 
@@ -235,15 +234,14 @@ func evaluarDesalojoSRTF(nuevoProceso *global.Proceso) bool {
 		//	global.LoggerKernel.Log(fmt.Sprintf("[ERROR] Error enviando interrupción a CPU %s para PID %d: %v", cpuTarget.ID, procesoTarget.PCB.PID, err), log.ERROR)
 		return false
 	}
-	
+
 	global.LoggerKernel.Log(fmt.Sprintf("## (<%d>) - Desalojado por algoritmo SJF/SRT", procesoTarget.PCB.PID), log.INFO)
-	
+
 	global.MutexReady.Lock()
 	global.EliminarProcesoDeCola(&global.ColaReady, nuevoProceso.PCB.PID)
 	global.MutexReady.Unlock()
 	ActualizarEstadoPCB(&nuevoProceso.PCB, EXEC)
 	global.AgregarAExecuting(nuevoProceso)
-
 
 	return true
 }
@@ -253,7 +251,6 @@ func ProcesoADesalojar(executing []*Proceso, nuevaEstimacion float64) int {
 	indiceProceso := -1
 
 	for i, p := range executing {
-		// Tiempo restante estimado
 		tiempoRestante := EstimacionRestante(p)
 
 		if tiempoRestante > nuevaEstimacion && tiempoRestante > maxTiempoRestante {
@@ -276,7 +273,7 @@ func AsignarCPU(proceso *global.Proceso) bool {
 	for _, cpu := range global.CPUsConectadas {
 		if cpu.ProcesoEjecutando == nil {
 			cpuLibre = cpu
-			cpu.ProcesoEjecutando = &proceso.PCB // La marcamos como ocupada
+			cpu.ProcesoEjecutando = &proceso.PCB 
 			break
 		}
 	}
@@ -287,7 +284,6 @@ func AsignarCPU(proceso *global.Proceso) bool {
 		return false
 	}
 
-	// Eliminamos de Ready y actualizamos estado
 	global.MutexReady.Lock()
 	global.EliminarProcesoDeCola(&global.ColaReady, proceso.PID)
 	global.MutexReady.Unlock()
@@ -326,25 +322,8 @@ func ManejarDevolucionDeCPU(resp estructuras.RespuestaCPU) { //ráfaga
 	}
 
 	proceso.PCB.PC = resp.PC
-
 	proceso.UltimaRafagaReal = resp.RafagaReal
-
-	//global.LoggerKernel.Log(
-	//	fmt.Sprintf("PID %d - Ráfaga ejecutada real: %.2f ms | Rafaga estimad anteior: %.2f ms",
-	//	proceso.PID, resp.RafagaReal, proceso.UltimaRafagaEstimada),
-	//	log.DEBUG,
-	//)
-
 	RecalcularRafaga(proceso, resp.RafagaReal)
-
-	//si estamos en devolucion no hay estimacion restante
-	// restante := EstimacionRestante(proceso)
-	// global.LoggerKernel.Log(
-	// 	fmt.Sprintf("PID %d - Estimación restante: %.2f ms", proceso.PID, restante),
-	// 	log.DEBUG,
-	// )
-
-	//global.LoggerKernel.Log(fmt.Sprintf("[DEBUG] Asignando a CPU proceso PID %d con PC %d", proceso.PID, proceso.PC), log.DEBUG)
 
 	switch resp.Motivo {
 
@@ -542,7 +521,6 @@ func FinalizarProceso(p *Proceso) {
 
 	_ = IntentarCargarDesdeSuspReady()
 
-	// Siempre notificar al planificador de largo plazo para intentar NEW
 	select {
 	case global.NotifyNew <- struct{}{}:
 	default:

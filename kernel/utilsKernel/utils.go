@@ -5,11 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	//"io"
-	"net/http"
-	"strconv"
 	"github.com/sisoputnfrba/tp-golang/kernel/global"
 	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
 	log "github.com/sisoputnfrba/tp-golang/utils/logger"
+	"net/http"
+	"strconv"
 )
 
 type IODevice = global.IODevice
@@ -49,7 +49,6 @@ func EnviarAIO(dispositivo *IODevice, pid int, tiempoUso int) {
 
 	//global.LoggerKernel.Log(fmt.Sprintf("<< IO aceptó PID %d - status: %s", pid, resp.Status), log.DEBUG)
 }
-
 
 func BuscarDispositivoPorPID(pid int) *global.IODevice {
 	global.IOListMutex.RLock()
@@ -126,7 +125,6 @@ func BuscarCPUPorPID(pid int) *global.CPU {
 	return nil
 }
 
-
 func EnviarADispatch(cpu *global.CPU, pid int, pc int) error {
 	url := fmt.Sprintf("http://%s:%d/dispatch", cpu.IP, cpu.Puerto)
 
@@ -170,19 +168,10 @@ func EnviarInterrupcionCPU(cpu *global.CPU, pid int, pc int) error {
 		return fmt.Errorf("error enviando request HTTP: %w", err)
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("respuesta no OK del interrupt: %d", resp.StatusCode)
 	}
-
-	// Leer respuesta
-	// var response struct {
-	// 	PID int `json:"pid"`
-	// 	PC  int `json:"pc"`
-	// }
-	// if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-	// 	return fmt.Errorf("error decodificando respuesta: %w", err)
-	// }
 
 	return nil
 }
@@ -198,7 +187,6 @@ func HayCPUDisponible() bool {
 	}
 	return false
 }
-
 
 func VerificarEspacioDisponible(tamanio int) bool {
 	cliente := &http.Client{}
@@ -218,12 +206,6 @@ func VerificarEspacioDisponible(tamanio int) bool {
 		return false
 	}
 	defer respuesta.Body.Close()
-
-//	if respuesta.StatusCode != http.StatusOK {
-//		global.LoggerKernel.Log(fmt.Sprintf("Memoria respondió con status %d para solicitud de %d bytes", respuesta.StatusCode, tamanio), log.ERROR)
-//		return false
-//	}
-
 	return true
 }
 
@@ -255,9 +237,6 @@ func MoverAMemoria(pid int) error {
 	}
 	defer resp.Body.Close()
 
-//	if resp.StatusCode != http.StatusOK {
-//		return fmt.Errorf("memoria respondió con código de error: %d", resp.StatusCode)
-//	}
 	return nil
 }
 
@@ -306,11 +285,10 @@ func InicializarProceso(proceso *global.Proceso) bool {
 	}
 	defer resp.Body.Close()
 
- if resp.StatusCode != http.StatusOK {
- 	//body, _ := io.ReadAll(resp.Body)
- 	global.LoggerKernel.Log(fmt.Sprintf("Fallo inicialización PID %d. Código %d", proceso.PID, resp.StatusCode), log.ERROR)
- 	return false
- }
+	if resp.StatusCode != http.StatusOK {
+		global.LoggerKernel.Log(fmt.Sprintf("Fallo inicialización PID %d. Código %d", proceso.PID, resp.StatusCode), log.ERROR)
+		return false
+	}
 
 	//global.LoggerKernel.Log(fmt.Sprintf("Proceso %d inicializado correctamente en Memoria", proceso.PID), log.DEBUG)
 	return true

@@ -14,14 +14,11 @@ func CrearServer() *server.Server {
 		Handlers: map[string]http.HandlerFunc{
 			"POST /handshakeCPU":   handlers.HandshakeConCPU,
 			"POST /handshakeIO":    handlers.RecibirPaquete,
-			//"POST /IO":      		handlers.IO,
 			"POST /finalizacionIO": handlers.FinalizacionIO,
 			"POST /Init_Proc":      handlers.INIT_PROC,
-			//"POST /exit":           handlers.EXIT,
-			//"POST /dumpMemory":		handlers.DUMP_MEMORY,
-			"POST /devolucion": 	handlers.DevolucionCPUHandler,
+			"POST /devolucion":     handlers.DevolucionCPUHandler,
 		},
 	}
-	fmt.Printf("🟢 Kernel prendido en http://%s:%d",global.ConfigKernel.Ip_Kernel, global.ConfigKernel.Port_Kernel)
+	fmt.Printf("🟢 Kernel prendido en http://%s:%d", global.ConfigKernel.Ip_Kernel, global.ConfigKernel.Port_Kernel)
 	return server.NuevoServer(configServer)
 }

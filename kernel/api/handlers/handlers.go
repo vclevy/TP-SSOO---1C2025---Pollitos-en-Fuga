@@ -3,16 +3,15 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
-	"strconv"
-	"time"
-
 	"github.com/sisoputnfrba/tp-golang/kernel/global"
 	planificacion "github.com/sisoputnfrba/tp-golang/kernel/planificacion"
 	utilsKernel "github.com/sisoputnfrba/tp-golang/kernel/utilsKernel"
 	"github.com/sisoputnfrba/tp-golang/utils/estructuras"
 	log "github.com/sisoputnfrba/tp-golang/utils/logger"
+	"io"
+	"net/http"
+	"strconv"
+	"time"
 )
 
 type PaqueteHandshakeIO = estructuras.PaqueteHandshakeIO
@@ -77,8 +76,6 @@ func INIT_PROC(w http.ResponseWriter, r *http.Request) {
 
 	global.LoggerKernel.Log("## ("+strconv.Itoa(syscall.PID)+") - Solicitó syscall: <INIT_PROC>", log.INFO)
 	planificacion.CrearProceso(syscall.Tamanio, syscall.ArchivoInstrucciones)
-	//el log ya lo hace crearProceso
-
 }
 
 func HandshakeConCPU(w http.ResponseWriter, r *http.Request) {
@@ -104,7 +101,6 @@ func HandshakeConCPU(w http.ResponseWriter, r *http.Request) {
 	global.CPUsConectadas = append(global.CPUsConectadas, &nuevaCpu)
 	global.MutexCPUs.Unlock()
 
-	//global.LoggerKernel.Log(fmt.Sprintf("Total CPUs conectadas: %d", len(global.CPUsConectadas)), log.DEBUG)
 	global.LoggerKernel.Log(fmt.Sprintf("Handshake recibido de CPU %s en %s:%s", nuevoHandshake.ID, nuevoHandshake.IP, strconv.Itoa(nuevoHandshake.Puerto)), log.DEBUG)
 
 	w.WriteHeader(http.StatusOK)
@@ -140,23 +136,8 @@ func LoopCPU(cpu *global.CPU) {
 	}
 }
 
-//	func IO(w http.ResponseWriter, r *http.Request) {
-//		var syscall SyscallIO
-//		if err := json.NewDecoder(r.Body).Decode(&syscall); err != nil {
-//			http.Error(w, "Error al parsear la syscall", http.StatusBadRequest)
-//			return
-//		}
-//
-//		err := ManejarSolicitudIO(syscall.PIDproceso, syscall.IoSolicitada, syscall.TiempoEstimado)
-//		if err != nil {
-//			http.Error(w, err.Error(), http.StatusInternalServerError)
-//			return
-//		}
-//
-//		w.WriteHeader(http.StatusOK)
-//	}
 func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
-	// Si NO hay body → desconexión de dispositivo IO
+	// sin body: desconexión del io
 	if r.ContentLength == 0 {
 		global.LoggerKernel.Log("Desconexión recibida", log.DEBUG)
 
@@ -199,7 +180,7 @@ func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Caso normal: finalización de IO
+	// con body: se termina normal
 	var mensaje estructuras.FinDeIO
 	if err := json.NewDecoder(r.Body).Decode(&mensaje); err != nil {
 		http.Error(w, "Error al decodificar mensaje de finalización", http.StatusBadRequest)
@@ -214,7 +195,6 @@ func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Solo manejamos si efectivamente era el proceso en uso
 	if dispositivo.ProcesoEnUso != nil && dispositivo.ProcesoEnUso.Proceso.PID == pid {
 		proceso := dispositivo.ProcesoEnUso.Proceso
 
@@ -239,7 +219,6 @@ func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
 
 		}
 
-		// Reasignar IO si hay alguien más esperando
 		dispositivo.Mutex.Lock()
 		if len(dispositivo.ColaEspera) > 0 {
 			nuevo := dispositivo.ColaEspera[0]
@@ -259,53 +238,6 @@ func FinalizacionIO(w http.ResponseWriter, r *http.Request) {
 
 	http.Error(w, "No se encontró proceso en uso para este PID", http.StatusNotFound)
 }
-
-//func EXIT(w http.ResponseWriter, r *http.Request) {
-//	pidStr := r.URL.Query().Get("pid")
-//	PID, _ := strconv.Atoi(pidStr)
-//
-//	global.LoggerKernel.Log(ColorRed+"## ("+strconv.Itoa(PID)+") - Solicitó syscall: <EXIT>"+ColorReset, log.INFO)
-//
-//	w.WriteHeader(http.StatusOK)
-//}
-
-//func DUMP_MEMORY(w http.ResponseWriter, r *http.Request) {
-//	pidStr := r.URL.Query().Get("pid")
-//	pid, _ := strconv.Atoi(pidStr)
-//
-//	global.LoggerKernel.Log(ColorOrange+"## ("+strconv.Itoa(pid)+") - Solicitó syscall: <DUMP_MEMORY>"+ColorReset, log.INFO)
-//	proceso := utilsKernel.BuscarProcesoPorPID(global.ColaBlocked, pid)
-//	if proceso == nil {
-//		global.LoggerKernel.Log(fmt.Sprintf("ERROR: No se encontró el proceso con PID %d en ColaBlocked", pid), log.ERROR)
-//		http.Error(w, "Proceso no encontrado", http.StatusNotFound)
-//		return
-//	}
-//	// Solicitar dump
-//	err := utilsKernel.SolicitarDumpAMemoria(pid)
-//	if err != nil {
-//		global.LoggerKernel.Log(fmt.Sprintf("Error en dump de memoria para PID %d: %s", pid, err.Error()), log.ERROR)
-//
-//		global.MutexBlocked.Lock()
-//		global.EliminarProcesoDeCola(&global.ColaBlocked, pid)
-//		global.MutexBlocked.Unlock()
-//
-//		planificacion.FinalizarProceso(proceso)
-//
-//		http.Error(w, "Fallo en Dump, proceso finalizado", http.StatusInternalServerError)
-//		return
-//	}
-//
-//	// Volver a READY
-//	global.MutexBlocked.Lock()
-//	global.EliminarProcesoDeCola(&global.ColaBlocked, pid)
-//	global.MutexBlocked.Unlock()
-//
-//	planificacion.ActualizarEstadoPCB(&proceso.PCB, planificacion.READY)
-//	global.AgregarAReady(proceso)
-//	global.LoggerKernel.Log("AGREGAR A READY B", log.DEBUG)
-//
-//	w.WriteHeader(http.StatusOK)
-//}
 
 func DevolucionCPUHandler(w http.ResponseWriter, r *http.Request) {
 	var devolucion estructuras.RespuestaCPU
